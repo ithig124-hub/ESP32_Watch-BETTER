@@ -5,6 +5,7 @@
 #ifndef THEMES_H
 #define THEMES_H
 
+#include <lvgl.h>
 #include "config.h"
 
 // Initialize themes
