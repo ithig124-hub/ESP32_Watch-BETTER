@@ -14,7 +14,9 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 enum ScreenType {
   SCREEN_CLOCK,
-  SCREEN_APPS,
+  SCREEN_APPS,        // App Grid 1
+  SCREEN_APPS2,       // App Grid 2 (swipe down from Apps1)
+  SCREEN_CHAR_STATS,  // Character Stats (swipe right from Apps)
   SCREEN_STEPS,
   SCREEN_GAMES,
   SCREEN_MUSIC,
@@ -32,6 +34,32 @@ enum ScreenType {
   SCREEN_FILE_BROWSER,
   SCREEN_COUNT  // Total count
 };
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  SWIPE NAVIGATION SYSTEM
+// ═══════════════════════════════════════════════════════════════════════════════
+// Navigation categories for horizontal swipes (infinite loop)
+enum NavCategory {
+  NAV_CLOCK = 0,
+  NAV_APPS,
+  NAV_CHAR_STATS,
+  NAV_CATEGORY_COUNT  // Total = 3 for infinite loop
+};
+
+// Swipe event types
+enum SwipeDirection {
+  SWIPE_NONE = 0,
+  SWIPE_LEFT,
+  SWIPE_RIGHT,
+  SWIPE_UP,
+  SWIPE_DOWN
+};
+
+// Swipe detection constants
+#define SWIPE_THRESHOLD_MIN 25
+#define TAP_THRESHOLD 20
+#define SWIPE_MAX_DURATION 800
+#define NAVIGATION_COOLDOWN_MS 200
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  THEME TYPES
@@ -83,6 +111,12 @@ struct WatchState {
 extern WatchState watch;
 extern bool hasIMU, hasRTC, hasPMU, hasSD;
 extern uint8_t clockHour, clockMinute, clockSecond;
+
+// Navigation state
+extern int currentNavCategory;
+extern int currentSubCard;  // For App Grid pages (0 = Grid1, 1 = Grid2)
+extern volatile SwipeDirection pendingSwipe;
+extern unsigned long lastNavigationMs;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  THEME COLORS

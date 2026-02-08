@@ -115,7 +115,23 @@ bool hasSD = false;
 uint8_t clockHour = 10, clockMinute = 30, clockSecond = 0;
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  TOUCH HANDLING
+//  SWIPE NAVIGATION STATE
+// ═══════════════════════════════════════════════════════════════════════════════
+int currentNavCategory = NAV_CLOCK;  // 0=Clock, 1=Apps, 2=CharStats
+int currentSubCard = 0;              // For App Grids: 0=Grid1, 1=Grid2
+volatile SwipeDirection pendingSwipe = SWIPE_NONE;
+unsigned long lastNavigationMs = 0;
+
+// Touch tracking variables
+bool touchActive = false;
+int32_t touchStartX = 0;
+int32_t touchStartY = 0;
+int32_t touchCurrentX = 0;
+int32_t touchCurrentY = 0;
+unsigned long touchStartMs = 0;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  TOUCH HANDLING WITH SWIPE DETECTION
 // ═══════════════════════════════════════════════════════════════════════════════
 volatile bool touchInterrupt = false;
 void IRAM_ATTR touchISR() { touchInterrupt = true; }
@@ -142,6 +158,69 @@ bool readTouch(int16_t &x, int16_t &y) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+//  SWIPE NAVIGATION HANDLER
+// ═══════════════════════════════════════════════════════════════════════════════
+void handleSwipeNavigation(SwipeDirection swipe) {
+  if (millis() - lastNavigationMs < NAVIGATION_COOLDOWN_MS) return;
+  
+  int newNavCategory = currentNavCategory;
+  int newSubCard = currentSubCard;
+  
+  // Horizontal swipes - infinite loop through categories
+  if (swipe == SWIPE_LEFT) {
+    // Swipe left = move right in navigation (Clock -> Apps -> CharStats -> Clock...)
+    newNavCategory = (currentNavCategory + 1) % NAV_CATEGORY_COUNT;
+    newSubCard = 0;  // Reset to first sub-card when changing category
+    Serial.printf("[NAV] Swipe LEFT -> Category %d\n", newNavCategory);
+  }
+  else if (swipe == SWIPE_RIGHT) {
+    // Swipe right = move left in navigation (...Clock <- Apps <- CharStats <- Clock)
+    newNavCategory = currentNavCategory - 1;
+    if (newNavCategory < 0) newNavCategory = NAV_CATEGORY_COUNT - 1;
+    newSubCard = 0;
+    Serial.printf("[NAV] Swipe RIGHT -> Category %d\n", newNavCategory);
+  }
+  // Vertical swipes - only work in Apps category (Grid 1 <-> Grid 2)
+  else if (swipe == SWIPE_DOWN && currentNavCategory == NAV_APPS) {
+    // Swipe down from App Grid 1 -> App Grid 2
+    if (currentSubCard < 1) {  // Max 2 grids (0 and 1)
+      newSubCard = currentSubCard + 1;
+      Serial.printf("[NAV] Swipe DOWN -> SubCard %d\n", newSubCard);
+    }
+  }
+  else if (swipe == SWIPE_UP && currentNavCategory == NAV_APPS) {
+    // Swipe up from App Grid 2 -> App Grid 1
+    if (currentSubCard > 0) {
+      newSubCard = currentSubCard - 1;
+      Serial.printf("[NAV] Swipe UP -> SubCard %d\n", newSubCard);
+    }
+  }
+  
+  // Navigate if changed
+  if (newNavCategory != currentNavCategory || newSubCard != currentSubCard) {
+    currentNavCategory = newNavCategory;
+    currentSubCard = newSubCard;
+    
+    // Map navigation category to screen
+    ScreenType targetScreen = SCREEN_CLOCK;
+    switch (currentNavCategory) {
+      case NAV_CLOCK:
+        targetScreen = SCREEN_CLOCK;
+        break;
+      case NAV_APPS:
+        targetScreen = (currentSubCard == 0) ? SCREEN_APPS : SCREEN_APPS2;
+        break;
+      case NAV_CHAR_STATS:
+        targetScreen = SCREEN_CHAR_STATS;
+        break;
+    }
+    
+    showScreen(targetScreen);
+    lastNavigationMs = millis();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 //  LVGL CALLBACKS
 // ═══════════════════════════════════════════════════════════════════════════════
 void lvgl_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color_p) {
@@ -156,21 +235,61 @@ void lvgl_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color_p)
 }
 
 void lvgl_touch_read(lv_indev_drv_t *drv, lv_indev_data_t *data) {
-  if (!touchInterrupt) {
-    data->state = LV_INDEV_STATE_REL;
-    return;
-  }
-  
   int16_t x, y;
-  if (readTouch(x, y) && x >= 0 && x < LCD_WIDTH && y >= 0 && y < LCD_HEIGHT) {
-    touchInterrupt = false;
+  bool touching = readTouch(x, y);
+  
+  if (touching && x >= 0 && x < LCD_WIDTH && y >= 0 && y < LCD_HEIGHT) {
     data->state = LV_INDEV_STATE_PR;
     data->point.x = x;
     data->point.y = y;
     watch.lastActivityMs = millis();
+    
+    // Wake screen on touch
+    if (!watch.screenOn) {
+      gfx->displayOn();
+      watch.screenOn = true;
+      return;
+    }
+    
+    // Track touch start
+    if (!touchActive) {
+      touchActive = true;
+      touchStartX = x;
+      touchStartY = y;
+      touchStartMs = millis();
+    }
+    touchCurrentX = x;
+    touchCurrentY = y;
   } else {
-    touchInterrupt = false;
     data->state = LV_INDEV_STATE_REL;
+    
+    // Process swipe on touch release
+    if (touchActive) {
+      touchActive = false;
+      unsigned long touchDuration = millis() - touchStartMs;
+      int32_t dx = touchCurrentX - touchStartX;
+      int32_t dy = touchCurrentY - touchStartY;
+      
+      // Check if it's a swipe (within time limit)
+      if (touchDuration < SWIPE_MAX_DURATION) {
+        // Horizontal swipe detection
+        if (abs(dx) > SWIPE_THRESHOLD_MIN && abs(dx) > abs(dy)) {
+          if (dx > 0) {
+            pendingSwipe = SWIPE_RIGHT;
+          } else {
+            pendingSwipe = SWIPE_LEFT;
+          }
+        }
+        // Vertical swipe detection
+        else if (abs(dy) > SWIPE_THRESHOLD_MIN && abs(dy) > abs(dx)) {
+          if (dy > 0) {
+            pendingSwipe = SWIPE_DOWN;
+          } else {
+            pendingSwipe = SWIPE_UP;
+          }
+        }
+      }
+    }
   }
 }
 
@@ -349,6 +468,12 @@ void setup() {
 void loop() {
   lv_timer_handler();
   
+  // Process pending swipe events
+  if (pendingSwipe != SWIPE_NONE) {
+    handleSwipeNavigation(pendingSwipe);
+    pendingSwipe = SWIPE_NONE;
+  }
+  
   // Update battery (every 5 seconds)
   static unsigned long lastBattUpdate = 0;
   if (hasPMU && millis() - lastBattUpdate > 5000) {
@@ -392,11 +517,12 @@ void loop() {
     watch.screenOn = false;
   }
   
-  // Wake on touch
+  // Wake on touch interrupt
   if (!watch.screenOn && touchInterrupt) {
     gfx->displayOn();
     watch.screenOn = true;
     watch.lastActivityMs = millis();
+    touchInterrupt = false;
   }
   
   delay(5);

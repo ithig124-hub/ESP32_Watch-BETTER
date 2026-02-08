@@ -24,8 +24,10 @@ void goHome();
 lv_obj_t* createClockScreen();
 void updateClock();
 
-// App grid screen
-lv_obj_t* createAppsScreen();
+// App grid screens
+lv_obj_t* createAppsScreen();    // App Grid 1
+lv_obj_t* createApps2Screen();   // App Grid 2
+lv_obj_t* createCharStatsScreen(); // Character Stats screen
 
 // Steps screen
 lv_obj_t* createStepsScreen();
