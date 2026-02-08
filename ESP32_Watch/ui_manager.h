@@ -1,5 +1,6 @@
 /**
  * UI Manager - LVGL Screen Management
+ * Updated with all screens from both repos
  */
 
 #ifndef UI_MANAGER_H
@@ -8,8 +9,8 @@
 #include <lvgl.h>
 #include "config.h"
 
-// Screen objects
-extern lv_obj_t* screens[11];
+// Screen objects (expanded)
+extern lv_obj_t* screens[SCREEN_COUNT];
 
 // Create all screens
 void createAllScreens();
@@ -29,6 +30,9 @@ lv_obj_t* createAppsScreen();
 // Steps screen
 lv_obj_t* createStepsScreen();
 void updateSteps();
+
+// File browser screen
+lv_obj_t* createFileBrowserScreen();
 
 // Common UI elements
 lv_obj_t* createTitleBar(lv_obj_t* parent, const char* title);

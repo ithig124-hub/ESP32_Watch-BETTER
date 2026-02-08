@@ -1,6 +1,7 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════════════
- *  ESP32 Watch Simplified - All Features, Clean Code
+ *  ESP32 Watch - COMPLETE Edition
+ *  All Features from ESP32_Watch merged with BETTER's clean code
  *  ESP32-S3-Touch-AMOLED-1.8" Smartwatch Firmware
  * ═══════════════════════════════════════════════════════════════════════════════
  *
@@ -8,13 +9,17 @@
  *  ✅ Clock with multiple watch faces (Luffy, JinWoo, Yugo themes)
  *  ✅ Step counter with activity tracking
  *  ✅ RPG progression system (Solo Leveling inspired)
- *  ✅ 6 Mini-games (Battle Arena, Snake, Memory, etc.)
+ *  ✅ 8 Mini-games (Battle Arena, Snake, Memory, Pong, etc.)
  *  ✅ Music player (SD card)
  *  ✅ Weather & News apps (WiFi)
  *  ✅ Quest system with rewards
- *  ✅ Wallpaper selector
+ *  ✅ Wallpaper/Theme selector
  *  ✅ Touch navigation with LVGL
  *  ✅ Power management (AXP2101)
+ *  ✅ Calculator, Flashlight, Coin Flip, Stopwatch utilities
+ *  ✅ File Browser (SD card)
+ *  ✅ RTC time keeping (PCF85063)
+ *  ✅ IMU step detection (QMI8658)
  *
  *  HARDWARE:
  *  - Waveshare ESP32-S3-Touch-AMOLED-1.8
@@ -52,6 +57,9 @@
 #include "games.h"
 #include "rpg.h"
 #include "wifi_apps.h"
+#include "utilities.h"
+#include "sensors.h"
+#include "rtc.h"
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  HARDWARE OBJECTS
@@ -85,8 +93,17 @@ WatchState watch = {
   .brightness = 200,
   .screenOn = true,
   .lastActivityMs = 0,
-  .wifiConnected = false
+  .wifiConnected = false,
+  .hour = 10,
+  .minute = 30,
+  .second = 0,
+  .day = 1,
+  .month = 1,
+  .year = 2025,
+  .dayOfWeek = 0
 };
+
+StopwatchData stopwatch = {0, 0, {0}, 0, false, false, 0};
 
 // Hardware flags
 bool hasIMU = false;
@@ -281,7 +298,8 @@ void setup() {
   delay(500);
   
   Serial.println("\n═══════════════════════════════════════════════");
-  Serial.println("  ESP32 Watch Simplified - All Features");
+  Serial.println("  ESP32 Watch - COMPLETE Edition");
+  Serial.println("  All Features Merged");
   Serial.println("═══════════════════════════════════════════════\n");
   
   initI2C();
@@ -292,12 +310,22 @@ void setup() {
   initLVGL();
   initSD();
   
+  // Initialize sensors (optional - may not be present)
+  hasIMU = initSensors();
+  hasRTC = initRTC();
+  
   // Initialize feature modules
   initThemes();
   initApps();
   initGames();
   initRPG();
   initWifiApps();
+  
+  // Initialize utility apps
+  Calculator::init();
+  Flashlight::init();
+  CoinFlip::init();
+  Stopwatch::init();
   
   // Load saved data
   loadUserData();
@@ -309,7 +337,9 @@ void setup() {
   
   Serial.println("\n═══════════════════════════════════════════════");
   Serial.println("  Boot Complete!");
-  Serial.printf("  SD: %s | PMU: %s\n", hasSD ? "OK" : "NO", hasPMU ? "OK" : "NO");
+  Serial.printf("  SD: %s | PMU: %s | IMU: %s | RTC: %s\n", 
+    hasSD ? "OK" : "NO", hasPMU ? "OK" : "NO",
+    hasIMU ? "OK" : "NO", hasRTC ? "OK" : "NO");
   Serial.println("═══════════════════════════════════════════════\n");
 }
 
@@ -319,7 +349,7 @@ void setup() {
 void loop() {
   lv_timer_handler();
   
-  // Update battery
+  // Update battery (every 5 seconds)
   static unsigned long lastBattUpdate = 0;
   if (hasPMU && millis() - lastBattUpdate > 5000) {
     lastBattUpdate = millis();
@@ -329,7 +359,34 @@ void loop() {
     }
   }
   
-  // Screen timeout
+  // Update RTC time (every second)
+  static unsigned long lastRtcUpdate = 0;
+  if (hasRTC && millis() - lastRtcUpdate > 1000) {
+    lastRtcUpdate = millis();
+    readRTC();
+  }
+  
+  // Update step counter (every 100ms)
+  static unsigned long lastStepUpdate = 0;
+  if (hasIMU && millis() - lastStepUpdate > 100) {
+    lastStepUpdate = millis();
+    updateStepCounter();
+  }
+  
+  // Update stopwatch
+  Stopwatch::update();
+  
+  // Update games
+  updatePong();
+  
+  // Update clock display
+  static unsigned long lastClockUpdate = 0;
+  if (watch.screen == SCREEN_CLOCK && millis() - lastClockUpdate > 1000) {
+    lastClockUpdate = millis();
+    updateClock();
+  }
+  
+  // Screen timeout (30 seconds)
   if (watch.screenOn && millis() - watch.lastActivityMs > 30000) {
     gfx->displayOff();
     watch.screenOn = false;

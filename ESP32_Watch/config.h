@@ -1,5 +1,6 @@
 /**
  * Configuration & Global Types
+ * Merged from both repositories with all features
  */
 
 #ifndef CONFIG_H
@@ -9,7 +10,7 @@
 #include "pin_config.h"
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  SCREEN TYPES
+//  SCREEN TYPES (All screens from both repos)
 // ═══════════════════════════════════════════════════════════════════════════════
 enum ScreenType {
   SCREEN_CLOCK,
@@ -22,7 +23,14 @@ enum ScreenType {
   SCREEN_QUESTS,
   SCREEN_RPG,
   SCREEN_SETTINGS,
-  SCREEN_WALLPAPER
+  SCREEN_WALLPAPER,
+  // New screens from ESP32_Watch
+  SCREEN_CALCULATOR,
+  SCREEN_FLASHLIGHT,
+  SCREEN_COIN_FLIP,
+  SCREEN_STOPWATCH,
+  SCREEN_FILE_BROWSER,
+  SCREEN_COUNT  // Total count
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -35,7 +43,7 @@ enum ThemeType {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  GAME TYPES
+//  GAME TYPES (All games)
 // ═══════════════════════════════════════════════════════════════════════════════
 enum GameType {
   GAME_BATTLE,      // Pokemon-style battles
@@ -43,7 +51,9 @@ enum GameType {
   GAME_MEMORY,      // Memory match
   GAME_DUNGEON,     // Shadow dungeon RPG
   GAME_PIRATE,      // Pirate adventure
-  GAME_PORTAL       // Portal puzzle
+  GAME_PORTAL,      // Portal puzzle
+  GAME_PONG,        // Classic pong
+  GAME_BREAKOUT     // Breakout game
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -60,6 +70,14 @@ struct WatchState {
   bool screenOn;
   unsigned long lastActivityMs;
   bool wifiConnected;
+  // RTC time
+  uint8_t hour;
+  uint8_t minute;
+  uint8_t second;
+  uint8_t day;
+  uint8_t month;
+  uint16_t year;
+  uint8_t dayOfWeek;
 };
 
 extern WatchState watch;
@@ -78,7 +96,7 @@ struct ThemeColors {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  RPG CHARACTER
+//  RPG CHARACTER (Enhanced)
 // ═══════════════════════════════════════════════════════════════════════════════
 struct RPGCharacter {
   const char* name;
@@ -94,6 +112,9 @@ struct RPGCharacter {
   int shadowArmy;      // JinWoo only
   int hakiLevel;       // Luffy only
   int portalMastery;   // Yugo only
+  bool awakened;       // Awakened form unlocked
+  int questsCompleted;
+  int battlesWon;
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -123,9 +144,39 @@ struct UserData {
   ThemeType theme;
   uint8_t brightness;
   int questsCompleted;
+  // Stopwatch
+  unsigned long stopwatchTime;
+  bool stopwatchRunning;
+  // High scores
+  int snakeHighScore;
+  int pongHighScore;
 };
 
 extern UserData userData;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  STOPWATCH DATA
+// ═══════════════════════════════════════════════════════════════════════════════
+struct StopwatchData {
+  unsigned long startTime;
+  unsigned long elapsed;
+  unsigned long lapTimes[10];
+  int lapCount;
+  bool running;
+  bool paused;
+  unsigned long pausedTime;
+};
+
+extern StopwatchData stopwatch;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  FILE INFO (SD Card)
+// ═══════════════════════════════════════════════════════════════════════════════
+struct FileInfo {
+  char name[64];
+  uint32_t size;
+  bool isDirectory;
+};
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  UTILITY
@@ -133,5 +184,8 @@ extern UserData userData;
 void saveUserData();
 void loadUserData();
 void showScreen(ScreenType screen);
+
+// Color macros
+#define RGB565(r,g,b) (((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3))
 
 #endif

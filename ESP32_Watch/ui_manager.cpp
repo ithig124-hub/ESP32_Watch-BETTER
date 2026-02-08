@@ -1,6 +1,5 @@
-
 /**
- * UI Manager Implementation
+ * UI Manager Implementation - Updated with all screens
  */
 
 #include "ui_manager.h"
@@ -9,8 +8,9 @@
 #include "apps.h"
 #include "wifi_apps.h"
 #include "rpg.h"
+#include "utilities.h"
 
-lv_obj_t* screens[11] = {nullptr};
+lv_obj_t* screens[SCREEN_COUNT] = {nullptr};
 static ScreenType screenHistory[10];
 static int historyIndex = 0;
 
@@ -49,17 +49,23 @@ void showScreen(ScreenType screen) {
   // Create screen if needed
   if (!screens[screen]) {
     switch(screen) {
-      case SCREEN_CLOCK: screens[screen] = createClockScreen(); break;
-      case SCREEN_APPS:  screens[screen] = createAppsScreen(); break;
-      case SCREEN_STEPS: screens[screen] = createStepsScreen(); break;
-      case SCREEN_GAMES: screens[screen] = createGamesScreen(); break;
-      case SCREEN_MUSIC: screens[screen] = createMusicScreen(); break;
-      case SCREEN_WEATHER: screens[screen] = createWeatherScreen(); break;
-      case SCREEN_NEWS:  screens[screen] = createNewsScreen(); break;
-      case SCREEN_QUESTS: screens[screen] = createQuestsScreen(); break;
-      case SCREEN_RPG:   screens[screen] = createRPGScreen(); break;
-      case SCREEN_SETTINGS: screens[screen] = createSettingsScreen(); break;
-      case SCREEN_WALLPAPER: screens[screen] = createWallpaperScreen(); break;
+      case SCREEN_CLOCK:      screens[screen] = createClockScreen(); break;
+      case SCREEN_APPS:       screens[screen] = createAppsScreen(); break;
+      case SCREEN_STEPS:      screens[screen] = createStepsScreen(); break;
+      case SCREEN_GAMES:      screens[screen] = createGamesScreen(); break;
+      case SCREEN_MUSIC:      screens[screen] = createMusicScreen(); break;
+      case SCREEN_WEATHER:    screens[screen] = createWeatherScreen(); break;
+      case SCREEN_NEWS:       screens[screen] = createNewsScreen(); break;
+      case SCREEN_QUESTS:     screens[screen] = createQuestsScreen(); break;
+      case SCREEN_RPG:        screens[screen] = createRPGScreen(); break;
+      case SCREEN_SETTINGS:   screens[screen] = createSettingsScreen(); break;
+      case SCREEN_WALLPAPER:  screens[screen] = createWallpaperScreen(); break;
+      case SCREEN_CALCULATOR: screens[screen] = Calculator::createScreen(); break;
+      case SCREEN_FLASHLIGHT: screens[screen] = Flashlight::createScreen(); break;
+      case SCREEN_COIN_FLIP:  screens[screen] = CoinFlip::createScreen(); break;
+      case SCREEN_STOPWATCH:  screens[screen] = Stopwatch::createScreen(); break;
+      case SCREEN_FILE_BROWSER: screens[screen] = createFileBrowserScreen(); break;
+      default: break;
     }
   }
 
@@ -88,6 +94,7 @@ static lv_obj_t* timeLabel = nullptr;
 static lv_obj_t* dateLabel = nullptr;
 static lv_obj_t* batteryLabel = nullptr;
 static lv_obj_t* stepsPreview = nullptr;
+static lv_obj_t* stepsPreviewLbl = nullptr;
 
 lv_obj_t* createClockScreen() {
   lv_obj_t* scr = lv_obj_create(NULL);
@@ -125,11 +132,11 @@ lv_obj_t* createClockScreen() {
   lv_obj_clear_flag(stepsPreview, LV_OBJ_FLAG_CLICKABLE);
 
   // Steps label inside arc
-  lv_obj_t* stepsLbl = lv_label_create(scr);
-  lv_obj_set_style_text_font(stepsLbl, &lv_font_montserrat_14, 0);
-  lv_obj_set_style_text_color(stepsLbl, lv_color_hex(currentColors.text), 0);
-  lv_label_set_text_fmt(stepsLbl, "%lu", watch.steps);
-  lv_obj_align(stepsLbl, LV_ALIGN_CENTER, 0, 80);
+  stepsPreviewLbl = lv_label_create(scr);
+  lv_obj_set_style_text_font(stepsPreviewLbl, &lv_font_montserrat_14, 0);
+  lv_obj_set_style_text_color(stepsPreviewLbl, lv_color_hex(currentColors.text), 0);
+  lv_label_set_text_fmt(stepsPreviewLbl, "%lu", watch.steps);
+  lv_obj_align(stepsPreviewLbl, LV_ALIGN_CENTER, 0, 80);
 
   // Tap to open apps
   lv_obj_add_event_cb(scr, [](lv_event_t* e) {
@@ -151,10 +158,13 @@ void updateClock() {
     if (pct > 100) pct = 100;
     lv_arc_set_value(stepsPreview, pct);
   }
+  if (stepsPreviewLbl) {
+    lv_label_set_text_fmt(stepsPreviewLbl, "%lu", watch.steps);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  APP GRID SCREEN
+//  APP GRID SCREEN (Expanded with utility apps)
 // ═══════════════════════════════════════════════════════════════════════════════
 typedef struct {
   const char* name;
@@ -170,10 +180,18 @@ static const AppInfo apps[] = {
   {"News",     0xFF9800, SCREEN_NEWS},
   {"Quests",   0xFFEB3B, SCREEN_QUESTS},
   {"RPG",      0x673AB7, SCREEN_RPG},
+  {"Calc",     0xFF5722, SCREEN_CALCULATOR},
+  {"Timer",    0x009688, SCREEN_STOPWATCH},
+  {"Light",    0xFFC107, SCREEN_FLASHLIGHT},
+  {"Coin",     0xCDDC39, SCREEN_COIN_FLIP},
   {"Settings", 0x607D8B, SCREEN_SETTINGS},
-  {"Themes",   0x00BCD4, SCREEN_WALLPAPER}
+  {"Themes",   0x00BCD4, SCREEN_WALLPAPER},
+  {"Files",    0x795548, SCREEN_FILE_BROWSER}
 };
-#define NUM_APPS 9
+#define NUM_APPS 14
+
+static int appPage = 0;
+#define APPS_PER_PAGE 9
 
 lv_obj_t* createAppsScreen() {
   lv_obj_t* scr = lv_obj_create(NULL);
@@ -184,17 +202,21 @@ lv_obj_t* createAppsScreen() {
   lv_obj_set_style_text_font(title, &lv_font_montserrat_20, 0);
   lv_obj_set_style_text_color(title, lv_color_hex(currentColors.text), 0);
   lv_label_set_text(title, "Apps");
-  lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 15);
+  lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 10);
 
   // App grid (3x3)
-  int btnSize = 100;
-  int spacing = 10;
+  int btnSize = 95;
+  int spacing = 8;
   int startX = (LCD_WIDTH - (3 * btnSize + 2 * spacing)) / 2;
-  int startY = 60;
+  int startY = 50;
+  
+  int startIdx = appPage * APPS_PER_PAGE;
+  int endIdx = min(startIdx + APPS_PER_PAGE, NUM_APPS);
 
-  for (int i = 0; i < NUM_APPS; i++) {
-    int col = i % 3;
-    int row = i / 3;
+  for (int i = startIdx; i < endIdx; i++) {
+    int idx = i - startIdx;
+    int col = idx % 3;
+    int row = idx / 3;
 
     lv_obj_t* btn = lv_btn_create(scr);
     lv_obj_set_size(btn, btnSize, btnSize);
@@ -216,10 +238,58 @@ lv_obj_t* createAppsScreen() {
     lv_obj_center(lbl);
   }
 
+  // Page indicator if more than one page
+  if (NUM_APPS > APPS_PER_PAGE) {
+    lv_obj_t* pageInd = lv_label_create(scr);
+    lv_obj_set_style_text_font(pageInd, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_color(pageInd, lv_color_hex(currentColors.secondary), 0);
+    lv_label_set_text_fmt(pageInd, "%d/%d", appPage + 1, (NUM_APPS + APPS_PER_PAGE - 1) / APPS_PER_PAGE);
+    lv_obj_align(pageInd, LV_ALIGN_BOTTOM_MID, 0, -60);
+    
+    // Next page button
+    if (endIdx < NUM_APPS) {
+      lv_obj_t* nextBtn = lv_btn_create(scr);
+      lv_obj_set_size(nextBtn, 50, 35);
+      lv_obj_align(nextBtn, LV_ALIGN_BOTTOM_RIGHT, -20, -55);
+      lv_obj_set_style_bg_color(nextBtn, lv_color_hex(currentColors.secondary), 0);
+      lv_obj_add_event_cb(nextBtn, [](lv_event_t* e) {
+        appPage++;
+        // Delete and recreate screen
+        if (screens[SCREEN_APPS]) {
+          lv_obj_del(screens[SCREEN_APPS]);
+          screens[SCREEN_APPS] = nullptr;
+        }
+        showScreen(SCREEN_APPS);
+      }, LV_EVENT_CLICKED, NULL);
+      lv_obj_t* nextLbl = lv_label_create(nextBtn);
+      lv_label_set_text(nextLbl, LV_SYMBOL_RIGHT);
+      lv_obj_center(nextLbl);
+    }
+    
+    // Prev page button
+    if (appPage > 0) {
+      lv_obj_t* prevBtn = lv_btn_create(scr);
+      lv_obj_set_size(prevBtn, 50, 35);
+      lv_obj_align(prevBtn, LV_ALIGN_BOTTOM_LEFT, 20, -55);
+      lv_obj_set_style_bg_color(prevBtn, lv_color_hex(currentColors.secondary), 0);
+      lv_obj_add_event_cb(prevBtn, [](lv_event_t* e) {
+        appPage--;
+        if (screens[SCREEN_APPS]) {
+          lv_obj_del(screens[SCREEN_APPS]);
+          screens[SCREEN_APPS] = nullptr;
+        }
+        showScreen(SCREEN_APPS);
+      }, LV_EVENT_CLICKED, NULL);
+      lv_obj_t* prevLbl = lv_label_create(prevBtn);
+      lv_label_set_text(prevLbl, LV_SYMBOL_LEFT);
+      lv_obj_center(prevLbl);
+    }
+  }
+
   // Home button
   lv_obj_t* homeBtn = lv_btn_create(scr);
   lv_obj_set_size(homeBtn, 60, 40);
-  lv_obj_align(homeBtn, LV_ALIGN_BOTTOM_MID, 0, -20);
+  lv_obj_align(homeBtn, LV_ALIGN_BOTTOM_MID, 0, -10);
   lv_obj_set_style_bg_color(homeBtn, lv_color_hex(currentColors.secondary), 0);
   lv_obj_add_event_cb(homeBtn, [](lv_event_t* e) { goHome(); }, LV_EVENT_CLICKED, NULL);
 
@@ -327,6 +397,46 @@ void updateSteps() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+//  FILE BROWSER SCREEN
+// ═══════════════════════════════════════════════════════════════════════════════
+lv_obj_t* createFileBrowserScreen() {
+  lv_obj_t* scr = lv_obj_create(NULL);
+  lv_obj_set_style_bg_color(scr, lv_color_hex(currentColors.background), 0);
+
+  createTitleBar(scr, "Files");
+
+  // SD Card status
+  lv_obj_t* statusLbl = lv_label_create(scr);
+  lv_obj_set_style_text_font(statusLbl, &lv_font_montserrat_16, 0);
+  lv_obj_set_style_text_color(statusLbl, 
+    lv_color_hex(hasSD ? 0x4CAF50 : 0xFF5722), 0);
+  lv_label_set_text(statusLbl, hasSD ? "SD Card: Connected" : "SD Card: Not Found");
+  lv_obj_align(statusLbl, LV_ALIGN_TOP_MID, 0, 60);
+
+  if (hasSD) {
+    // File list placeholder
+    lv_obj_t* listBg = lv_obj_create(scr);
+    lv_obj_set_size(listBg, LCD_WIDTH - 20, 280);
+    lv_obj_align(listBg, LV_ALIGN_CENTER, 0, 30);
+    lv_obj_set_style_bg_color(listBg, lv_color_hex(0x222222), 0);
+    lv_obj_set_style_radius(listBg, 10, 0);
+    lv_obj_set_scrollbar_mode(listBg, LV_SCROLLBAR_MODE_AUTO);
+
+    lv_obj_t* infoLbl = lv_label_create(listBg);
+    lv_obj_set_style_text_color(infoLbl, lv_color_hex(currentColors.text), 0);
+    lv_label_set_text(infoLbl, "Music & PDF files\nwill appear here");
+    lv_obj_center(infoLbl);
+  } else {
+    lv_obj_t* hintLbl = lv_label_create(scr);
+    lv_obj_set_style_text_color(hintLbl, lv_color_hex(currentColors.secondary), 0);
+    lv_label_set_text(hintLbl, "Insert SD card to\nbrowse files");
+    lv_obj_align(hintLbl, LV_ALIGN_CENTER, 0, 0);
+  }
+
+  return scr;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 //  COMMON UI ELEMENTS
 // ═══════════════════════════════════════════════════════════════════════════════
 lv_obj_t* createTitleBar(lv_obj_t* parent, const char* title) {
@@ -334,6 +444,7 @@ lv_obj_t* createTitleBar(lv_obj_t* parent, const char* title) {
   lv_obj_set_size(bar, LCD_WIDTH, 50);
   lv_obj_set_style_bg_color(bar, lv_color_hex(currentColors.secondary), 0);
   lv_obj_align(bar, LV_ALIGN_TOP_MID, 0, 0);
+  lv_obj_set_scrollbar_mode(bar, LV_SCROLLBAR_MODE_OFF);
 
   // Back button
   lv_obj_t* backBtn = lv_btn_create(bar);

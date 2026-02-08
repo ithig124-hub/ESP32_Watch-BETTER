@@ -1,5 +1,5 @@
 /**
- * User Data Persistence
+ * User Data Persistence - Updated with new fields
  */
 
 #include "config.h"
@@ -17,7 +17,11 @@ UserData userData = {
   .rpgXP = 0,
   .theme = THEME_LUFFY,
   .brightness = 200,
-  .questsCompleted = 0
+  .questsCompleted = 0,
+  .stopwatchTime = 0,
+  .stopwatchRunning = false,
+  .snakeHighScore = 0,
+  .pongHighScore = 0
 };
 
 void saveUserData() {
@@ -32,6 +36,8 @@ void saveUserData() {
   prefs.putInt("theme", (int)userData.theme);
   prefs.putInt("bright", userData.brightness);
   prefs.putInt("quests", userData.questsCompleted);
+  prefs.putInt("snakeHi", userData.snakeHighScore);
+  prefs.putInt("pongHi", userData.pongHighScore);
   prefs.end();
   Serial.println("[OK] User data saved");
 }
@@ -48,6 +54,8 @@ void loadUserData() {
   userData.theme = (ThemeType)prefs.getInt("theme", THEME_LUFFY);
   userData.brightness = prefs.getInt("bright", 200);
   userData.questsCompleted = prefs.getInt("quests", 0);
+  userData.snakeHighScore = prefs.getInt("snakeHi", 0);
+  userData.pongHighScore = prefs.getInt("pongHi", 0);
   prefs.end();
   
   // Apply loaded settings

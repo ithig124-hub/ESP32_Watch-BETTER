@@ -1,5 +1,5 @@
 /**
- * Games Module Implementation
+ * Games Module Implementation (Expanded with Pong)
  */
 
 #include "games.h"
@@ -23,6 +23,12 @@ static int matchedPairs = 0;
 // Battle state
 static BattleCreature playerCreature, enemyCreature;
 static lv_obj_t* battleScreen = nullptr;
+
+// Pong state
+static float pongBallX, pongBallY;
+static float pongBallDX, pongBallDY;
+static int pongPaddleY, pongAIPaddleY;
+static int pongPlayerScore, pongAIScore;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  INITIALIZATION
@@ -48,9 +54,11 @@ static const GameInfo gameList[] = {
   {"Memory\nMatch",  0x2196F3, GAME_MEMORY},
   {"Shadow\nDungeon", 0x673AB7, GAME_DUNGEON},
   {"Pirate\nQuest",  0xFF9800, GAME_PIRATE},
-  {"Portal\nPuzzle", 0x00BCD4, GAME_PORTAL}
+  {"Portal\nPuzzle", 0x00BCD4, GAME_PORTAL},
+  {"Pong",           0x9C27B0, GAME_PONG},
+  {"Breakout",       0xCDDC39, GAME_BREAKOUT}
 };
-#define NUM_GAMES 6
+#define NUM_GAMES 8
 
 lv_obj_t* createGamesScreen() {
   lv_obj_t* scr = lv_obj_create(NULL);
@@ -60,8 +68,8 @@ lv_obj_t* createGamesScreen() {
   // Title bar
   createTitleBar(scr, "Games");
   
-  // Game grid (2x3)
-  int btnW = 150, btnH = 100;
+  // Game grid (2x4)
+  int btnW = 150, btnH = 80;
   int gapX = 15, gapY = 10;
   int startX = (LCD_WIDTH - (2 * btnW + gapX)) / 2;
   int startY = 60;
@@ -88,6 +96,7 @@ lv_obj_t* createGamesScreen() {
         case GAME_BATTLE: startBattleGame(); break;
         case GAME_SNAKE:  startSnakeGame(); break;
         case GAME_MEMORY: startMemoryGame(); break;
+        case GAME_PONG:   startPongGame(); break;
         default: break;
       }
     }, LV_EVENT_CLICKED, NULL);
@@ -248,6 +257,132 @@ void executeTurn(int moveIndex) {
   } else if (playerCreature.hp <= 0) {
     userData.gamesPlayed++;
     if (battleLog) lv_label_set_text(battleLog, "You LOSE!");
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  PONG GAME
+// ═══════════════════════════════════════════════════════════════════════════════
+static lv_obj_t* pongScreen = nullptr;
+static lv_obj_t* pongScoreLbl = nullptr;
+
+void startPongGame() {
+  pongBallX = LCD_WIDTH / 2;
+  pongBallY = LCD_HEIGHT / 2;
+  pongBallDX = 4;
+  pongBallDY = 3;
+  pongPaddleY = LCD_HEIGHT / 2;
+  pongAIPaddleY = LCD_HEIGHT / 2;
+  pongPlayerScore = 0;
+  pongAIScore = 0;
+  currentGame.score = 0;
+  
+  drawPongScreen();
+}
+
+void drawPongScreen() {
+  pongScreen = lv_obj_create(NULL);
+  lv_obj_set_style_bg_color(pongScreen, lv_color_hex(0x000000), 0);
+  
+  // Score
+  pongScoreLbl = lv_label_create(pongScreen);
+  lv_obj_set_style_text_font(pongScoreLbl, &lv_font_montserrat_24, 0);
+  lv_obj_set_style_text_color(pongScoreLbl, lv_color_hex(0xFFFFFF), 0);
+  lv_label_set_text_fmt(pongScoreLbl, "%d - %d", pongPlayerScore, pongAIScore);
+  lv_obj_align(pongScoreLbl, LV_ALIGN_TOP_MID, 0, 10);
+  
+  // Instructions
+  lv_obj_t* hint = lv_label_create(pongScreen);
+  lv_obj_set_style_text_font(hint, &lv_font_montserrat_12, 0);
+  lv_obj_set_style_text_color(hint, lv_color_hex(0x888888), 0);
+  lv_label_set_text(hint, "Tap top/bottom to move paddle");
+  lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -10);
+  
+  // Touch areas for paddle control
+  lv_obj_t* upArea = lv_btn_create(pongScreen);
+  lv_obj_set_size(upArea, LCD_WIDTH, LCD_HEIGHT / 2 - 50);
+  lv_obj_set_pos(upArea, 0, 50);
+  lv_obj_set_style_bg_opa(upArea, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_shadow_width(upArea, 0, 0);
+  lv_obj_add_event_cb(upArea, [](lv_event_t* e) {
+    pongPaddleY -= 30;
+    if (pongPaddleY < 60) pongPaddleY = 60;
+  }, LV_EVENT_CLICKED, NULL);
+  
+  lv_obj_t* downArea = lv_btn_create(pongScreen);
+  lv_obj_set_size(downArea, LCD_WIDTH, LCD_HEIGHT / 2 - 50);
+  lv_obj_set_pos(downArea, 0, LCD_HEIGHT / 2);
+  lv_obj_set_style_bg_opa(downArea, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_shadow_width(downArea, 0, 0);
+  lv_obj_add_event_cb(downArea, [](lv_event_t* e) {
+    pongPaddleY += 30;
+    if (pongPaddleY > LCD_HEIGHT - 60) pongPaddleY = LCD_HEIGHT - 60;
+  }, LV_EVENT_CLICKED, NULL);
+  
+  // Back button
+  lv_obj_t* backBtn = lv_btn_create(pongScreen);
+  lv_obj_set_size(backBtn, 60, 30);
+  lv_obj_align(backBtn, LV_ALIGN_TOP_LEFT, 5, 5);
+  lv_obj_set_style_bg_color(backBtn, lv_color_hex(0x333333), 0);
+  lv_obj_add_event_cb(backBtn, [](lv_event_t* e) {
+    currentGame.playing = false;
+    goBack();
+  }, LV_EVENT_CLICKED, NULL);
+  lv_obj_t* backLbl = lv_label_create(backBtn);
+  lv_label_set_text(backLbl, LV_SYMBOL_LEFT);
+  lv_obj_center(backLbl);
+  
+  lv_scr_load(pongScreen);
+}
+
+void updatePong() {
+  if (!currentGame.playing || currentGame.game != GAME_PONG) return;
+  
+  // Move ball
+  pongBallX += pongBallDX;
+  pongBallY += pongBallDY;
+  
+  // Wall bounce (top/bottom)
+  if (pongBallY < 50 || pongBallY > LCD_HEIGHT - 30) {
+    pongBallDY = -pongBallDY;
+  }
+  
+  // AI paddle follows ball
+  if (pongAIPaddleY < pongBallY - 20) pongAIPaddleY += 3;
+  else if (pongAIPaddleY > pongBallY + 20) pongAIPaddleY -= 3;
+  
+  // Paddle bounce (player - left)
+  if (pongBallX < 40 && pongBallY > pongPaddleY - 40 && pongBallY < pongPaddleY + 40) {
+    pongBallDX = -pongBallDX;
+    pongBallX = 41;
+  }
+  
+  // Paddle bounce (AI - right)
+  if (pongBallX > LCD_WIDTH - 40 && pongBallY > pongAIPaddleY - 40 && pongBallY < pongAIPaddleY + 40) {
+    pongBallDX = -pongBallDX;
+    pongBallX = LCD_WIDTH - 41;
+  }
+  
+  // Score
+  if (pongBallX < 0) {
+    pongAIScore++;
+    pongBallX = LCD_WIDTH / 2;
+    pongBallY = LCD_HEIGHT / 2;
+    if (pongScoreLbl) lv_label_set_text_fmt(pongScoreLbl, "%d - %d", pongPlayerScore, pongAIScore);
+  }
+  if (pongBallX > LCD_WIDTH) {
+    pongPlayerScore++;
+    currentGame.score = pongPlayerScore;
+    pongBallX = LCD_WIDTH / 2;
+    pongBallY = LCD_HEIGHT / 2;
+    if (pongScoreLbl) lv_label_set_text_fmt(pongScoreLbl, "%d - %d", pongPlayerScore, pongAIScore);
+  }
+  
+  // Win condition
+  if (pongPlayerScore >= 5 || pongAIScore >= 5) {
+    currentGame.playing = false;
+    userData.gamesPlayed++;
+    if (pongPlayerScore >= 5) userData.gamesWon++;
   }
 }
 

@@ -1,5 +1,5 @@
 /**
- * Games Module - 6 Mini-Games
+ * Games Module - 8 Mini-Games (expanded)
  */
 
 #ifndef GAMES_H
@@ -21,6 +21,8 @@ void startMemoryGame();
 void startDungeonGame();
 void startPirateGame();
 void startPortalGame();
+void startPongGame();
+void startBreakoutGame();
 
 // Battle system (Pokemon-style)
 struct BattleCreature {
@@ -45,6 +47,10 @@ void drawSnake();
 // Memory match
 void flipCard(int index);
 void checkMatch();
+
+// Pong game
+void updatePong();
+void drawPongScreen();
 
 // Game session
 struct GameSession {
