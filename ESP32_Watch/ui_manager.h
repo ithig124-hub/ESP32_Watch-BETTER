@@ -1,6 +1,5 @@
 /**
- * UI Manager - LVGL Screen Management
- * Updated with all screens from both repos
+ * UI Manager - Screen Management & Navigation
  */
 
 #ifndef UI_MANAGER_H
@@ -9,41 +8,43 @@
 #include <lvgl.h>
 #include "config.h"
 
-// Screen objects (expanded)
-extern lv_obj_t* screens[SCREEN_COUNT];
+// Screen storage
+extern lv_obj_t* screens[16];
 
-// Create all screens
-void createAllScreens();
+// Display dimensions
+#define LCD_WIDTH 368
+#define LCD_HEIGHT 448
+
+// Theme colors
+lv_color_t getThemeColor(int index);
 
 // Screen navigation
 void showScreen(ScreenType screen);
 void goBack();
 void goHome();
 
-// Clock screen
+// Screen creation
 lv_obj_t* createClockScreen();
-void updateClock();
-
-// App grid screens
-lv_obj_t* createAppsScreen();    // App Grid 1
-lv_obj_t* createApps2Screen();   // App Grid 2
-lv_obj_t* createCharStatsScreen(); // Character Stats screen
-
-// Steps screen
+lv_obj_t* createAppsScreen();
+lv_obj_t* createApps2Screen();
 lv_obj_t* createStepsScreen();
-void updateSteps();
+lv_obj_t* createGamesScreen();
+lv_obj_t* createMusicScreen();
+lv_obj_t* createWeatherScreen();
+lv_obj_t* createNewsScreen();
+lv_obj_t* createQuestsScreen();
+lv_obj_t* createSettingsScreen();
+lv_obj_t* createGachaScreen();
+lv_obj_t* createTrainingScreen();
+lv_obj_t* createBossRushScreen();
 
-// File browser screen
-lv_obj_t* createFileBrowserScreen();
+// Screen updates
+void updateClock();
+void updateSteps();
 
 // Common UI elements
 lv_obj_t* createTitleBar(lv_obj_t* parent, const char* title);
 lv_obj_t* createAppButton(lv_obj_t* parent, const char* label, uint32_t color);
 lv_obj_t* createProgressArc(lv_obj_t* parent, int value, int max);
-void createNavButtons(lv_obj_t* parent);
-
-// Theme application
-void applyTheme(ThemeType theme);
-lv_color_t getThemeColor(int index);
 
 #endif

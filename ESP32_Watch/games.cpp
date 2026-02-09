@@ -1,579 +1,379 @@
 /**
- * Games Module Implementation (Expanded with Pong)
+ * Anime-Themed Games Implementation
+ * Gacha Simulator, Training Mini-games, Boss Rush
  */
 
 #include "games.h"
 #include "ui_manager.h"
 #include "themes.h"
+#include "rpg.h"
 
-GameSession currentGame = {GAME_BATTLE, 0, 1, false, 0};
+// Gacha pool of characters
+static GachaCard gachaPool[] = {
+  // Common (60%)
+  {"Konohamaru", "Naruto", RARITY_COMMON, 50, false},
+  {"Krillin", "Dragon Ball", RARITY_COMMON, 45, false},
+  {"Zenitsu", "Demon Slayer", RARITY_COMMON, 55, false},
+  {"Yuji Itadori", "Jujutsu Kaisen", RARITY_COMMON, 60, false},
+  {"Connie", "Attack on Titan", RARITY_COMMON, 40, false},
+  {"Mumen Rider", "One Punch Man", RARITY_COMMON, 35, false},
+  {"Mineta", "My Hero Academia", RARITY_COMMON, 30, false},
+  
+  // Rare (25%)
+  {"Kakashi", "Naruto", RARITY_RARE, 150, false},
+  {"Vegeta", "Dragon Ball", RARITY_RARE, 160, false},
+  {"Inosuke", "Demon Slayer", RARITY_RARE, 140, false},
+  {"Megumi", "Jujutsu Kaisen", RARITY_RARE, 145, false},
+  {"Mikasa", "Attack on Titan", RARITY_RARE, 155, false},
+  {"Genos", "One Punch Man", RARITY_RARE, 165, false},
+  {"Bakugo", "My Hero Academia", RARITY_RARE, 150, false},
+  
+  // Epic (12%)
+  {"Minato", "Naruto", RARITY_EPIC, 300, false},
+  {"Gohan", "Dragon Ball", RARITY_EPIC, 320, false},
+  {"Rengoku", "Demon Slayer", RARITY_EPIC, 350, false},
+  {"Todo", "Jujutsu Kaisen", RARITY_EPIC, 280, false},
+  {"Erwin", "Attack on Titan", RARITY_EPIC, 290, false},
+  {"Tatsumaki", "One Punch Man", RARITY_EPIC, 400, false},
+  {"All Might", "My Hero Academia", RARITY_EPIC, 380, false},
+  
+  // Legendary (2.9%)
+  {"Naruto (Baryon)", "Naruto", RARITY_LEGENDARY, 800, false},
+  {"Goku (MUI)", "Dragon Ball", RARITY_LEGENDARY, 850, false},
+  {"Tanjiro (Mark)", "Demon Slayer", RARITY_LEGENDARY, 750, false},
+  {"Gojo", "Jujutsu Kaisen", RARITY_LEGENDARY, 900, false},
+  {"Levi", "Attack on Titan", RARITY_LEGENDARY, 820, false},
+  {"Saitama", "One Punch Man", RARITY_LEGENDARY, 999, false},
+  {"Deku (100%)", "My Hero Academia", RARITY_LEGENDARY, 780, false},
+  
+  // Mythic (0.1%)
+  {"Kurama Mode Naruto", "Naruto", RARITY_MYTHIC, 2000, false},
+  {"Whis", "Dragon Ball", RARITY_MYTHIC, 2500, false},
+  {"Yoriichi", "Demon Slayer", RARITY_MYTHIC, 3000, false},
+  {"Sukuna", "Jujutsu Kaisen", RARITY_MYTHIC, 2800, false},
+  {"Founding Titan", "Attack on Titan", RARITY_MYTHIC, 2200, false},
+  {"Blast", "One Punch Man", RARITY_MYTHIC, 2700, false},
+  {"Prime All Might", "My Hero Academia", RARITY_MYTHIC, 2600, false}
+};
 
-// Snake game state
-static int snakeX[100], snakeY[100];
-static int snakeLen = 3;
-static int snakeDir = 0; // 0=right, 1=down, 2=left, 3=up
-static int foodX = 100, foodY = 100;
+#define GACHA_POOL_SIZE 35
 
-// Memory game state
-static int memoryCards[16];
-static bool cardFlipped[16];
-static int selectedCards[2];
-static int matchedPairs = 0;
+static int lastPulledIndex = -1;
+static GachaRarity lastPulledRarity = RARITY_COMMON;
+static ThemeColors currentColors;
 
-// Battle state
-static BattleCreature playerCreature, enemyCreature;
-static lv_obj_t* battleScreen = nullptr;
-
-// Pong state
-static float pongBallX, pongBallY;
-static float pongBallDX, pongBallDY;
-static int pongPaddleY, pongAIPaddleY;
-static int pongPlayerScore, pongAIScore;
-
-// ═══════════════════════════════════════════════════════════════════════════════
-//  INITIALIZATION
-// ═══════════════════════════════════════════════════════════════════════════════
 void initGames() {
-  currentGame.playing = false;
-  currentGame.score = 0;
-  Serial.println("[OK] Games initialized");
+  Serial.println("[OK] Games System initialized");
+}
+
+GachaRarity rollRarity() {
+  int roll = random(1000);  // 0-999
+  
+  if (roll < 1) return RARITY_MYTHIC;        // 0.1%
+  if (roll < 30) return RARITY_LEGENDARY;    // 2.9%
+  if (roll < 150) return RARITY_EPIC;        // 12%
+  if (roll < 400) return RARITY_RARE;        // 25%
+  return RARITY_COMMON;                       // 60%
+}
+
+const char* getRarityName(GachaRarity rarity) {
+  switch(rarity) {
+    case RARITY_COMMON:    return "Common";
+    case RARITY_RARE:      return "Rare";
+    case RARITY_EPIC:      return "Epic";
+    case RARITY_LEGENDARY: return "Legendary";
+    case RARITY_MYTHIC:    return "MYTHIC!";
+    default:               return "Unknown";
+  }
+}
+
+uint32_t getRarityColor(GachaRarity rarity) {
+  switch(rarity) {
+    case RARITY_COMMON:    return 0x9E9E9E;  // Grey
+    case RARITY_RARE:      return 0x2196F3;  // Blue
+    case RARITY_EPIC:      return 0x9C27B0;  // Purple
+    case RARITY_LEGENDARY: return 0xFFD700;  // Gold
+    case RARITY_MYTHIC:    return 0xFF1744;  // Red/Pink
+    default:               return 0xFFFFFF;
+  }
+}
+
+void performGachaPull() {
+  GachaRarity rarity = rollRarity();
+  lastPulledRarity = rarity;
+  
+  // Find a character with matching rarity
+  int startIndex = random(GACHA_POOL_SIZE);
+  for (int i = 0; i < GACHA_POOL_SIZE; i++) {
+    int idx = (startIndex + i) % GACHA_POOL_SIZE;
+    if (gachaPool[idx].rarity == rarity) {
+      lastPulledIndex = idx;
+      gachaPool[idx].owned = true;
+      userData.gachaCards++;
+      userData.gachaPulls++;
+      
+      // Award XP based on rarity
+      int xpGain = 10 + (int)rarity * 20;
+      gainXP(xpGain);
+      
+      saveUserData();
+      return;
+    }
+  }
+  
+  // Fallback
+  lastPulledIndex = 0;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  GAMES MENU SCREEN
+//  GACHA SCREEN
 // ═══════════════════════════════════════════════════════════════════════════════
-typedef struct {
-  const char* name;
-  uint32_t color;
-  GameType type;
-} GameInfo;
 
-static const GameInfo gameList[] = {
-  {"Battle\nArena",   0xE91E63, GAME_BATTLE},
-  {"Snake",          0x4CAF50, GAME_SNAKE},
-  {"Memory\nMatch",  0x2196F3, GAME_MEMORY},
-  {"Shadow\nDungeon", 0x673AB7, GAME_DUNGEON},
-  {"Pirate\nQuest",  0xFF9800, GAME_PIRATE},
-  {"Portal\nPuzzle", 0x00BCD4, GAME_PORTAL},
-  {"Pong",           0x9C27B0, GAME_PONG},
-  {"Breakout",       0xCDDC39, GAME_BREAKOUT}
-};
-#define NUM_GAMES 8
+static lv_obj_t* gachaResultPanel = nullptr;
+static lv_obj_t* gachaNameLabel = nullptr;
+static lv_obj_t* gachaRarityLabel = nullptr;
+static lv_obj_t* gachaSeriesLabel = nullptr;
 
-lv_obj_t* createGamesScreen() {
+lv_obj_t* createGachaScreen() {
   lv_obj_t* scr = lv_obj_create(NULL);
-  ThemeColors colors = getThemeColors(watch.theme);
-  lv_obj_set_style_bg_color(scr, lv_color_hex(colors.background), 0);
-  
-  // Title bar
-  createTitleBar(scr, "Games");
-  
-  // Game grid (2x4)
-  int btnW = 150, btnH = 80;
-  int gapX = 15, gapY = 10;
-  int startX = (LCD_WIDTH - (2 * btnW + gapX)) / 2;
-  int startY = 60;
-  
-  for (int i = 0; i < NUM_GAMES; i++) {
-    int col = i % 2;
-    int row = i / 2;
-    
-    lv_obj_t* btn = lv_btn_create(scr);
-    lv_obj_set_size(btn, btnW, btnH);
-    lv_obj_set_pos(btn, startX + col * (btnW + gapX), startY + row * (btnH + gapY));
-    lv_obj_set_style_bg_color(btn, lv_color_hex(gameList[i].color), 0);
-    lv_obj_set_style_radius(btn, 12, 0);
-    lv_obj_set_user_data(btn, (void*)(intptr_t)gameList[i].type);
-    
-    lv_obj_add_event_cb(btn, [](lv_event_t* e) {
-      lv_obj_t* btn = lv_event_get_target(e);
-      GameType game = (GameType)(intptr_t)lv_obj_get_user_data(btn);
-      currentGame.game = game;
-      currentGame.playing = true;
-      currentGame.startTime = millis();
-      
-      switch(game) {
-        case GAME_BATTLE: startBattleGame(); break;
-        case GAME_SNAKE:  startSnakeGame(); break;
-        case GAME_MEMORY: startMemoryGame(); break;
-        case GAME_PONG:   startPongGame(); break;
-        default: break;
-      }
-    }, LV_EVENT_CLICKED, NULL);
-    
-    lv_obj_t* lbl = lv_label_create(btn);
-    lv_obj_set_style_text_font(lbl, &lv_font_montserrat_14, 0);
-    lv_obj_set_style_text_color(lbl, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_set_style_text_align(lbl, LV_TEXT_ALIGN_CENTER, 0);
-    lv_label_set_text(lbl, gameList[i].name);
-    lv_obj_center(lbl);
-  }
-  
+  currentColors = getThemeColors(watch.theme);
+  lv_obj_set_style_bg_color(scr, lv_color_hex(currentColors.background), 0);
+
+  createTitleBar(scr, "Gacha Summon");
+
   // Stats
   lv_obj_t* statsLbl = lv_label_create(scr);
   lv_obj_set_style_text_font(statsLbl, &lv_font_montserrat_12, 0);
-  lv_obj_set_style_text_color(statsLbl, lv_color_hex(colors.secondary), 0);
-  lv_label_set_text_fmt(statsLbl, "Games: %d | Wins: %d", userData.gamesPlayed, userData.gamesWon);
-  lv_obj_align(statsLbl, LV_ALIGN_BOTTOM_MID, 0, -20);
+  lv_obj_set_style_text_color(statsLbl, lv_color_hex(currentColors.text), 0);
+  lv_label_set_text_fmt(statsLbl, "Cards: %d | Pulls: %d", userData.gachaCards, userData.gachaPulls);
+  lv_obj_align(statsLbl, LV_ALIGN_TOP_MID, 0, 60);
+
+  // Result panel (card display)
+  gachaResultPanel = lv_obj_create(scr);
+  lv_obj_set_size(gachaResultPanel, LCD_WIDTH - 60, 180);
+  lv_obj_align(gachaResultPanel, LV_ALIGN_CENTER, 0, 0);
+  lv_obj_set_style_bg_color(gachaResultPanel, lv_color_hex(0x1A1A2E), 0);
+  lv_obj_set_style_radius(gachaResultPanel, 15, 0);
+  lv_obj_set_style_border_color(gachaResultPanel, lv_color_hex(currentColors.accent), 0);
+  lv_obj_set_style_border_width(gachaResultPanel, 2, 0);
   
+  // Pull instruction
+  lv_obj_t* instrLbl = lv_label_create(gachaResultPanel);
+  lv_obj_set_style_text_font(instrLbl, &lv_font_montserrat_16, 0);
+  lv_obj_set_style_text_color(instrLbl, lv_color_hex(currentColors.text), 0);
+  lv_label_set_text(instrLbl, "Tap PULL to summon!");
+  lv_obj_center(instrLbl);
+
+  // Gacha name (hidden initially)
+  gachaNameLabel = lv_label_create(gachaResultPanel);
+  lv_obj_set_style_text_font(gachaNameLabel, &lv_font_montserrat_20, 0);
+  lv_obj_set_style_text_color(gachaNameLabel, lv_color_hex(0xFFFFFF), 0);
+  lv_label_set_text(gachaNameLabel, "");
+  lv_obj_align(gachaNameLabel, LV_ALIGN_TOP_MID, 0, 40);
+  
+  gachaRarityLabel = lv_label_create(gachaResultPanel);
+  lv_obj_set_style_text_font(gachaRarityLabel, &lv_font_montserrat_16, 0);
+  lv_label_set_text(gachaRarityLabel, "");
+  lv_obj_align(gachaRarityLabel, LV_ALIGN_CENTER, 0, 0);
+  
+  gachaSeriesLabel = lv_label_create(gachaResultPanel);
+  lv_obj_set_style_text_font(gachaSeriesLabel, &lv_font_montserrat_12, 0);
+  lv_obj_set_style_text_color(gachaSeriesLabel, lv_color_hex(0xAAAAAA), 0);
+  lv_label_set_text(gachaSeriesLabel, "");
+  lv_obj_align(gachaSeriesLabel, LV_ALIGN_BOTTOM_MID, 0, -20);
+
+  // Pull button
+  lv_obj_t* pullBtn = lv_btn_create(scr);
+  lv_obj_set_size(pullBtn, 150, 60);
+  lv_obj_align(pullBtn, LV_ALIGN_BOTTOM_MID, 0, -40);
+  lv_obj_set_style_bg_color(pullBtn, lv_color_hex(0xFF5722), 0);
+  lv_obj_set_style_radius(pullBtn, 30, 0);
+  
+  lv_obj_add_event_cb(pullBtn, [](lv_event_t* e) {
+    performGachaPull();
+    
+    // Update display
+    if (lastPulledIndex >= 0) {
+      GachaCard* card = &gachaPool[lastPulledIndex];
+      
+      lv_label_set_text(gachaNameLabel, card->name);
+      lv_label_set_text_fmt(gachaRarityLabel, "[%s]", getRarityName(card->rarity));
+      lv_obj_set_style_text_color(gachaRarityLabel, lv_color_hex(getRarityColor(card->rarity)), 0);
+      lv_label_set_text(gachaSeriesLabel, card->series);
+      
+      // Update border to match rarity
+      lv_obj_set_style_border_color(gachaResultPanel, lv_color_hex(getRarityColor(card->rarity)), 0);
+    }
+  }, LV_EVENT_CLICKED, NULL);
+  
+  lv_obj_t* pullLbl = lv_label_create(pullBtn);
+  lv_obj_set_style_text_font(pullLbl, &lv_font_montserrat_20, 0);
+  lv_obj_set_style_text_color(pullLbl, lv_color_hex(0xFFFFFF), 0);
+  lv_label_set_text(pullLbl, "PULL!");
+  lv_obj_center(pullLbl);
+
   return scr;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  BATTLE ARENA (Pokemon-style)
+//  TRAINING SCREEN
 // ═══════════════════════════════════════════════════════════════════════════════
-static const BattleCreature creatures[] = {
-  {"Luffy",    100, 100, 25, 15, 20, "Fire",    0xFFA500},
-  {"Shadow",   90,  90,  30, 10, 25, "Dark",    0x9A0EEA},
-  {"Yugo",     80,  80,  20, 20, 30, "Magic",   0x00CED1},
-  {"Slime",    50,  50,  10, 5,  5,  "Normal",  0x4CAF50},
-  {"Goblin",   70,  70,  15, 8,  10, "Normal",  0x8BC34A},
-  {"Dragon",   120, 120, 35, 25, 15, "Fire",    0xFF5722}
-};
 
-void startBattleGame() {
-  // Set player based on theme
-  playerCreature = creatures[watch.theme];
-  
-  // Random enemy
-  int enemyIdx = 3 + random(3); // Slime, Goblin, or Dragon
-  enemyCreature = creatures[enemyIdx];
-  
-  // Create battle screen
-  drawBattleScreen();
-}
+lv_obj_t* createTrainingScreen() {
+  lv_obj_t* scr = lv_obj_create(NULL);
+  currentColors = getThemeColors(watch.theme);
+  lv_obj_set_style_bg_color(scr, lv_color_hex(currentColors.background), 0);
 
-static lv_obj_t* playerHpBar = nullptr;
-static lv_obj_t* enemyHpBar = nullptr;
-static lv_obj_t* battleLog = nullptr;
+  createTitleBar(scr, "Training");
 
-void drawBattleScreen() {
-  battleScreen = lv_obj_create(NULL);
-  ThemeColors colors = getThemeColors(watch.theme);
-  lv_obj_set_style_bg_color(battleScreen, lv_color_hex(colors.background), 0);
+  // Training description
+  lv_obj_t* descLbl = lv_label_create(scr);
+  lv_obj_set_style_text_font(descLbl, &lv_font_montserrat_14, 0);
+  lv_obj_set_style_text_color(descLbl, lv_color_hex(currentColors.text), 0);
+  lv_label_set_text(descLbl, "Tap to train and level up!");
+  lv_obj_align(descLbl, LV_ALIGN_TOP_MID, 0, 70);
+
+  // Training types
+  const char* trainNames[] = {"Push-ups", "Meditation", "Sparring"};
+  const uint32_t trainColors[] = {0xE91E63, 0x9C27B0, 0xF44336};
+  const int xpRewards[] = {50, 30, 80};
   
-  // Enemy area (top)
-  lv_obj_t* enemyName = lv_label_create(battleScreen);
-  lv_obj_set_style_text_color(enemyName, lv_color_hex(colors.text), 0);
-  lv_label_set_text(enemyName, enemyCreature.name);
-  lv_obj_align(enemyName, LV_ALIGN_TOP_LEFT, 20, 20);
-  
-  enemyHpBar = lv_bar_create(battleScreen);
-  lv_obj_set_size(enemyHpBar, 150, 15);
-  lv_bar_set_range(enemyHpBar, 0, enemyCreature.maxHp);
-  lv_bar_set_value(enemyHpBar, enemyCreature.hp, LV_ANIM_ON);
-  lv_obj_set_style_bg_color(enemyHpBar, lv_color_hex(0xFF0000), LV_PART_INDICATOR);
-  lv_obj_align(enemyHpBar, LV_ALIGN_TOP_LEFT, 20, 45);
-  
-  // Player area (bottom)
-  lv_obj_t* playerName = lv_label_create(battleScreen);
-  lv_obj_set_style_text_color(playerName, lv_color_hex(colors.text), 0);
-  lv_label_set_text(playerName, playerCreature.name);
-  lv_obj_align(playerName, LV_ALIGN_LEFT_MID, 20, 50);
-  
-  playerHpBar = lv_bar_create(battleScreen);
-  lv_obj_set_size(playerHpBar, 150, 15);
-  lv_bar_set_range(playerHpBar, 0, playerCreature.maxHp);
-  lv_bar_set_value(playerHpBar, playerCreature.hp, LV_ANIM_ON);
-  lv_obj_set_style_bg_color(playerHpBar, lv_color_hex(0x00FF00), LV_PART_INDICATOR);
-  lv_obj_align(playerHpBar, LV_ALIGN_LEFT_MID, 20, 75);
-  
-  // Battle log
-  battleLog = lv_label_create(battleScreen);
-  lv_obj_set_style_text_font(battleLog, &lv_font_montserrat_12, 0);
-  lv_obj_set_style_text_color(battleLog, lv_color_hex(colors.secondary), 0);
-  lv_label_set_text(battleLog, "Battle Start!");
-  lv_obj_align(battleLog, LV_ALIGN_CENTER, 0, -20);
-  
-  // Move buttons
-  const char* moves[] = {"Attack", "Defend", "Special", "Run"};
-  for (int i = 0; i < 4; i++) {
-    lv_obj_t* btn = lv_btn_create(battleScreen);
-    lv_obj_set_size(btn, 150, 45);
-    lv_obj_set_pos(btn, 20 + (i % 2) * 160, 340 + (i / 2) * 50);
-    lv_obj_set_style_bg_color(btn, lv_color_hex(colors.primary), 0);
-    lv_obj_set_user_data(btn, (void*)(intptr_t)i);
+  for (int i = 0; i < 3; i++) {
+    lv_obj_t* btn = lv_btn_create(scr);
+    lv_obj_set_size(btn, LCD_WIDTH - 60, 80);
+    lv_obj_align(btn, LV_ALIGN_TOP_MID, 0, 110 + i * 100);
+    lv_obj_set_style_bg_color(btn, lv_color_hex(trainColors[i]), 0);
+    lv_obj_set_style_radius(btn, 15, 0);
+    lv_obj_set_user_data(btn, (void*)(intptr_t)xpRewards[i]);
     
     lv_obj_add_event_cb(btn, [](lv_event_t* e) {
       lv_obj_t* btn = lv_event_get_target(e);
-      int move = (int)(intptr_t)lv_obj_get_user_data(btn);
-      executeTurn(move);
+      int xp = (int)(intptr_t)lv_obj_get_user_data(btn);
+      gainXP(xp);
     }, LV_EVENT_CLICKED, NULL);
     
-    lv_obj_t* lbl = lv_label_create(btn);
-    lv_label_set_text(lbl, moves[i]);
-    lv_obj_center(lbl);
+    lv_obj_t* nameLbl = lv_label_create(btn);
+    lv_obj_set_style_text_font(nameLbl, &lv_font_montserrat_18, 0);
+    lv_obj_set_style_text_color(nameLbl, lv_color_hex(0xFFFFFF), 0);
+    lv_label_set_text(nameLbl, trainNames[i]);
+    lv_obj_align(nameLbl, LV_ALIGN_LEFT_MID, 20, 0);
+    
+    lv_obj_t* xpLbl = lv_label_create(btn);
+    lv_obj_set_style_text_font(xpLbl, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(xpLbl, lv_color_hex(0xFFE082), 0);
+    lv_label_set_text_fmt(xpLbl, "+%d XP", xpRewards[i]);
+    lv_obj_align(xpLbl, LV_ALIGN_RIGHT_MID, -20, 0);
   }
-  
-  lv_scr_load(battleScreen);
-}
 
-void executeTurn(int moveIndex) {
-  if (moveIndex == 3) { // Run
-    currentGame.playing = false;
-    goBack();
-    return;
-  }
-  
-  int damage = 0;
-  const char* msg = "";
-  
-  switch(moveIndex) {
-    case 0: // Attack
-      damage = playerCreature.attack - enemyCreature.defense / 2;
-      if (damage < 1) damage = 1;
-      enemyCreature.hp -= damage;
-      msg = "Attack!";
-      break;
-    case 1: // Defend
-      playerCreature.defense += 5;
-      msg = "Defense up!";
-      break;
-    case 2: // Special
-      damage = playerCreature.attack * 1.5;
-      enemyCreature.hp -= damage;
-      msg = "Special attack!";
-      break;
-  }
-  
-  if (battleLog) lv_label_set_text(battleLog, msg);
-  
-  // Update HP bars
-  if (enemyHpBar) lv_bar_set_value(enemyHpBar, enemyCreature.hp, LV_ANIM_ON);
-  
-  // Enemy turn
-  if (enemyCreature.hp > 0) {
-    int enemyDmg = enemyCreature.attack - playerCreature.defense / 2;
-    if (enemyDmg < 1) enemyDmg = 1;
-    playerCreature.hp -= enemyDmg;
-    if (playerHpBar) lv_bar_set_value(playerHpBar, playerCreature.hp, LV_ANIM_ON);
-  }
-  
-  // Check win/lose
-  if (enemyCreature.hp <= 0) {
-    userData.gamesWon++;
-    userData.gamesPlayed++;
-    if (battleLog) lv_label_set_text(battleLog, "You WIN!");
-  } else if (playerCreature.hp <= 0) {
-    userData.gamesPlayed++;
-    if (battleLog) lv_label_set_text(battleLog, "You LOSE!");
-  }
+  return scr;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  PONG GAME
+//  BOSS RUSH SCREEN
 // ═══════════════════════════════════════════════════════════════════════════════
-static lv_obj_t* pongScreen = nullptr;
-static lv_obj_t* pongScoreLbl = nullptr;
 
-void startPongGame() {
-  pongBallX = LCD_WIDTH / 2;
-  pongBallY = LCD_HEIGHT / 2;
-  pongBallDX = 4;
-  pongBallDY = 3;
-  pongPaddleY = LCD_HEIGHT / 2;
-  pongAIPaddleY = LCD_HEIGHT / 2;
-  pongPlayerScore = 0;
-  pongAIScore = 0;
-  currentGame.score = 0;
-  
-  drawPongScreen();
-}
+static int currentBossHP = 100;
+static int maxBossHP = 100;
+static int bossLevel = 1;
+static lv_obj_t* bossHPBar = nullptr;
+static lv_obj_t* bossNameLbl = nullptr;
 
-void drawPongScreen() {
-  pongScreen = lv_obj_create(NULL);
-  lv_obj_set_style_bg_color(pongScreen, lv_color_hex(0x000000), 0);
-  
-  // Score
-  pongScoreLbl = lv_label_create(pongScreen);
-  lv_obj_set_style_text_font(pongScoreLbl, &lv_font_montserrat_24, 0);
-  lv_obj_set_style_text_color(pongScoreLbl, lv_color_hex(0xFFFFFF), 0);
-  lv_label_set_text_fmt(pongScoreLbl, "%d - %d", pongPlayerScore, pongAIScore);
-  lv_obj_align(pongScoreLbl, LV_ALIGN_TOP_MID, 0, 10);
-  
-  // Instructions
-  lv_obj_t* hint = lv_label_create(pongScreen);
-  lv_obj_set_style_text_font(hint, &lv_font_montserrat_12, 0);
-  lv_obj_set_style_text_color(hint, lv_color_hex(0x888888), 0);
-  lv_label_set_text(hint, "Tap top/bottom to move paddle");
-  lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -10);
-  
-  // Touch areas for paddle control
-  lv_obj_t* upArea = lv_btn_create(pongScreen);
-  lv_obj_set_size(upArea, LCD_WIDTH, LCD_HEIGHT / 2 - 50);
-  lv_obj_set_pos(upArea, 0, 50);
-  lv_obj_set_style_bg_opa(upArea, LV_OPA_TRANSP, 0);
-  lv_obj_set_style_shadow_width(upArea, 0, 0);
-  lv_obj_add_event_cb(upArea, [](lv_event_t* e) {
-    pongPaddleY -= 30;
-    if (pongPaddleY < 60) pongPaddleY = 60;
-  }, LV_EVENT_CLICKED, NULL);
-  
-  lv_obj_t* downArea = lv_btn_create(pongScreen);
-  lv_obj_set_size(downArea, LCD_WIDTH, LCD_HEIGHT / 2 - 50);
-  lv_obj_set_pos(downArea, 0, LCD_HEIGHT / 2);
-  lv_obj_set_style_bg_opa(downArea, LV_OPA_TRANSP, 0);
-  lv_obj_set_style_shadow_width(downArea, 0, 0);
-  lv_obj_add_event_cb(downArea, [](lv_event_t* e) {
-    pongPaddleY += 30;
-    if (pongPaddleY > LCD_HEIGHT - 60) pongPaddleY = LCD_HEIGHT - 60;
-  }, LV_EVENT_CLICKED, NULL);
-  
-  // Back button
-  lv_obj_t* backBtn = lv_btn_create(pongScreen);
-  lv_obj_set_size(backBtn, 60, 30);
-  lv_obj_align(backBtn, LV_ALIGN_TOP_LEFT, 5, 5);
-  lv_obj_set_style_bg_color(backBtn, lv_color_hex(0x333333), 0);
-  lv_obj_add_event_cb(backBtn, [](lv_event_t* e) {
-    currentGame.playing = false;
-    goBack();
-  }, LV_EVENT_CLICKED, NULL);
-  lv_obj_t* backLbl = lv_label_create(backBtn);
-  lv_label_set_text(backLbl, LV_SYMBOL_LEFT);
-  lv_obj_center(backLbl);
-  
-  lv_scr_load(pongScreen);
-}
+static const char* bossNames[] = {
+  "Orochimaru", "Frieza", "Muzan", "Sukuna", 
+  "Beast Titan", "Boros", "All For One"
+};
 
-void updatePong() {
-  if (!currentGame.playing || currentGame.game != GAME_PONG) return;
-  
-  // Move ball
-  pongBallX += pongBallDX;
-  pongBallY += pongBallDY;
-  
-  // Wall bounce (top/bottom)
-  if (pongBallY < 50 || pongBallY > LCD_HEIGHT - 30) {
-    pongBallDY = -pongBallDY;
-  }
-  
-  // AI paddle follows ball
-  if (pongAIPaddleY < pongBallY - 20) pongAIPaddleY += 3;
-  else if (pongAIPaddleY > pongBallY + 20) pongAIPaddleY -= 3;
-  
-  // Paddle bounce (player - left)
-  if (pongBallX < 40 && pongBallY > pongPaddleY - 40 && pongBallY < pongPaddleY + 40) {
-    pongBallDX = -pongBallDX;
-    pongBallX = 41;
-  }
-  
-  // Paddle bounce (AI - right)
-  if (pongBallX > LCD_WIDTH - 40 && pongBallY > pongAIPaddleY - 40 && pongBallY < pongAIPaddleY + 40) {
-    pongBallDX = -pongBallDX;
-    pongBallX = LCD_WIDTH - 41;
-  }
-  
-  // Score
-  if (pongBallX < 0) {
-    pongAIScore++;
-    pongBallX = LCD_WIDTH / 2;
-    pongBallY = LCD_HEIGHT / 2;
-    if (pongScoreLbl) lv_label_set_text_fmt(pongScoreLbl, "%d - %d", pongPlayerScore, pongAIScore);
-  }
-  if (pongBallX > LCD_WIDTH) {
-    pongPlayerScore++;
-    currentGame.score = pongPlayerScore;
-    pongBallX = LCD_WIDTH / 2;
-    pongBallY = LCD_HEIGHT / 2;
-    if (pongScoreLbl) lv_label_set_text_fmt(pongScoreLbl, "%d - %d", pongPlayerScore, pongAIScore);
-  }
-  
-  // Win condition
-  if (pongPlayerScore >= 5 || pongAIScore >= 5) {
-    currentGame.playing = false;
-    userData.gamesPlayed++;
-    if (pongPlayerScore >= 5) userData.gamesWon++;
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-//  SNAKE GAME
-// ═══════════════════════════════════════════════════════════════════════════════
-void startSnakeGame() {
-  snakeLen = 3;
-  snakeDir = 0;
-  currentGame.score = 0;
-  
-  // Initialize snake position
-  for (int i = 0; i < snakeLen; i++) {
-    snakeX[i] = LCD_WIDTH/2 - i*10;
-    snakeY[i] = LCD_HEIGHT/2;
-  }
-  
-  // Random food
-  foodX = random(10, LCD_WIDTH - 10);
-  foodY = random(60, LCD_HEIGHT - 60);
-  
-  drawSnake();
-}
-
-void updateSnake() {
-  // Move snake
-  for (int i = snakeLen - 1; i > 0; i--) {
-    snakeX[i] = snakeX[i-1];
-    snakeY[i] = snakeY[i-1];
-  }
-  
-  switch(snakeDir) {
-    case 0: snakeX[0] += 10; break; // Right
-    case 1: snakeY[0] += 10; break; // Down
-    case 2: snakeX[0] -= 10; break; // Left
-    case 3: snakeY[0] -= 10; break; // Up
-  }
-  
-  // Check food collision
-  if (abs(snakeX[0] - foodX) < 15 && abs(snakeY[0] - foodY) < 15) {
-    snakeLen++;
-    currentGame.score += 10;
-    foodX = random(10, LCD_WIDTH - 10);
-    foodY = random(60, LCD_HEIGHT - 60);
-  }
-  
-  // Check wall collision
-  if (snakeX[0] < 0 || snakeX[0] >= LCD_WIDTH || snakeY[0] < 50 || snakeY[0] >= LCD_HEIGHT - 20) {
-    currentGame.playing = false;
-    userData.gamesPlayed++;
-  }
-}
-
-void drawSnake() {
-  // Creates a simple snake game screen with touch controls
+lv_obj_t* createBossRushScreen() {
   lv_obj_t* scr = lv_obj_create(NULL);
-  ThemeColors colors = getThemeColors(watch.theme);
-  lv_obj_set_style_bg_color(scr, lv_color_hex(0x000000), 0);
-  
-  lv_obj_t* title = lv_label_create(scr);
-  lv_obj_set_style_text_color(title, lv_color_hex(colors.primary), 0);
-  lv_label_set_text(title, "Snake - Tap edges to turn");
-  lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 10);
-  
-  lv_obj_t* scoreLbl = lv_label_create(scr);
-  lv_obj_set_style_text_color(scoreLbl, lv_color_hex(0xFFFFFF), 0);
-  lv_label_set_text_fmt(scoreLbl, "Score: %d", currentGame.score);
-  lv_obj_align(scoreLbl, LV_ALIGN_TOP_LEFT, 20, 35);
-  
-  // Direction buttons
-  lv_obj_t* upBtn = lv_btn_create(scr);
-  lv_obj_set_size(upBtn, 80, 60);
-  lv_obj_align(upBtn, LV_ALIGN_BOTTOM_MID, 0, -80);
-  lv_obj_add_event_cb(upBtn, [](lv_event_t* e) { snakeDir = 3; }, LV_EVENT_CLICKED, NULL);
-  lv_obj_t* upLbl = lv_label_create(upBtn); lv_label_set_text(upLbl, LV_SYMBOL_UP); lv_obj_center(upLbl);
-  
-  lv_obj_t* downBtn = lv_btn_create(scr);
-  lv_obj_set_size(downBtn, 80, 60);
-  lv_obj_align(downBtn, LV_ALIGN_BOTTOM_MID, 0, -10);
-  lv_obj_add_event_cb(downBtn, [](lv_event_t* e) { snakeDir = 1; }, LV_EVENT_CLICKED, NULL);
-  lv_obj_t* downLbl = lv_label_create(downBtn); lv_label_set_text(downLbl, LV_SYMBOL_DOWN); lv_obj_center(downLbl);
-  
-  lv_obj_t* leftBtn = lv_btn_create(scr);
-  lv_obj_set_size(leftBtn, 80, 60);
-  lv_obj_align(leftBtn, LV_ALIGN_BOTTOM_LEFT, 20, -45);
-  lv_obj_add_event_cb(leftBtn, [](lv_event_t* e) { snakeDir = 2; }, LV_EVENT_CLICKED, NULL);
-  lv_obj_t* leftLbl = lv_label_create(leftBtn); lv_label_set_text(leftLbl, LV_SYMBOL_LEFT); lv_obj_center(leftLbl);
-  
-  lv_obj_t* rightBtn = lv_btn_create(scr);
-  lv_obj_set_size(rightBtn, 80, 60);
-  lv_obj_align(rightBtn, LV_ALIGN_BOTTOM_RIGHT, -20, -45);
-  lv_obj_add_event_cb(rightBtn, [](lv_event_t* e) { snakeDir = 0; }, LV_EVENT_CLICKED, NULL);
-  lv_obj_t* rightLbl = lv_label_create(rightBtn); lv_label_set_text(rightLbl, LV_SYMBOL_RIGHT); lv_obj_center(rightLbl);
-  
-  lv_scr_load(scr);
-}
+  currentColors = getThemeColors(watch.theme);
+  lv_obj_set_style_bg_color(scr, lv_color_hex(currentColors.background), 0);
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  MEMORY MATCH GAME
-// ═══════════════════════════════════════════════════════════════════════════════
-void startMemoryGame() {
-  matchedPairs = 0;
-  selectedCards[0] = selectedCards[1] = -1;
-  
-  // Initialize pairs
-  for (int i = 0; i < 8; i++) {
-    memoryCards[i] = i;
-    memoryCards[i + 8] = i;
-    cardFlipped[i] = false;
-    cardFlipped[i + 8] = false;
-  }
-  
-  // Shuffle
-  for (int i = 15; i > 0; i--) {
-    int j = random(i + 1);
-    int temp = memoryCards[i];
-    memoryCards[i] = memoryCards[j];
-    memoryCards[j] = temp;
-  }
-  
-  // Create memory game screen
-  lv_obj_t* scr = lv_obj_create(NULL);
-  ThemeColors colors = getThemeColors(watch.theme);
-  lv_obj_set_style_bg_color(scr, lv_color_hex(colors.background), 0);
-  
-  lv_obj_t* title = lv_label_create(scr);
-  lv_obj_set_style_text_color(title, lv_color_hex(colors.text), 0);
-  lv_label_set_text(title, "Memory Match");
-  lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 10);
-  
-  // 4x4 card grid
-  uint32_t cardColors[] = {0xE91E63, 0x4CAF50, 0x2196F3, 0xFF9800, 0x9C27B0, 0x00BCD4, 0xFFEB3B, 0x795548};
-  int cardW = 75, cardH = 85;
-  int gapX = 10, gapY = 10;
-  int startX = (LCD_WIDTH - (4 * cardW + 3 * gapX)) / 2;
-  int startY = 50;
-  
-  for (int i = 0; i < 16; i++) {
-    int col = i % 4;
-    int row = i / 4;
-    
-    lv_obj_t* card = lv_btn_create(scr);
-    lv_obj_set_size(card, cardW, cardH);
-    lv_obj_set_pos(card, startX + col * (cardW + gapX), startY + row * (cardH + gapY));
-    lv_obj_set_style_bg_color(card, lv_color_hex(0x333333), 0);
-    lv_obj_set_style_radius(card, 8, 0);
-    lv_obj_set_user_data(card, (void*)(intptr_t)i);
-    
-    lv_obj_add_event_cb(card, [](lv_event_t* e) {
-      lv_obj_t* card = lv_event_get_target(e);
-      int idx = (int)(intptr_t)lv_obj_get_user_data(card);
-      flipCard(idx);
-    }, LV_EVENT_CLICKED, NULL);
-    
-    lv_obj_t* lbl = lv_label_create(card);
-    lv_label_set_text(lbl, "?");
-    lv_obj_center(lbl);
-  }
-  
-  lv_scr_load(scr);
-}
+  createTitleBar(scr, "Boss Rush");
 
-void flipCard(int index) {
-  if (cardFlipped[index]) return;
-  
-  cardFlipped[index] = true;
-  
-  if (selectedCards[0] == -1) {
-    selectedCards[0] = index;
-  } else {
-    selectedCards[1] = index;
-    checkMatch();
-  }
-}
+  // Boss defeated counter
+  lv_obj_t* defeatLbl = lv_label_create(scr);
+  lv_obj_set_style_text_font(defeatLbl, &lv_font_montserrat_12, 0);
+  lv_obj_set_style_text_color(defeatLbl, lv_color_hex(currentColors.accent), 0);
+  lv_label_set_text_fmt(defeatLbl, "Bosses Defeated: %d", userData.bossesDefeated);
+  lv_obj_align(defeatLbl, LV_ALIGN_TOP_MID, 0, 60);
 
-void checkMatch() {
-  if (selectedCards[0] == -1 || selectedCards[1] == -1) return;
+  // Boss name
+  bossNameLbl = lv_label_create(scr);
+  lv_obj_set_style_text_font(bossNameLbl, &lv_font_montserrat_24, 0);
+  lv_obj_set_style_text_color(bossNameLbl, lv_color_hex(0xF44336), 0);
+  int bossIdx = userData.bossesDefeated % 7;
+  lv_label_set_text(bossNameLbl, bossNames[bossIdx]);
+  lv_obj_align(bossNameLbl, LV_ALIGN_TOP_MID, 0, 100);
   
-  if (memoryCards[selectedCards[0]] == memoryCards[selectedCards[1]]) {
-    matchedPairs++;
-    currentGame.score += 20;
+  // Boss level
+  lv_obj_t* lvlLbl = lv_label_create(scr);
+  lv_obj_set_style_text_font(lvlLbl, &lv_font_montserrat_14, 0);
+  lv_obj_set_style_text_color(lvlLbl, lv_color_hex(currentColors.text), 0);
+  bossLevel = 1 + userData.bossesDefeated;
+  maxBossHP = 100 + userData.bossesDefeated * 50;
+  currentBossHP = maxBossHP;
+  lv_label_set_text_fmt(lvlLbl, "Lv. %d", bossLevel);
+  lv_obj_align(lvlLbl, LV_ALIGN_TOP_MID, 0, 130);
+
+  // HP Bar
+  bossHPBar = lv_bar_create(scr);
+  lv_obj_set_size(bossHPBar, LCD_WIDTH - 60, 30);
+  lv_obj_align(bossHPBar, LV_ALIGN_TOP_MID, 0, 170);
+  lv_bar_set_range(bossHPBar, 0, maxBossHP);
+  lv_bar_set_value(bossHPBar, currentBossHP, LV_ANIM_OFF);
+  lv_obj_set_style_bg_color(bossHPBar, lv_color_hex(0xF44336), LV_PART_INDICATOR);
+  lv_obj_set_style_radius(bossHPBar, 15, 0);
+  lv_obj_set_style_radius(bossHPBar, 15, LV_PART_INDICATOR);
+  
+  // HP Text
+  lv_obj_t* hpText = lv_label_create(scr);
+  lv_obj_set_style_text_font(hpText, &lv_font_montserrat_14, 0);
+  lv_obj_set_style_text_color(hpText, lv_color_hex(currentColors.text), 0);
+  lv_label_set_text_fmt(hpText, "%d / %d HP", currentBossHP, maxBossHP);
+  lv_obj_align(hpText, LV_ALIGN_TOP_MID, 0, 210);
+
+  // Attack button
+  lv_obj_t* attackBtn = lv_btn_create(scr);
+  lv_obj_set_size(attackBtn, 200, 80);
+  lv_obj_align(attackBtn, LV_ALIGN_CENTER, 0, 80);
+  lv_obj_set_style_bg_color(attackBtn, lv_color_hex(currentColors.primary), 0);
+  lv_obj_set_style_radius(attackBtn, 15, 0);
+  
+  lv_obj_add_event_cb(attackBtn, [](lv_event_t* e) {
+    // Calculate damage based on character stats
+    int damage = rpgCharacter.strength + random(10);
+    currentBossHP -= damage;
     
-    if (matchedPairs == 8) {
-      userData.gamesWon++;
-      userData.gamesPlayed++;
+    if (currentBossHP <= 0) {
+      // Boss defeated!
+      userData.bossesDefeated++;
+      int xpGain = 100 + bossLevel * 20;
+      gainXP(xpGain);
+      
+      // Reset for next boss
+      currentBossHP = maxBossHP;
+      saveUserData();
     }
-  } else {
-    // Flip back after delay
-    cardFlipped[selectedCards[0]] = false;
-    cardFlipped[selectedCards[1]] = false;
-  }
+    
+    // Update HP bar
+    if (bossHPBar) {
+      lv_bar_set_value(bossHPBar, currentBossHP > 0 ? currentBossHP : 0, LV_ANIM_OFF);
+    }
+  }, LV_EVENT_CLICKED, NULL);
   
-  selectedCards[0] = selectedCards[1] = -1;
+  lv_obj_t* atkLbl = lv_label_create(attackBtn);
+  lv_obj_set_style_text_font(atkLbl, &lv_font_montserrat_24, 0);
+  lv_obj_set_style_text_color(atkLbl, lv_color_hex(0xFFFFFF), 0);
+  lv_label_set_text(atkLbl, "ATTACK!");
+  lv_obj_center(atkLbl);
+
+  // Your stats
+  lv_obj_t* yourStats = lv_label_create(scr);
+  lv_obj_set_style_text_font(yourStats, &lv_font_montserrat_12, 0);
+  lv_obj_set_style_text_color(yourStats, lv_color_hex(currentColors.text), 0);
+  lv_label_set_text_fmt(yourStats, "Your STR: %d | DMG: %d-%d", 
+    rpgCharacter.strength, rpgCharacter.strength, rpgCharacter.strength + 10);
+  lv_obj_align(yourStats, LV_ALIGN_BOTTOM_MID, 0, -30);
+
+  return scr;
 }

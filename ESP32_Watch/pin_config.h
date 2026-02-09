@@ -1,63 +1,43 @@
 /**
- * Pin Configuration for ESP32-S3-Touch-AMOLED-1.8 (Waveshare)
+ * Pin Configuration for Waveshare ESP32-S3-Touch-AMOLED-1.8
  */
 
 #ifndef PIN_CONFIG_H
 #define PIN_CONFIG_H
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  DISPLAY (QSPI)
-// ═══════════════════════════════════════════════════════════════════════════════
-#define LCD_SDIO0  4
-#define LCD_SDIO1  5
-#define LCD_SDIO2  6
-#define LCD_SDIO3  7
-#define LCD_SCLK   11
-#define LCD_CS     12
+// Display (SH8601 QSPI AMOLED)
 #define LCD_WIDTH  368
 #define LCD_HEIGHT 448
+#define LCD_CS     6
+#define LCD_SCLK   47
+#define LCD_SDIO0  18
+#define LCD_SDIO1  7
+#define LCD_SDIO2  48
+#define LCD_SDIO3  5
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  I2C BUS
-// ═══════════════════════════════════════════════════════════════════════════════
-#define IIC_SDA    15
-#define IIC_SCL    14
+// Touch (FT3168)
+#define TP_INT     8
+#define TP_RST     -1
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  TOUCH
-// ═══════════════════════════════════════════════════════════════════════════════
-#define TP_INT     38
-#define TP_RESET   9
+// I2C
+#define IIC_SDA    10
+#define IIC_SCL    11
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  I2C ADDRESSES
-// ═══════════════════════════════════════════════════════════════════════════════
-#define EXPANDER_ADDR       0x20
-#define AXP2101_SLAVE_ADDRESS 0x34
-#define FT3168_ADDR         0x38
-#define RTC_ADDR            0x51
-#define QMI8658_ADDR        0x6B
+// I2C Addresses
+#define TOUCH_ADDR    0x38  // FT3168
+#define IMU_ADDR      0x6B  // QMI8658
+#define RTC_ADDR      0x51  // PCF85063
+#define PMU_ADDR      0x34  // AXP2101
+#define EXPANDER_ADDR 0x20  // XCA9554
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  SD CARD (SDMMC 1-bit)
-// ═══════════════════════════════════════════════════════════════════════════════
-#define SDMMC_CLK  2
-#define SDMMC_CMD  1
-#define SDMMC_DATA 3
+// SD Card (SDMMC)
+#define SD_CMD  13
+#define SD_CLK  12
+#define SD_D0   9
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  AUDIO
-// ═══════════════════════════════════════════════════════════════════════════════
-#define I2S_MCK    16
-#define I2S_BCK    9
-#define I2S_WS     45
-#define I2S_DO     10
-#define I2S_DI     8
-#define PA_PIN     46
-
-// ═══════════════════════════════════════════════════════════════════════════════
-//  BUTTONS
-// ═══════════════════════════════════════════════════════════════════════════════
-#define BTN_BOOT   0
+// Audio (optional)
+#define I2S_BCLK   -1
+#define I2S_LRCK   -1
+#define I2S_DOUT   -1
 
 #endif

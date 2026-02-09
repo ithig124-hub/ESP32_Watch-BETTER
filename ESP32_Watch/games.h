@@ -1,66 +1,34 @@
 /**
- * Games Module - 8 Mini-Games (expanded)
+ * Anime-Themed Games - Gacha, Training, Boss Rush
  */
 
 #ifndef GAMES_H
 #define GAMES_H
 
-#include "config.h"
 #include <lvgl.h>
+#include "config.h"
 
-// Initialize games
+// Game initialization
 void initGames();
 
-// Create games screen
-lv_obj_t* createGamesScreen();
+// Game screens
+lv_obj_t* createGachaScreen();
+lv_obj_t* createTrainingScreen();
+lv_obj_t* createBossRushScreen();
 
-// Individual games
-void startBattleGame();
-void startSnakeGame();
-void startMemoryGame();
-void startDungeonGame();
-void startPirateGame();
-void startPortalGame();
-void startPongGame();
-void startBreakoutGame();
+// Gacha system
+void performGachaPull();
+GachaRarity rollRarity();
+const char* getRarityName(GachaRarity rarity);
+uint32_t getRarityColor(GachaRarity rarity);
 
-// Battle system (Pokemon-style)
-struct BattleCreature {
-  const char* name;
-  int hp;
-  int maxHp;
-  int attack;
-  int defense;
-  int speed;
-  const char* type;
-  uint32_t color;
-};
+// Training mini-games
+void startTrainingGame(int gameType);
+void updateTrainingGame();
 
-void initBattle(BattleCreature* player, BattleCreature* enemy);
-void executeTurn(int moveIndex);
-void drawBattleScreen();
-
-// Snake game
-void updateSnake();
-void drawSnake();
-
-// Memory match
-void flipCard(int index);
-void checkMatch();
-
-// Pong game
-void updatePong();
-void drawPongScreen();
-
-// Game session
-struct GameSession {
-  GameType game;
-  int score;
-  int level;
-  bool playing;
-  unsigned long startTime;
-};
-
-extern GameSession currentGame;
+// Boss rush
+void startBossRush();
+void attackBoss();
+void updateBossRush();
 
 #endif

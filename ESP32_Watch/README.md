@@ -1,60 +1,85 @@
-# ESP32 Watch Simplified
+# ESP32 Watch - ANIME EDITION
 
-**All Features, Clean Modular Code**
+## Enhanced with Random Daily Character Themes
 
-A simplified version of ESP32_Watch with all features working but in a clean, maintainable modular structure.
+A smartwatch firmware for ESP32-S3-Touch-AMOLED-1.8 with anime-inspired UI themes.
+
+## Themes
+
+### Main Themes (Selectable)
+
+1. **Gear 5 Luffy** - Clean Fun / Freedom
+   - Bright whites, soft pastels, high-contrast outlines
+   - Cloud-like shapes as visual motifs (static)
+   - Joyful and free through color and shape, NOT motion
+   - **NO bouncing, NO rubber physics**
+
+2. **Jin-Woo Shadow** - Dark / Power / Focus  
+   - Deep blacks with blue/purple glow accents
+   - Shadows as static background layers
+   - Sharp, precise, perfectly aligned UI
+   - Zero distractions, pure control
+
+3. **Yugo Portal** - Chill / Exploration
+   - Soft cel-shaded anime art with teal/cyan
+   - Faint portal rings, light particle effects (static)
+   - Rounded, friendly UI elements
+   - Adventurous, peaceful aesthetic
+
+4. **Random Daily** - New character every day!
+   - Rotates through 7 anime characters based on date
+   - Each character has unique colors, stats, and abilities
+
+### Random Daily Characters
+
+| Day | Character | Series | Theme |
+|-----|-----------|--------|-------|
+| 1 | Naruto | Naruto | Orange chakra, Sage Mode |
+| 2 | Goku | Dragon Ball | Gold aura, Power Level |
+| 3 | Tanjiro | Demon Slayer | Fire/Water breathing |
+| 4 | Gojo | Jujutsu Kaisen | Infinity, Six Eyes |
+| 5 | Levi | Attack on Titan | ODM gear, Titan kills |
+| 6 | Saitama | One Punch Man | Simple, Hero rank |
+| 7 | Deku | My Hero Academia | OFA lightning |
 
 ## Features
 
-- **Clock** with themed watch faces (Luffy, JinWoo, Yugo)
-- **Step Counter** with activity tracking and daily goals
-- **6 Mini-Games** (Battle Arena, Snake, Memory Match, Dungeon, Pirate, Portal)
-- **RPG Progression System** (Solo Leveling inspired - level 1-100)
-- **Music Player** (SD card MP3 support)
-- **Weather App** (OpenWeatherMap API)
-- **News Reader** 
-- **Quest System** with daily challenges and XP rewards
-- **Theme Selector** with 3 character themes
-- **Settings** with brightness, step goals, WiFi status
+### RPG System (50 Levels)
+- Shortened progression from 100 to 50 levels
+- 5 title tiers per character
+- Stats: STR, SPD, MAG, END
+- Character-specific special abilities
+
+### Anime Games
+- **Gacha Simulator** - Pull for character cards (35+ characters)
+- **Training Mini-games** - Earn XP through activities  
+- **Boss Rush** - Fight iconic anime villains
+- **Card Battles** - Coming soon
+
+### Design Guidelines
+- Clean, controlled transitions (fade only)
+- Static visual elements (no bouncing/rubber physics)
+- Anime-style UI elements (speech bubbles, action lines)
+- Theme-appropriate color palettes
 
 ## Hardware
 
-- **Board**: Waveshare ESP32-S3-Touch-AMOLED-1.8
-- **Display**: SH8601 QSPI AMOLED 368x448
-- **Touch**: FT3168 (I2C 0x38)
-- **IMU**: QMI8658 (I2C 0x6B)
-- **RTC**: PCF85063 (I2C 0x51)
-- **PMU**: AXP2101 (I2C 0x34)
-- **I/O Expander**: XCA9554 (I2C 0x20)
-
-## File Structure (Simplified from 70+ files to 15)
-
-```
-ESP32_Watch_Simplified/
-├── ESP32_Watch_Simplified.ino  # Main sketch
-├── pin_config.h                # Hardware pin definitions
-├── config.h                    # Types, enums, global state
-├── ui_manager.h/.cpp           # LVGL screen management
-├── themes.h/.cpp               # Theme colors and wallpapers
-├── games.h/.cpp                # 6 mini-games
-├── apps.h/.cpp                 # Music, Settings, Quests
-├── rpg.h/.cpp                  # RPG progression system
-├── wifi_apps.h/.cpp            # Weather & News
-├── user_data.cpp               # Persistent storage
-└── README.md                   # This file
-```
+- Board: Waveshare ESP32-S3-Touch-AMOLED-1.8
+- Display: SH8601 QSPI AMOLED 368x448
+- Touch: FT3168
+- IMU: QMI8658
+- RTC: PCF85063  
+- PMU: AXP2101
 
 ## Required Libraries
 
-Install via Arduino Library Manager:
+1. LVGL (v8.x)
+2. Arduino_GFX_Library
+3. XPowersLib
+4. Adafruit_XCA9554
+5. ArduinoJson
 
-1. **LVGL** (v8.x or v9.x)
-2. **Arduino_GFX_Library** by moononournation
-3. **XPowersLib** for AXP2101 PMU
-4. **Adafruit_XCA9554** for I/O expander
-5. **ArduinoJson** for weather/news APIs
-
-## Board Settings (Arduino IDE)
+## Board Settings
 
 ```
 Board:              ESP32S3 Dev Module
@@ -64,80 +89,28 @@ PSRAM:              OPI PSRAM
 Partition Scheme:   Huge APP (3MB No OTA/1MB SPIFFS)
 ```
 
-## Themes
+## File Structure
 
-### Luffy - Sun God Nika
-- Colors: Orange, Gold, Red-Orange
-- Special: Haki Level progression
-- Titles: Rookie Pirate → Sun God Nika
-
-### Jin-Woo - Shadow Monarch
-- Colors: Purple, Indigo, Violet
-- Special: Shadow Army size
-- Titles: E-Rank Hunter → Shadow Monarch
-
-### Yugo - Portal Master
-- Colors: Teal, Blue, Turquoise
-- Special: Portal Mastery
-- Titles: Young Eliatrope → Master of Portals
-
-## Games
-
-1. **Battle Arena** - Pokemon-style turn-based battles
-2. **Snake** - Classic snake game with touch controls
-3. **Memory Match** - 4x4 card matching game
-4. **Shadow Dungeon** - JinWoo-themed RPG dungeon
-5. **Pirate Quest** - Luffy-themed adventure
-6. **Portal Puzzle** - Yugo-themed puzzle game
-
-## RPG System
-
-- 100 levels with exponential XP curve
-- 6 title tiers based on level progression
-- Stats: STR, SPD, MAG, END
-- Character-specific special abilities
-- XP earned from steps, quests, and games
-
-## Quest System
-
-Daily quests that track steps:
-- Morning Walk (2000 steps) - 50 XP
-- Power Up! (5000 steps) - 100 XP
-- Step Master (8000 steps) - 150 XP
-- Explorer (10000 steps) - 200 XP
-- Champion (15000 steps) - 300 XP
-
-## Upload Instructions
-
-1. Install all required libraries
-2. Select board settings above
-3. Connect ESP32-S3 via USB
-4. Upload `ESP32_Watch_Simplified.ino`
-5. All other files will be included automatically
-
-## SD Card (Optional)
-
-SD card is optional. Features work without it.
-For music playback, place MP3 files in:
 ```
-/Music/
+ESP32_Watch/
+├── ESP32_Watch.ino     # Main sketch
+├── config.h            # Types, enums, state
+├── pin_config.h        # Hardware pins
+├── themes.h/.cpp       # Theme system + Random daily
+├── ui_manager.h/.cpp   # Screen management
+├── rpg.h/.cpp          # 50-level RPG system
+├── games.h/.cpp        # Gacha, Training, Boss Rush
+├── apps.h/.cpp         # Music, Settings, Quests
+├── wifi_apps.h/.cpp    # Weather, News
+└── user_data.cpp       # Persistent storage
 ```
 
-## Comparison to Original
+## Navigation
 
-| Aspect | Original | Simplified |
-|--------|----------|------------|
-| Files | 70+ | 15 |
-| Lines of Code | ~15,000+ | ~2,500 |
-| All Features | ✓ | ✓ |
-| LVGL UI | ✓ | ✓ |
-| Touch | ✓ | ✓ |
-| Games | 6 | 6 |
-| RPG System | ✓ | ✓ |
-| Themes | 3 | 3 |
-| WiFi Apps | ✓ | ✓ |
-| Maintainability | Complex | Clean |
+- **Swipe Left/Right**: Cycle between Clock → Apps → Character Stats
+- **Swipe Up/Down**: Page through app grids
+- **Tap**: Select items
 
 ## License
 
-MIT License - Feel free to use and modify!
+MIT License

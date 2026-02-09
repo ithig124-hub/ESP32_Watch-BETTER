@@ -1,5 +1,5 @@
 /**
- * User Data Persistence - Updated with new fields
+ * User Data - Persistent Storage
  */
 
 #include "config.h"
@@ -18,10 +18,9 @@ UserData userData = {
   .theme = THEME_LUFFY,
   .brightness = 200,
   .questsCompleted = 0,
-  .stopwatchTime = 0,
-  .stopwatchRunning = false,
-  .snakeHighScore = 0,
-  .pongHighScore = 0
+  .gachaCards = 0,
+  .gachaPulls = 0,
+  .bossesDefeated = 0
 };
 
 void saveUserData() {
@@ -29,17 +28,17 @@ void saveUserData() {
   prefs.putULong("steps", userData.totalSteps);
   prefs.putULong("goal", userData.stepGoal);
   prefs.putInt("streak", userData.stepStreak);
-  prefs.putInt("wins", userData.gamesWon);
-  prefs.putInt("played", userData.gamesPlayed);
+  prefs.putInt("gamesW", userData.gamesWon);
+  prefs.putInt("gamesP", userData.gamesPlayed);
   prefs.putInt("rpgLvl", userData.rpgLevel);
   prefs.putLong("rpgXP", userData.rpgXP);
   prefs.putInt("theme", (int)userData.theme);
-  prefs.putInt("bright", userData.brightness);
+  prefs.putUChar("bright", userData.brightness);
   prefs.putInt("quests", userData.questsCompleted);
-  prefs.putInt("snakeHi", userData.snakeHighScore);
-  prefs.putInt("pongHi", userData.pongHighScore);
+  prefs.putInt("gacha", userData.gachaCards);
+  prefs.putInt("pulls", userData.gachaPulls);
+  prefs.putInt("bosses", userData.bossesDefeated);
   prefs.end();
-  Serial.println("[OK] User data saved");
 }
 
 void loadUserData() {
@@ -47,22 +46,19 @@ void loadUserData() {
   userData.totalSteps = prefs.getULong("steps", 0);
   userData.stepGoal = prefs.getULong("goal", 10000);
   userData.stepStreak = prefs.getInt("streak", 0);
-  userData.gamesWon = prefs.getInt("wins", 0);
-  userData.gamesPlayed = prefs.getInt("played", 0);
+  userData.gamesWon = prefs.getInt("gamesW", 0);
+  userData.gamesPlayed = prefs.getInt("gamesP", 0);
   userData.rpgLevel = prefs.getInt("rpgLvl", 1);
   userData.rpgXP = prefs.getLong("rpgXP", 0);
   userData.theme = (ThemeType)prefs.getInt("theme", THEME_LUFFY);
-  userData.brightness = prefs.getInt("bright", 200);
+  userData.brightness = prefs.getUChar("bright", 200);
   userData.questsCompleted = prefs.getInt("quests", 0);
-  userData.snakeHighScore = prefs.getInt("snakeHi", 0);
-  userData.pongHighScore = prefs.getInt("pongHi", 0);
+  userData.gachaCards = prefs.getInt("gacha", 0);
+  userData.gachaPulls = prefs.getInt("pulls", 0);
+  userData.bossesDefeated = prefs.getInt("bosses", 0);
   prefs.end();
   
-  // Apply loaded settings
   watch.theme = userData.theme;
-  watch.brightness = userData.brightness;
   watch.stepGoal = userData.stepGoal;
-  watch.steps = userData.totalSteps;
-  
-  Serial.println("[OK] User data loaded");
+  watch.brightness = userData.brightness;
 }
