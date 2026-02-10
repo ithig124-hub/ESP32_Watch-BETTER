@@ -529,3 +529,93 @@ void createSignatureEffect(lv_obj_t* parent) {
   lv_obj_set_style_shadow_width(effect, 20, 0);
   lv_obj_set_style_shadow_opa(effect, currentTheme->glowIntensity, 0);
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  THEME HELPER FUNCTIONS - Used by games.cpp, rpg.cpp, utilities.cpp
+// ═══════════════════════════════════════════════════════════════════════════════
+
+ThemeColors getThemeColors(ThemeType theme) {
+  ThemeColors colors;
+  const PremiumTheme* t = nullptr;
+  
+  switch (theme) {
+    case THEME_LUFFY:
+      t = &THEME_GEAR5_LUFFY;
+      break;
+    case THEME_JINWOO:
+      t = &THEME_SHADOW_MONARCH;
+      break;
+    case THEME_YUGO:
+      t = &THEME_PORTAL_MASTER;
+      break;
+    case THEME_RANDOM:
+      t = getDailyCharacterTheme();
+      break;
+    default:
+      t = &THEME_GEAR5_LUFFY;
+  }
+  
+  colors.primary = t->primary;
+  colors.secondary = t->secondary;
+  colors.accent = t->accent;
+  colors.background = t->background;
+  colors.text = t->text;
+  colors.glow = t->glow;
+  colors.highlight = t->highlight;
+  
+  return colors;
+}
+
+const char* getRandomCharacterName(RandomCharacter character) {
+  switch (character) {
+    case CHAR_NARUTO:   return "Naruto Uzumaki";
+    case CHAR_GOKU:     return "Son Goku";
+    case CHAR_TANJIRO:  return "Tanjiro Kamado";
+    case CHAR_GOJO:     return "Satoru Gojo";
+    case CHAR_LEVI:     return "Levi Ackerman";
+    case CHAR_SAITAMA:  return "Saitama";
+    case CHAR_DEKU:     return "Izuku Midoriya";
+    default:            return "Unknown";
+  }
+}
+
+const char* getRandomCharacterSeries(RandomCharacter character) {
+  switch (character) {
+    case CHAR_NARUTO:   return "Naruto Shippuden";
+    case CHAR_GOKU:     return "Dragon Ball Super";
+    case CHAR_TANJIRO:  return "Demon Slayer";
+    case CHAR_GOJO:     return "Jujutsu Kaisen";
+    case CHAR_LEVI:     return "Attack on Titan";
+    case CHAR_SAITAMA:  return "One Punch Man";
+    case CHAR_DEKU:     return "My Hero Academia";
+    default:            return "Unknown Series";
+  }
+}
+
+ThemeColors getRandomCharacterColors(RandomCharacter character) {
+  ThemeColors colors;
+  const PremiumTheme* t = nullptr;
+  
+  if (character < RANDOM_CHAR_COUNT) {
+    t = dailyThemes[character];
+  } else {
+    t = &THEME_SAGE_NARUTO;
+  }
+  
+  colors.primary = t->primary;
+  colors.secondary = t->secondary;
+  colors.accent = t->accent;
+  colors.background = t->background;
+  colors.text = t->text;
+  colors.glow = t->glow;
+  colors.highlight = t->highlight;
+  
+  return colors;
+}
+
+RandomCharacter getDailyCharacter() {
+  time_t now = time(nullptr);
+  struct tm* timeinfo = localtime(&now);
+  int dayOfYear = timeinfo->tm_yday;
+  return (RandomCharacter)(dayOfYear % RANDOM_CHAR_COUNT);
+}

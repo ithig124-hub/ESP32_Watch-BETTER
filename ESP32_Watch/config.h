@@ -208,6 +208,8 @@ void initThemes();
 
 RandomCharacter getDailyCharacter();
 const char* getRandomCharacterName(RandomCharacter character);
+const char* getRandomCharacterSeries(RandomCharacter character);
 ThemeColors getRandomCharacterColors(RandomCharacter character);
+ThemeColors getThemeColors(ThemeType theme);
 
 #endif

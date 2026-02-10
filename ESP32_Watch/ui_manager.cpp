@@ -13,6 +13,7 @@
 // Screen objects
 static lv_obj_t* currentScreen = nullptr;
 static lv_obj_t* clockLabel = nullptr;
+static lv_obj_t* secondsLabel = nullptr;
 static lv_obj_t* dateLabel = nullptr;
 static lv_obj_t* characterLabel = nullptr;
 static lv_obj_t* batteryLabel = nullptr;
@@ -158,6 +159,87 @@ void createStatusBar(lv_obj_t* parent) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+//  TITLE BAR (with back button)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+void createTitleBar(lv_obj_t* parent, const char* title) {
+  const PremiumTheme* theme = getCurrentTheme();
+  if (!theme) {
+    // Fallback to default theme
+    setTheme(watch.theme);
+    theme = getCurrentTheme();
+  }
+  
+  // Title bar container
+  lv_obj_t* titleBar = lv_obj_create(parent);
+  lv_obj_set_size(titleBar, SCREEN_W, 45);
+  lv_obj_align(titleBar, LV_ALIGN_TOP_MID, 0, 0);
+  lv_obj_set_style_bg_color(titleBar, themeColor(theme->secondary), 0);
+  lv_obj_set_style_bg_opa(titleBar, LV_OPA_60, 0);
+  lv_obj_set_style_border_width(titleBar, 0, 0);
+  lv_obj_clear_flag(titleBar, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_style_pad_all(titleBar, 0, 0);
+  
+  // Back button/indicator
+  lv_obj_t* backBtn = lv_label_create(titleBar);
+  lv_label_set_text(backBtn, LV_SYMBOL_LEFT);
+  lv_obj_set_style_text_color(backBtn, themeColor(theme->primary), 0);
+  lv_obj_set_style_text_font(backBtn, &lv_font_montserrat_16, 0);
+  lv_obj_align(backBtn, LV_ALIGN_LEFT_MID, 10, 0);
+  
+  // Title text
+  lv_obj_t* titleLabel = lv_label_create(titleBar);
+  lv_label_set_text(titleLabel, title);
+  lv_obj_set_style_text_color(titleLabel, themeColor(theme->text), 0);
+  lv_obj_set_style_text_font(titleLabel, &lv_font_montserrat_16, 0);
+  lv_obj_align(titleLabel, LV_ALIGN_CENTER, 0, 0);
+  
+  // Optional: Add glow effect to title
+  if (theme->useGlow) {
+    lv_obj_set_style_text_opa(titleLabel, LV_OPA_COVER, 0);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  ANIME POWER AURA EFFECT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+void drawAnimePowerAura(lv_obj_t* parent, uint32_t color, uint8_t opacity) {
+  // Create subtle animated aura effect in background
+  // Multiple rings with decreasing opacity for depth
+  
+  // Outer aura ring
+  lv_obj_t* aura1 = lv_obj_create(parent);
+  lv_obj_set_size(aura1, SCREEN_W - 20, SCREEN_H - 20);
+  lv_obj_center(aura1);
+  lv_obj_set_style_bg_opa(aura1, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(aura1, 2, 0);
+  lv_obj_set_style_border_color(aura1, lv_color_hex(color), 0);
+  lv_obj_set_style_border_opa(aura1, opacity / 3, 0);
+  lv_obj_set_style_radius(aura1, 20, 0);
+  lv_obj_clear_flag(aura1, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_move_background(aura1);
+  
+  // Shadow glow
+  lv_obj_set_style_shadow_color(aura1, lv_color_hex(color), 0);
+  lv_obj_set_style_shadow_width(aura1, 20, 0);
+  lv_obj_set_style_shadow_spread(aura1, 3, 0);
+  lv_obj_set_style_shadow_opa(aura1, opacity / 2, 0);
+  
+  // Middle aura ring
+  lv_obj_t* aura2 = lv_obj_create(parent);
+  lv_obj_set_size(aura2, SCREEN_W - 60, SCREEN_H - 60);
+  lv_obj_center(aura2);
+  lv_obj_set_style_bg_opa(aura2, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(aura2, 1, 0);
+  lv_obj_set_style_border_color(aura2, lv_color_hex(color), 0);
+  lv_obj_set_style_border_opa(aura2, opacity / 4, 0);
+  lv_obj_set_style_radius(aura2, 15, 0);
+  lv_obj_clear_flag(aura2, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_move_background(aura2);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 //  CHARACTER SIGNATURE VISUALS
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -288,13 +370,13 @@ void createClockScreen() {
   lv_obj_align(clockLabel, LV_ALIGN_CENTER, 0, -20);
   
   // Seconds display
-  lv_obj_t* secLabel = lv_label_create(currentScreen);
+  secondsLabel = lv_label_create(currentScreen);
   char secStr[8];
   snprintf(secStr, sizeof(secStr), ":%02d", watch.second);
-  lv_label_set_text(secLabel, secStr);
-  lv_obj_set_style_text_color(secLabel, themeColor(theme->glow), 0);
-  lv_obj_set_style_text_font(secLabel, &lv_font_montserrat_24, 0);
-  lv_obj_align_to(secLabel, clockLabel, LV_ALIGN_OUT_RIGHT_BOTTOM, 5, 0);
+  lv_label_set_text(secondsLabel, secStr);
+  lv_obj_set_style_text_color(secondsLabel, themeColor(theme->glow), 0);
+  lv_obj_set_style_text_font(secondsLabel, &lv_font_montserrat_24, 0);
+  lv_obj_align_to(secondsLabel, clockLabel, LV_ALIGN_OUT_RIGHT_BOTTOM, 5, 0);
   
   // Date display
   dateLabel = lv_label_create(currentScreen);
@@ -506,15 +588,25 @@ void updateClock() {
       watch.hour++;
       if (watch.hour >= 24) {
         watch.hour = 0;
+        // Increment day
+        watch.day++;
+        watch.dayOfWeek = (watch.dayOfWeek + 1) % 7;
       }
     }
   }
   
-  // Update clock label if on clock screen
-  if (clockLabel && watch.screen == SCREEN_CLOCK) {
-    char timeStr[8];
-    snprintf(timeStr, sizeof(timeStr), "%02d:%02d", watch.hour, watch.minute);
-    lv_label_set_text(clockLabel, timeStr);
+  // Update clock labels if on clock screen
+  if (watch.screen == SCREEN_CLOCK) {
+    if (clockLabel) {
+      char timeStr[8];
+      snprintf(timeStr, sizeof(timeStr), "%02d:%02d", watch.hour, watch.minute);
+      lv_label_set_text(clockLabel, timeStr);
+    }
+    if (secondsLabel) {
+      char secStr[8];
+      snprintf(secStr, sizeof(secStr), ":%02d", watch.second);
+      lv_label_set_text(secondsLabel, secStr);
+    }
   }
 }
 
@@ -530,6 +622,7 @@ void showScreen(ScreenType screen) {
     lv_obj_del(currentScreen);
     currentScreen = nullptr;
     clockLabel = nullptr;
+    secondsLabel = nullptr;
     dateLabel = nullptr;
   }
   

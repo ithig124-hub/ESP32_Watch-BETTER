@@ -7,7 +7,7 @@
 #include "ui_manager.h"
 #include "themes.h"
 
-RPGCharacter rpgCharacter;
+// rpgCharacter is defined in user_data.cpp
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  TITLE PROGRESSION TABLES (5 tiers for 50 levels)

@@ -66,6 +66,16 @@ void updateClock();
 void createStatusBar(lv_obj_t* parent);
 
 /**
+ * Create title bar with back navigation
+ */
+void createTitleBar(lv_obj_t* parent, const char* title);
+
+/**
+ * Draw anime power aura effect in background
+ */
+void drawAnimePowerAura(lv_obj_t* parent, uint32_t color, uint8_t opacity);
+
+/**
  * Create character signature visual element
  * Unique to each character (clouds for Luffy, shadows for JinWoo, etc.)
  */

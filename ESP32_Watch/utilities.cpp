@@ -6,8 +6,7 @@
 #include "ui_manager.h"
 #include "themes.h"
 
-// StopwatchData is defined in config.h
-StopwatchData stopwatch;
+// stopwatch is defined in user_data.cpp
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  CALCULATOR
