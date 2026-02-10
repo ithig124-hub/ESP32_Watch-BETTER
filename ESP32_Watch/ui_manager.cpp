@@ -205,7 +205,7 @@ void drawThemeEffects(lv_obj_t* parent, ThemeType theme) {
         lv_obj_align(ray, LV_ALIGN_TOP_MID, 0, 50);
         lv_obj_set_style_transform_angle(ray, i * 450, 0);  // Rotate each ray
         lv_obj_set_style_bg_color(ray, lv_color_hex(currentColors.glow), 0);
-        lv_obj_set_style_bg_opa(ray, LV_OPA_5, 0);
+        lv_obj_set_style_bg_opa(ray, 13, 0);  // ~5% opacity (LV_OPA_5 not available, use raw value)
         lv_obj_set_style_border_width(ray, 0, 0);
         lv_obj_clear_flag(ray, LV_OBJ_FLAG_CLICKABLE);
       }
@@ -288,7 +288,7 @@ void drawRandomCharacterEffects(lv_obj_t* parent, RandomCharacter character) {
         lv_obj_set_style_bg_opa(ring, LV_OPA_0, 0);
         lv_obj_set_style_border_color(ring, lv_color_hex(colors.primary), 0);
         lv_obj_set_style_border_width(ring, 1, 0);
-        lv_obj_set_style_border_opa(ring, LV_OPA_5 + i * 3, 0);
+        lv_obj_set_style_border_opa(ring, 13 + i * 3, 0);  // ~5% base opacity
         lv_obj_clear_flag(ring, LV_OBJ_FLAG_CLICKABLE);
       }
       break;
@@ -776,8 +776,8 @@ lv_obj_t* createMusicScreen() { return createPlaceholderScreen("Music", "SD Card
 lv_obj_t* createWeatherScreen() { return createPlaceholderScreen("Weather", "Connect WiFi\nfor weather"); }
 lv_obj_t* createNewsScreen() { return createPlaceholderScreen("News", "Connect WiFi\nfor news"); }
 lv_obj_t* createQuestsScreen() { return createPlaceholderScreen("Quests", "Daily challenges\ncoming soon"); }
-lv_obj_t* createRPGScreen() { return createPlaceholderScreen("RPG", "Level up your\ncharacter"); }
-lv_obj_t* createCharStatsScreen() { return createPlaceholderScreen("Character", "Your anime\nhero stats"); }
-lv_obj_t* createGachaScreen() { return createPlaceholderScreen("Gacha", "Pull for\nrare characters"); }
-lv_obj_t* createTrainingScreen() { return createPlaceholderScreen("Training", "Train to\nearn XP"); }
-lv_obj_t* createBossRushScreen() { return createPlaceholderScreen("Boss Rush", "Fight anime\nvillains"); }
+// createRPGScreen() - defined in rpg.cpp
+// createCharStatsScreen() - defined in rpg.cpp
+// createGachaScreen() - defined in games.cpp
+// createTrainingScreen() - defined in games.cpp
+// createBossRushScreen() - defined in games.cpp

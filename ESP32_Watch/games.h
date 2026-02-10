@@ -8,6 +8,25 @@
 #include <lvgl.h>
 #include "config.h"
 
+// ═══════════════════════════════════════════════════════════════════════════════
+//  GACHA TYPES
+// ═══════════════════════════════════════════════════════════════════════════════
+enum GachaRarity {
+  RARITY_COMMON,
+  RARITY_RARE,
+  RARITY_EPIC,
+  RARITY_LEGENDARY,
+  RARITY_MYTHIC
+};
+
+struct GachaCard {
+  const char* name;
+  const char* series;
+  GachaRarity rarity;
+  int power;
+  bool owned;
+};
+
 // Game initialization
 void initGames();
 

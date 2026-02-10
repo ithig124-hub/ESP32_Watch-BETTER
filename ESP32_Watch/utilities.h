@@ -8,6 +8,9 @@
 #include <lvgl.h>
 #include "config.h"
 
+// External stopwatch data (defined in utilities.cpp)
+extern StopwatchData stopwatch;
+
 namespace Calculator {
   void init();
   lv_obj_t* createScreen();

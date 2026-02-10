@@ -131,6 +131,54 @@ struct UserData {
   ThemeType theme;
   uint8_t brightness;
   uint8_t screenTimeoutIndex;  // 0=3s, 1=5s, 2=10s, 3=30s
+  // RPG System
+  uint8_t rpgLevel;
+  long rpgXP;
+  // Games System
+  uint16_t gachaCards;
+  uint16_t gachaPulls;
+  uint16_t bossesDefeated;
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  RPG CHARACTER STRUCTURE
+// ═══════════════════════════════════════════════════════════════════════════════
+struct RPGCharacter {
+  const char* name;
+  const char* title;
+  int level;
+  long xp;
+  long xpNext;
+  int strength;
+  int defense;
+  int speed;
+  int luck;
+  int magic;            // Magic/special power stat
+  int endurance;        // Endurance/stamina stat
+  // Character-specific stats
+  int shadowArmy;       // Jinwoo
+  int hakiLevel;        // Luffy
+  int portalMastery;    // Yugo
+  int chakraReserves;   // Naruto
+  int powerLevel;       // Goku
+  int breathingForm;    // Tanjiro
+  int cursedEnergy;     // Gojo
+  int titanKills;       // Levi
+  int heroRank;         // Saitama
+  int ofaPercent;       // Deku
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  STOPWATCH DATA STRUCTURE
+// ═══════════════════════════════════════════════════════════════════════════════
+struct StopwatchData {
+  unsigned long elapsedMs;
+  unsigned long startTime;
+  unsigned long pausedTime;
+  unsigned long laps[10];
+  int lapCount;
+  bool running;
+  bool paused;
 };
 
 extern UserData userData;

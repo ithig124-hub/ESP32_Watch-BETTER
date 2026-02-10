@@ -469,7 +469,7 @@ lv_obj_t* createCharStatsScreen() {
   lv_obj_set_style_bg_color(scr, lv_color_hex(colors.background), 0);
   
   // Draw subtle power aura in background
-  drawPowerAura(scr, colors.glow, 50);
+  drawAnimePowerAura(scr, colors.glow, 50);
 
   // Character portrait area (placeholder circle)
   lv_obj_t* portrait = lv_obj_create(scr);

@@ -9,6 +9,7 @@
 #include <lvgl.h>
 #include "config.h"
 
+// RPGCharacter is defined in config.h
 extern RPGCharacter rpgCharacter;
 
 // Initialize RPG system
