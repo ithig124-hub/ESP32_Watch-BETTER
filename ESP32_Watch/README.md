@@ -1,166 +1,208 @@
-# ESP32 Watch - PREMIUM APPLE STYLE Edition
+# ESP32 Watch - PREMIUM ANIME EDITION
 
-Enhanced Anime Themes with Apple Watch-inspired Premium UI for ESP32-S3-Touch-AMOLED-1.8" Smartwatch
+## 🎨 ULTRA PREMIUM Character Themes
 
-![Version](https://img.shields.io/badge/version-1.0-gold)
-![Platform](https://img.shields.io/badge/platform-ESP32--S3-blue)
-![License](https://img.shields.io/badge/license-MIT-green)
+Each theme is meticulously crafted to represent the essence, power, and aesthetic of each anime character.
 
-## ✨ Premium Features
+---
 
-### 🎨 Apple Watch-Inspired Design
-- **OLED-optimized** deep black backgrounds
-- **Glassmorphism** card effects with subtle transparency
-- **Premium color palettes** inspired by luxury watch editions
-- **Smooth 60fps** fade animations
-- **San Francisco-style** typography hierarchy
+## 🌟 MAIN THEMES
 
-### ⚡ Power Management (NEW)
-- **3-second screen timeout** (Apple Watch style quick timeout)
-- **Power button tap** to toggle screen on/off
-- **Touch-to-wake** - tap anywhere to wake display
-- **Smooth brightness fade** animations
-- **Battery saver modes** with configurable levels:
-  - Off: Full brightness, 3s timeout
-  - Light: 50% brightness, 2s timeout
-  - Medium: 30% brightness, 1.5s timeout
-  - Extreme: 10% brightness, 1s timeout
+### ☀️ GEAR 5 LUFFY - Sun God Nika
+**ONE PIECE**
+- **Aesthetic:** Pure white, brilliant gold, straw hat red
+- **Feel:** Joy, freedom, boundless energy
+- **UI Style:** Very rounded (cloud-like), strong sun glow
+- **Signature:** "Bajrang Gun"
+- **Stats:** HAKI | GEAR | FREEDOM | WILL
 
-### 🎭 Premium Anime Themes
+### 🌑 JIN-WOO SHADOW MONARCH - Arise
+**SOLO LEVELING**
+- **Aesthetic:** Royal purple, void black, electric blue
+- **Feel:** Dark power, overwhelming dominance
+- **UI Style:** Sharp edges, maximum glow intensity
+- **Signature:** "ARISE"
+- **Stats:** SHADOWS | POWER | LEVEL | ARMY
 
-#### Main Themes
-| Theme | Aesthetic | Colors |
-|-------|-----------|--------|
-| **Gear 5 Sun God** | Clean white/gold luxury | Gold, cream white, warm pastels |
-| **Shadow Monarch** | Deep purple/black premium | Purple, indigo, silver accents |
-| **Portal Master** | Teal/cyan exploration | Cyan, turquoise, dark teal |
-| **Random Daily** | New hero every day! | Character-specific palettes |
+### 🌀 YUGO PORTAL MASTER - Eliatrope King
+**WAKFU**
+- **Aesthetic:** Bright cyan, deep teal, warm gold
+- **Feel:** Adventure, mystery, exploration
+- **UI Style:** Rounded (portal-like), soft glow
+- **Signature:** "Wakfu Portal"
+- **Stats:** WAKFU | PORTALS | SPEED | HEART
 
-#### Daily Random Characters (7 total)
-| Day | Character | Series | Theme Colors |
-|-----|-----------|--------|--------------|
-| 1 | Naruto | Naruto | Orange/Gold chakra |
-| 2 | Goku | Dragon Ball | Gold/Blue power |
-| 3 | Tanjiro | Demon Slayer | Red/Orange flames |
-| 4 | Gojo | Jujutsu Kaisen | Cyan/White infinity |
-| 5 | Levi | Attack on Titan | Green/Grey military |
-| 6 | Saitama | One Punch Man | Yellow/White simple |
-| 7 | Deku | My Hero Academia | Green/Lightning |
+---
 
-## 🔧 Hardware
+## 🎲 DAILY RANDOM CHARACTERS
 
-- **Board:** Waveshare ESP32-S3-Touch-AMOLED-1.8
-- **Display:** SH8601 QSPI AMOLED 368x448
-- **Touch:** FT3168 (I2C 0x38)
-- **IMU:** QMI8658 (I2C 0x6B)
-- **RTC:** PCF85063 (I2C 0x51)
-- **PMU:** AXP2101 (I2C 0x34)
-- **I/O Expander:** XCA9554 (I2C 0x20)
+Rotates daily through 7 iconic anime characters:
 
-## 📚 Required Libraries
+### Day 1: 🦊 NARUTO - Sage Mode
+**NARUTO**
+- Orange chakra, black outfit, Kurama red
+- "Believe it! Dattebayo!"
+- Stats: CHAKRA | SAGE | KURAMA | BONDS
 
-1. **LVGL** (v8.x)
-2. **Arduino_GFX_Library** (from Waveshare repo)
-3. **Arduino_DriveBus_Library** (from Waveshare repo - for touch)
-4. **XPowersLib**
-5. **Adafruit_XCA9554**
-6. **ArduinoJson**
+### Day 2: ⚡ GOKU - Ultra Instinct
+**DRAGON BALL**
+- Silver aura, divine blue, pure white
+- "I am the hope of the universe!"
+- Stats: POWER | SPEED | KI | FORMS
 
-### Installing Waveshare Libraries
+### Day 3: 🔥 TANJIRO - Sun Breathing
+**DEMON SLAYER**
+- Deep crimson, dark green checkered, fire orange
+- "I will never give up!"
+- Stats: BREATH | FORMS | SENSE | WILL
 
-Download from: https://github.com/waveshareteam/ESP32-S3-Touch-AMOLED-1.8/tree/main/examples/Arduino-v3.3.5/libraries
+### Day 4: ♾️ GOJO - Infinity
+**JUJUTSU KAISEN**
+- Infinity blue, white hair, purple cursed energy
+- "Throughout Heaven and Earth, I alone am the honored one."
+- Stats: INFINITY | CURSED | SIX EYES | DOMAIN
 
-Copy these folders to your Arduino libraries folder:
-- `Arduino_DriveBus` 
-- `GFX_Library_for_Arduino`
-- `Mylibrary` (contains pin_config.h)
+### Day 5: ⚔️ LEVI - Humanity's Strongest
+**ATTACK ON TITAN**
+- Military grey, Survey Corps green, steel silver
+- "Give up on your dreams and die."
+- Stats: TITANS | KILLS | SPEED | CLEAN
 
-## ⚙️ Board Settings (Arduino IDE)
+### Day 6: 👊 SAITAMA - One Punch Man
+**ONE PUNCH MAN**
+- Yellow suit, red cape, simple and clean
+- "OK."
+- Stats: PUNCH | RANK | BORED | SALES
 
-```
-Board:              ESP32S3 Dev Module
-USB CDC On Boot:    Enabled
-Flash Size:         16MB
-PSRAM:              OPI PSRAM
-Partition Scheme:   Huge APP (3MB No OTA/1MB SPIFFS)
-```
+### Day 7: 💚 DEKU - Plus Ultra
+**MY HERO ACADEMIA**
+- Hero green, black costume, OFA lightning
+- "PLUS ULTRA!"
+- Stats: OFA % | QUIRKS | SMASH | HERO
+
+---
+
+## 🔧 Feature Summary
+
+### ✅ NO Screen Timeout
+- Screen stays on indefinitely
+- Manual control only (power button / tap)
+
+### ✅ Tap to Wake
+- Touch screen when off to wake
+
+### ✅ Power Button Toggle
+- Press to turn screen on/off
+- Default GPIO: 0 (Boot button)
+
+### ✅ Swipe Animations
+- Left/Right: Navigate screens
+- Up/Down: Scroll app pages
+
+### ✅ Device Keeps Running
+- No deep sleep when screen off
+- Background processes continue
+
+---
 
 ## 📁 File Structure
 
 ```
-ESP32_Watch_Premium/
-├── ESP32_Watch_Premium.ino  # Main sketch
-├── config.h                  # Types, enums, state
-├── pin_config.h              # Hardware pins
-├── power_manager.h/.cpp      # Screen timeout & power button
-├── themes.h/.cpp             # Premium theme system
-├── ui_manager.h/.cpp         # Screen management
-├── user_data.cpp             # Persistent storage
-└── README.md                 # This file
+ESP32_Watch_FIXED/
+├── ESP32_Watch.ino      # Main firmware
+├── config.h             # Types, enums, state
+├── pin_config.h         # Hardware pins + PWR_BUTTON
+├── power_manager.h/cpp  # Screen timeout DISABLED
+├── themes.h/cpp         # PREMIUM character themes
+├── ui_manager.h/cpp     # Premium UI screens
+├── user_data.cpp        # Persistent storage
+└── README.md            # This file
 ```
-
-## 🎮 Navigation
-
-| Gesture | Action |
-|---------|--------|
-| **Swipe Left/Right** | Cycle: Clock → Apps → Character |
-| **Swipe Up/Down** | Page through app grids |
-| **Tap** | Select items / Wake screen |
-| **Power Button** | Toggle screen on/off |
-
-## 🔋 Power Button Behavior
-
-Based on the reference implementation from `S3_MiniOS_206.ino`:
-
-```cpp
-// Power button tap toggles screen state
-if (powerButton pressed) {
-  if (screenOn) screenSleep();  // Turn off with fade
-  else screenWake();             // Turn on with fade
-}
-
-// 3-second inactivity timeout
-if (screenOn && inactiveTime >= 3000ms) {
-  screenSleep();
-}
-
-// Touch-to-wake
-if (!screenOn && touchDetected) {
-  screenWake();
-}
-```
-
-## 🎨 Theme Color System
-
-Each theme includes:
-- `primary` - Main accent color
-- `secondary` - Secondary accent
-- `accent` - Highlight/glow color
-- `background` - OLED black optimized
-- `surface` - Card/container background
-- `text` - Primary text color
-- `textSecondary` - Muted text
-- `glow` - Special effect color
-- `gradient1/2` - Gradient colors
-- `border` - Subtle borders
-- `highlight` - Interactive highlights
-
-## 📝 Changelog
-
-### v1.0 - Premium Edition
-- Apple Watch-inspired premium UI design
-- 3-second screen timeout implementation
-- Power button tap to toggle screen
-- Touch-to-wake functionality
-- Enhanced anime theme color palettes
-- Glassmorphism card effects
-- Smooth brightness fade animations
-- Battery saver modes
-
-## 📄 License
-
-MIT License - Feel free to modify and share!
 
 ---
 
-**Made with ❤️ for anime fans and watch enthusiasts**
+## 🎮 Premium UI Features
+
+### Watch Face
+- Character-themed background with glow rings
+- Series name header
+- Character name and title
+- Large time display with seconds
+- Signature move display
+- Navigation dots
+
+### Character Stats Screen
+- Glass-morphism portrait container
+- Character info (name, title, series)
+- Level display
+- Animated stat bars with glow
+- Character catchphrase
+
+### Apps Screen
+- Glass-morphism app buttons
+- Themed icons with glow
+- Grid layout
+
+---
+
+## 🎨 Color Palette Reference
+
+| Character | Primary | Secondary | Accent | Glow |
+|-----------|---------|-----------|--------|------|
+| Luffy | White | Gold | Red | Sun Yellow |
+| Jin-Woo | Purple | Black | Blue | Purple |
+| Yugo | Cyan | Teal | Gold | Light Cyan |
+| Naruto | Orange | Black | Red | Gold |
+| Goku | Silver | Blue | White | Silver |
+| Tanjiro | Crimson | Green | Orange | Flame |
+| Gojo | Blue | White | Purple | Light Blue |
+| Levi | Grey | Dark Grey | Green | Silver |
+| Saitama | Yellow | Red | White | Gold |
+| Deku | Green | Black | Yellow | Lightning |
+
+---
+
+## ⚙️ Configuration
+
+### Change Power Button GPIO
+```cpp
+// In pin_config.h
+#define PWR_BUTTON_PIN 14  // Change to your GPIO
+```
+
+### Enable Screen Timeout
+```cpp
+// In power_manager.h
+#define SCREEN_TIMEOUT_ENABLED true
+#define SCREEN_TIMEOUT_DEFAULT 3000  // 3 seconds
+```
+
+### Change Default Theme
+```cpp
+// In themes.cpp, initThemes()
+currentTheme = &THEME_SHADOW_MONARCH;  // Change default
+```
+
+---
+
+## 🛠️ Hardware
+
+- **Board:** Waveshare ESP32-S3-Touch-AMOLED-1.8
+- **Display:** SH8601 QSPI AMOLED 368x448
+- **Touch:** FT3168
+- **PMU:** AXP2101
+- **IMU:** QMI8658
+- **RTC:** PCF85063
+
+## 📚 Required Libraries
+
+1. LVGL (v8.x)
+2. Arduino_GFX_Library
+3. Arduino_DriveBus_Library
+4. XPowersLib
+5. Adafruit_XCA9554
+6. ArduinoJson
+
+---
+
+**Enjoy your PREMIUM anime smartwatch!** 🎉

@@ -1,6 +1,8 @@
 /**
- * Premium UI Manager Header
- * Apple Watch-Inspired Interface
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *  PREMIUM UI MANAGER - Ultra High Quality Character Screens
+ *  Stunning watch faces and screens for each anime character
+ * ═══════════════════════════════════════════════════════════════════════════════
  */
 
 #ifndef UI_MANAGER_H
@@ -8,46 +10,88 @@
 
 #include <lvgl.h>
 #include "config.h"
-#include "pin_config.h"
+#include "themes.h"
 
-extern lv_obj_t* screens[16];
+// Screen dimensions
+#define SCREEN_W LCD_WIDTH
+#define SCREEN_H LCD_HEIGHT
 
-// Screen management
+// UI element sizes
+#define CLOCK_FONT_SIZE 72
+#define TITLE_FONT_SIZE 24
+#define BODY_FONT_SIZE 16
+#define SMALL_FONT_SIZE 12
+
+// Animation timings
+#define FADE_TIME_MS 200
+#define SLIDE_TIME_MS 300
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  SCREEN FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Show specific screen with theme-aware styling
+ */
 void showScreen(ScreenType screen);
-void goBack();
-void goHome();
 
-// Screen creators
-lv_obj_t* createClockScreen();
-lv_obj_t* createAppsScreen();
-lv_obj_t* createApps2Screen();
-lv_obj_t* createStepsScreen();
-lv_obj_t* createGamesScreen();
-lv_obj_t* createMusicScreen();
-lv_obj_t* createWeatherScreen();
-lv_obj_t* createNewsScreen();
-lv_obj_t* createQuestsScreen();
-lv_obj_t* createRPGScreen();
-lv_obj_t* createSettingsScreen();
-lv_obj_t* createCharStatsScreen();
-lv_obj_t* createGachaScreen();
-lv_obj_t* createTrainingScreen();
-lv_obj_t* createBossRushScreen();
+/**
+ * Create premium clock screen
+ * Character-themed watch face with signature elements
+ */
+void createClockScreen();
 
-// Common UI elements
-lv_obj_t* createTitleBar(lv_obj_t* parent, const char* title);
-lv_obj_t* createAppButton(lv_obj_t* parent, const char* label, uint32_t color);
-lv_obj_t* createProgressArc(lv_obj_t* parent, int value, int max);
+/**
+ * Create apps grid screen
+ * Themed app icons with character styling
+ */
+void createAppsScreen();
+void createAppsScreen2();
 
-// Theme effects
-void drawThemeEffects(lv_obj_t* parent, ThemeType theme);
-void drawRandomCharacterEffects(lv_obj_t* parent, RandomCharacter character);
+/**
+ * Create character stats screen
+ * RPG-style character sheet with theme colors
+ */
+void createCharacterStatsScreen();
 
-// Updates
+/**
+ * Update clock display with current time
+ */
 void updateClock();
-void updateSteps();
 
-// Theme color helper
-lv_color_t getThemeColor(int index);
+/**
+ * Create premium status bar
+ * Battery, time, character indicator
+ */
+void createStatusBar(lv_obj_t* parent);
+
+/**
+ * Create character signature visual element
+ * Unique to each character (clouds for Luffy, shadows for JinWoo, etc.)
+ */
+void createCharacterSignature(lv_obj_t* parent);
+
+/**
+ * Create themed navigation dots
+ * Show current position in screen navigation
+ */
+void createNavDots(lv_obj_t* parent, int current, int total);
+
+/**
+ * Apply premium text styling
+ */
+void applyPremiumTextStyle(lv_obj_t* label, bool isTitle, bool useGlow);
+
+/**
+ * Create glassmorphism container
+ * Premium frosted glass effect
+ */
+lv_obj_t* createGlassContainer(lv_obj_t* parent, int x, int y, int w, int h);
+
+/**
+ * Create character power meter
+ * Animated stat bar with theme colors
+ */
+lv_obj_t* createPowerMeter(lv_obj_t* parent, const char* label, int value, int max);
 
 #endif

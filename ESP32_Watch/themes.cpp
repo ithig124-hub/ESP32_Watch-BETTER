@@ -1,475 +1,531 @@
 /**
- * Premium Theme System Implementation
- * Apple Watch-Inspired Luxury Anime Themes
- * 
- * Design Philosophy:
- * - Deep, rich backgrounds with subtle gradients
- * - Glassmorphism effects for cards and overlays
- * - Premium color palettes inspired by luxury watches
- * - Clean typography with San Francisco-like fonts
- * - Subtle glow effects for emphasis
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *  PREMIUM ANIME THEMES - Implementation
+ *  Ultra High Quality Character Representation
+ * ═══════════════════════════════════════════════════════════════════════════════
  */
 
 #include "themes.h"
-#include "ui_manager.h"
+#include <time.h>
+
+// Current active theme pointer
+const PremiumTheme* currentTheme = nullptr;
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  PREMIUM THEME DEFINITIONS - APPLE WATCH LUXURY STYLE
+//  🌟 GEAR 5 LUFFY - Sun God Nika Premium Theme
 // ═══════════════════════════════════════════════════════════════════════════════
-
-// Luffy Gear 5 - Sun God Nika (Premium White/Gold)
-// Inspired by Apple Watch Hermes Edition + Sun God aesthetic
-static const ThemeColors luffyColors = {
-  .primary       = 0xFFD700,  // Premium Gold
-  .secondary     = 0xFFF5E6,  // Warm cream white
-  .accent        = 0xFFB347,  // Soft orange gold
-  .background    = 0x0D0D0D,  // Pure black (OLED perfect black)
-  .surface       = 0x1A1A1A,  // Elevated card surface
-  .text          = 0xFFFFFF,  // Pure white text
-  .textSecondary = 0xB3B3B3,  // Muted silver text
-  .glow          = 0xFFE4B5,  // Warm golden glow
-  .gradient1     = 0xFFD700,  // Gold gradient start
-  .gradient2     = 0xFFFFFF,  // White gradient end
-  .border        = 0x333333,  // Subtle borders
-  .highlight     = 0xFFF8DC   // Cornsilk highlight
-};
-
-// Jin-Woo Shadow Monarch - Solo Leveling (Premium Purple/Black)
-// Inspired by Apple Watch midnight + Shadow King aesthetic
-static const ThemeColors jinwooColors = {
-  .primary       = 0x9370DB,  // Medium purple (Shadow energy)
-  .secondary     = 0x6A0DAD,  // Royal purple
-  .accent        = 0xE6E6FA,  // Lavender highlights
-  .background    = 0x050508,  // Deep void black
-  .surface       = 0x12101A,  // Shadow card surface
-  .text          = 0xE8E8E8,  // Silver text
-  .textSecondary = 0x8A8A9A,  // Muted purple-grey
-  .glow          = 0x8B00FF,  // Violet glow
-  .gradient1     = 0x4B0082,  // Indigo gradient start
-  .gradient2     = 0x9370DB,  // Purple gradient end
-  .border        = 0x2A2030,  // Dark purple border
-  .highlight     = 0xB19CD9   // Light purple highlight
-};
-
-// Yugo Portal Master - Wakfu (Premium Teal/Cyan)
-// Inspired by Apple Watch Pacific Blue + Portal energy
-static const ThemeColors yugoColors = {
-  .primary       = 0x00D4AA,  // Wakfu teal
-  .secondary     = 0x0097A7,  // Deep cyan
-  .accent        = 0x40E0D0,  // Turquoise accent
-  .background    = 0x030D0D,  // Deep dark teal
-  .surface       = 0x0A1A1A,  // Elevated teal surface
-  .text          = 0xE0FFFF,  // Light cyan text
-  .textSecondary = 0x7FDBDB,  // Muted cyan
-  .glow          = 0x00FFFF,  // Cyan glow
-  .gradient1     = 0x006666,  // Dark teal gradient
-  .gradient2     = 0x00D4AA,  // Bright teal gradient
-  .border        = 0x1A3333,  // Subtle teal border
-  .highlight     = 0x20B2AA   // Light sea green
+const PremiumTheme THEME_GEAR5_LUFFY = {
+  // Character Identity
+  .characterName = "Monkey D. Luffy",
+  .characterTitle = "Sun God Nika",
+  .seriesName = "ONE PIECE",
+  .signatureMove = "Bajrang Gun",
+  .catchphrase = "I'm gonna be King of the Pirates!",
+  
+  // Core Colors - White/Gold/Red Sun God aesthetic
+  .primary = LUFFY_PRIMARY,           // Pure White
+  .secondary = LUFFY_SECONDARY,       // Brilliant Gold
+  .accent = LUFFY_ACCENT,             // Straw Hat Red
+  .background = LUFFY_BACKGROUND,     // Deep Black
+  .text = 0xFFFF,                     // White text
+  .glow = LUFFY_GLOW,                 // Sun glow
+  .highlight = LUFFY_HIGHLIGHT,       // Orange energy
+  
+  // Special Effects - Cloud & Sun visuals
+  .effectColor1 = LUFFY_CLOUD,        // Cloud white
+  .effectColor2 = LUFFY_GLOW,         // Golden rays
+  .effectColor3 = LUFFY_ACCENT,       // Red accents
+  
+  // UI Style - Bouncy, joyful, rounded
+  .cornerRadius = 20,                 // Very rounded (cloud-like)
+  .glowIntensity = 200,               // Strong sun glow
+  .animationSpeed = 8,                // Fast, energetic
+  .useGradient = true,                // Sun gradient
+  .useGlow = true,                    // Nika aura
+  .darkMode = true,                   // Dark bg for contrast
+  
+  // Character Stats
+  .stat1Name = "HAKI",
+  .stat2Name = "GEAR",
+  .stat3Name = "FREEDOM",
+  .stat4Name = "WILL"
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  RANDOM CHARACTER PREMIUM THEMES
+//  🌑 JIN-WOO - Shadow Monarch Premium Theme  
 // ═══════════════════════════════════════════════════════════════════════════════
-
-// Naruto - Sage Mode (Premium Orange/Gold)
-static const ThemeColors narutoColors = {
-  .primary       = 0xFF8C00,  // Dark orange (Chakra)
-  .secondary     = 0xFFB347,  // Soft orange
-  .accent        = 0xFFD700,  // Gold accents
-  .background    = 0x0D0805,  // Warm dark
-  .surface       = 0x1A1410,  // Warm card surface
-  .text          = 0xFFF8DC,  // Cornsilk text
-  .textSecondary = 0xD2B48C,  // Tan muted
-  .glow          = 0xFF6600,  // Orange glow
-  .gradient1     = 0xFF4500,  // Orange-red
-  .gradient2     = 0xFFD700,  // Gold
-  .border        = 0x2A1A10,  // Warm border
-  .highlight     = 0xFFA500   // Orange highlight
-};
-
-// Goku - Super Saiyan God (Premium Gold/Blue)
-static const ThemeColors gokuColors = {
-  .primary       = 0xFFD700,  // Super Saiyan Gold
-  .secondary     = 0x4169E1,  // Royal Blue (SSGSS)
-  .accent        = 0x00BFFF,  // Deep sky blue
-  .background    = 0x050510,  // Deep space black
-  .surface       = 0x101020,  // Space card surface
-  .text          = 0xF0F8FF,  // Alice blue text
-  .textSecondary = 0xADD8E6,  // Light blue muted
-  .glow          = 0xFFFF00,  // Yellow aura
-  .gradient1     = 0x4169E1,  // Blue
-  .gradient2     = 0xFFD700,  // Gold
-  .border        = 0x1A1A30,  // Blue-ish border
-  .highlight     = 0x87CEEB   // Sky blue
-};
-
-// Tanjiro - Sun Breathing (Premium Red/Fire)
-static const ThemeColors tanjiroColors = {
-  .primary       = 0xDC143C,  // Crimson (Hinokami)
-  .secondary     = 0x4169E1,  // Royal Blue (Water)
-  .accent        = 0xFF6347,  // Tomato flame
-  .background    = 0x0A0505,  // Deep dark
-  .surface       = 0x1A1010,  // Dark red surface
-  .text          = 0xFFE4E1,  // Misty rose text
-  .textSecondary = 0xCD853F,  // Peru muted
-  .glow          = 0xFF4500,  // Orange-red glow
-  .gradient1     = 0x8B0000,  // Dark red
-  .gradient2     = 0xFF6347,  // Tomato
-  .border        = 0x2A1515,  // Dark red border
-  .highlight     = 0xFF7F50   // Coral
-};
-
-// Gojo - Infinity (Premium Cyan/White)
-static const ThemeColors gojoColors = {
-  .primary       = 0x00D4FF,  // Cyan infinity
-  .secondary     = 0xFFFFFF,  // Pure white
-  .accent        = 0x87CEEB,  // Sky blue
-  .background    = 0x000510,  // Void black with blue tint
-  .surface       = 0x0A1020,  // Blue void surface
-  .text          = 0xE0FFFF,  // Light cyan text
-  .textSecondary = 0x7EC8E3,  // Muted cyan
-  .glow          = 0x00FFFF,  // Aqua glow
-  .gradient1     = 0x000033,  // Dark blue
-  .gradient2     = 0x00D4FF,  // Cyan
-  .border        = 0x102030,  // Blue border
-  .highlight     = 0xB0E0E6   // Powder blue
-};
-
-// Levi - Humanity's Strongest (Premium Military Green/Grey)
-static const ThemeColors leviColors = {
-  .primary       = 0x2E8B57,  // Sea Green (Survey Corps)
-  .secondary     = 0x708090,  // Slate grey
-  .accent        = 0xC0C0C0,  // Silver (blades)
-  .background    = 0x0A0A0A,  // Pure dark
-  .surface       = 0x151515,  // Military dark surface
-  .text          = 0xF5F5F5,  // White smoke text
-  .textSecondary = 0xA9A9A9,  // Dark grey muted
-  .glow          = 0x00FF7F,  // Spring green
-  .gradient1     = 0x1A3320,  // Dark green
-  .gradient2     = 0x2E8B57,  // Sea green
-  .border        = 0x202020,  // Dark border
-  .highlight     = 0x8FBC8F   // Dark sea green
-};
-
-// Saitama - One Punch (Premium Yellow/Simple)
-static const ThemeColors saitamaColors = {
-  .primary       = 0xFFD700,  // Gold (cape)
-  .secondary     = 0xFFFFFF,  // White (suit)
-  .accent        = 0xDC143C,  // Crimson (gloves)
-  .background    = 0x0D0D0D,  // Pure black
-  .surface       = 0x1A1A1A,  // Simple dark surface
-  .text          = 0xFFFFFF,  // Pure white text
-  .textSecondary = 0xB0B0B0,  // Grey muted
-  .glow          = 0xFFFF00,  // Yellow glow
-  .gradient1     = 0xFFD700,  // Gold
-  .gradient2     = 0xFFFFFF,  // White
-  .border        = 0x252525,  // Subtle border
-  .highlight     = 0xFFF44F   // Bright yellow
-};
-
-// Deku - One For All (Premium Green/Lightning)
-static const ThemeColors dekuColors = {
-  .primary       = 0x32CD32,  // Lime green (OFA)
-  .secondary     = 0x00CED1,  // Dark cyan (lightning)
-  .accent        = 0xFFD700,  // Gold (All Might)
-  .background    = 0x050A05,  // Dark green
-  .surface       = 0x101A10,  // Green surface
-  .text          = 0xF0FFF0,  // Honeydew text
-  .textSecondary = 0x90EE90,  // Light green muted
-  .glow          = 0x00FF00,  // Lime glow
-  .gradient1     = 0x006400,  // Dark green
-  .gradient2     = 0x32CD32,  // Lime green
-  .border        = 0x152015,  // Green border
-  .highlight     = 0x7CFC00   // Lawn green
+const PremiumTheme THEME_SHADOW_MONARCH = {
+  // Character Identity
+  .characterName = "Sung Jin-Woo",
+  .characterTitle = "Shadow Monarch",
+  .seriesName = "SOLO LEVELING",
+  .signatureMove = "ARISE",
+  .catchphrase = "I alone am the honored one.",
+  
+  // Core Colors - Purple/Black/Blue shadow realm
+  .primary = JINWOO_PRIMARY,          // Royal Purple
+  .secondary = JINWOO_SECONDARY,      // Void Black
+  .accent = JINWOO_ACCENT,            // Electric Blue eyes
+  .background = JINWOO_BACKGROUND,    // Absolute Black
+  .text = 0xBDF7,                     // Silver-white text
+  .glow = JINWOO_GLOW,                // Purple glow
+  .highlight = JINWOO_HIGHLIGHT,      // Ice blue
+  
+  // Special Effects - Shadow/Arise visuals
+  .effectColor1 = JINWOO_ARISE,       // ARISE purple
+  .effectColor2 = JINWOO_SHADOW,      // Shadow mist
+  .effectColor3 = JINWOO_ACCENT,      // Blue daggers
+  
+  // UI Style - Sharp, powerful, intimidating
+  .cornerRadius = 5,                  // Sharp edges
+  .glowIntensity = 255,               // Maximum glow
+  .animationSpeed = 6,                // Deliberate, powerful
+  .useGradient = true,                // Shadow gradient
+  .useGlow = true,                    // Strong purple aura
+  .darkMode = true,                   // Absolute dark
+  
+  // Character Stats
+  .stat1Name = "SHADOWS",
+  .stat2Name = "POWER",
+  .stat3Name = "LEVEL",
+  .stat4Name = "ARMY"
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  CHARACTER METADATA
+//  🌀 YUGO - Portal Master Premium Theme
 // ═══════════════════════════════════════════════════════════════════════════════
-
-static const char* randomCharNames[] = {
-  "Naruto", "Goku", "Tanjiro", "Gojo", "Levi", "Saitama", "Deku"
-};
-
-static const char* randomCharTitles[] = {
-  "Seventh Hokage", "Super Saiyan God", "Sun Hashira", 
-  "The Strongest", "Humanity's Hope", "Hero for Fun", "Symbol of Peace"
-};
-
-static const char* randomCharSeries[] = {
-  "Naruto", "Dragon Ball", "Demon Slayer",
-  "Jujutsu Kaisen", "Attack on Titan", "One Punch Man", "My Hero Academia"
+const PremiumTheme THEME_PORTAL_MASTER = {
+  // Character Identity
+  .characterName = "Yugo",
+  .characterTitle = "Eliatrope King",
+  .seriesName = "WAKFU",
+  .signatureMove = "Wakfu Portal",
+  .catchphrase = "Adventure awaits!",
+  
+  // Core Colors - Cyan/Teal/Gold adventure aesthetic
+  .primary = YUGO_PRIMARY,            // Bright Cyan
+  .secondary = YUGO_SECONDARY,        // Deep Teal
+  .accent = YUGO_ACCENT,              // Warm Gold
+  .background = YUGO_BACKGROUND,      // Dark Blue-Grey
+  .text = 0xFFFF,                     // White text
+  .glow = YUGO_GLOW,                  // Cyan portal glow
+  .highlight = YUGO_HIGHLIGHT,        // Seafoam energy
+  
+  // Special Effects - Portal ring visuals
+  .effectColor1 = YUGO_PORTAL,        // Portal ring
+  .effectColor2 = YUGO_ENERGY,        // Wakfu energy
+  .effectColor3 = YUGO_ACCENT,        // Gold sparkles
+  
+  // UI Style - Rounded, friendly, adventurous
+  .cornerRadius = 15,                 // Rounded (portal-like)
+  .glowIntensity = 180,               // Soft portal glow
+  .animationSpeed = 7,                // Smooth, flowing
+  .useGradient = true,                // Portal gradient
+  .useGlow = true,                    // Portal aura
+  .darkMode = true,                   // Dark for portal pop
+  
+  // Character Stats
+  .stat1Name = "WAKFU",
+  .stat2Name = "PORTALS",
+  .stat3Name = "SPEED",
+  .stat4Name = "HEART"
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  THEME FUNCTIONS
+//  🦊 NARUTO - Sage Mode Premium Theme
+// ═══════════════════════════════════════════════════════════════════════════════
+const PremiumTheme THEME_SAGE_NARUTO = {
+  .characterName = "Naruto Uzumaki",
+  .characterTitle = "Seventh Hokage",
+  .seriesName = "NARUTO",
+  .signatureMove = "Rasengan",
+  .catchphrase = "Believe it! Dattebayo!",
+  
+  .primary = NARUTO_PRIMARY,
+  .secondary = NARUTO_SECONDARY,
+  .accent = NARUTO_ACCENT,
+  .background = NARUTO_BACKGROUND,
+  .text = 0xFD20,                     // Orange text
+  .glow = NARUTO_GLOW,
+  .highlight = NARUTO_SAGE_EYE,
+  
+  .effectColor1 = NARUTO_KURAMA,      // Kurama chakra
+  .effectColor2 = NARUTO_RASENGAN,    // Rasengan blue
+  .effectColor3 = NARUTO_GLOW,        // Sage gold
+  
+  .cornerRadius = 12,
+  .glowIntensity = 220,
+  .animationSpeed = 9,                // Hyperactive!
+  .useGradient = true,
+  .useGlow = true,
+  .darkMode = true,
+  
+  .stat1Name = "CHAKRA",
+  .stat2Name = "SAGE",
+  .stat3Name = "KURAMA",
+  .stat4Name = "BONDS"
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  ⚡ GOKU - Ultra Instinct Premium Theme
+// ═══════════════════════════════════════════════════════════════════════════════
+const PremiumTheme THEME_UI_GOKU = {
+  .characterName = "Son Goku",
+  .characterTitle = "Ultra Instinct",
+  .seriesName = "DRAGON BALL",
+  .signatureMove = "Kamehameha",
+  .catchphrase = "I am the hope of the universe!",
+  
+  .primary = GOKU_PRIMARY,            // Silver
+  .secondary = GOKU_SECONDARY,        // Deep Blue
+  .accent = GOKU_ACCENT,              // Pure White
+  .background = GOKU_BACKGROUND,      // Black void
+  .text = 0xC618,                     // Silver text
+  .glow = GOKU_GLOW,                  // Silver glow
+  .highlight = GOKU_DIVINE,
+  
+  .effectColor1 = GOKU_AURA,          // UI Aura
+  .effectColor2 = GOKU_KI,            // Blue Ki
+  .effectColor3 = GOKU_DIVINE,        // Divine silver
+  
+  .cornerRadius = 8,
+  .glowIntensity = 240,               // Intense divine aura
+  .animationSpeed = 10,               // Fastest!
+  .useGradient = true,
+  .useGlow = true,
+  .darkMode = true,
+  
+  .stat1Name = "POWER",
+  .stat2Name = "SPEED",
+  .stat3Name = "KI",
+  .stat4Name = "FORMS"
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  🔥 TANJIRO - Sun Breathing Premium Theme
+// ═══════════════════════════════════════════════════════════════════════════════
+const PremiumTheme THEME_SUN_TANJIRO = {
+  .characterName = "Tanjiro Kamado",
+  .characterTitle = "Sun Breathing",
+  .seriesName = "DEMON SLAYER",
+  .signatureMove = "Hinokami Kagura",
+  .catchphrase = "I will never give up!",
+  
+  .primary = TANJIRO_PRIMARY,         // Crimson
+  .secondary = TANJIRO_SECONDARY,     // Dark Green
+  .accent = TANJIRO_ACCENT,           // Fire Orange
+  .background = TANJIRO_BACKGROUND,   // Charcoal
+  .text = 0xFC00,                     // Flame text
+  .glow = TANJIRO_GLOW,
+  .highlight = TANJIRO_FIRE,
+  
+  .effectColor1 = TANJIRO_FIRE,       // Sun fire
+  .effectColor2 = TANJIRO_WATER,      // Water breathing
+  .effectColor3 = TANJIRO_SCAR,       // Scar mark
+  
+  .cornerRadius = 10,
+  .glowIntensity = 200,
+  .animationSpeed = 7,
+  .useGradient = true,
+  .useGlow = true,
+  .darkMode = true,
+  
+  .stat1Name = "BREATH",
+  .stat2Name = "FORMS",
+  .stat3Name = "SENSE",
+  .stat4Name = "WILL"
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  ♾️ GOJO - Infinity Premium Theme
+// ═══════════════════════════════════════════════════════════════════════════════
+const PremiumTheme THEME_INFINITY_GOJO = {
+  .characterName = "Satoru Gojo",
+  .characterTitle = "The Strongest",
+  .seriesName = "JUJUTSU KAISEN",
+  .signatureMove = "Infinite Void",
+  .catchphrase = "Throughout Heaven and Earth, I alone am the honored one.",
+  
+  .primary = GOJO_PRIMARY,            // Infinity Blue
+  .secondary = GOJO_SECONDARY,        // White hair
+  .accent = GOJO_ACCENT,              // Purple cursed energy
+  .background = GOJO_BACKGROUND,      // Black
+  .text = 0x5DDF,                     // Blue text
+  .glow = GOJO_GLOW,
+  .highlight = GOJO_EYES,
+  
+  .effectColor1 = GOJO_INFINITY,      // Infinity sphere
+  .effectColor2 = GOJO_DOMAIN,        // Domain expansion
+  .effectColor3 = GOJO_EYES,          // Six Eyes
+  
+  .cornerRadius = 25,                 // Perfect circles (infinity)
+  .glowIntensity = 255,               // Maximum (untouchable)
+  .animationSpeed = 8,
+  .useGradient = true,
+  .useGlow = true,
+  .darkMode = true,
+  
+  .stat1Name = "INFINITY",
+  .stat2Name = "CURSED",
+  .stat3Name = "SIX EYES",
+  .stat4Name = "DOMAIN"
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  ⚔️ LEVI - Captain Premium Theme
+// ═══════════════════════════════════════════════════════════════════════════════
+const PremiumTheme THEME_CAPTAIN_LEVI = {
+  .characterName = "Levi Ackerman",
+  .characterTitle = "Humanity's Strongest",
+  .seriesName = "ATTACK ON TITAN",
+  .signatureMove = "Spin Attack",
+  .catchphrase = "Give up on your dreams and die.",
+  
+  .primary = LEVI_PRIMARY,            // Military Grey
+  .secondary = LEVI_SECONDARY,        // Dark uniform
+  .accent = LEVI_ACCENT,              // Survey Corps Green
+  .background = LEVI_BACKGROUND,      // Charcoal
+  .text = 0xC618,                     // Silver text
+  .glow = LEVI_GLOW,
+  .highlight = LEVI_BLADE,
+  
+  .effectColor1 = LEVI_CAPE,          // Green cape
+  .effectColor2 = LEVI_BLADE,         // Steel blades
+  .effectColor3 = LEVI_BLOOD,         // Titan blood
+  
+  .cornerRadius = 3,                  // Sharp, precise
+  .glowIntensity = 120,               // Subtle, controlled
+  .animationSpeed = 9,                // Lightning fast
+  .useGradient = false,               // Clean, no frills
+  .useGlow = true,
+  .darkMode = true,
+  
+  .stat1Name = "TITANS",
+  .stat2Name = "KILLS",
+  .stat3Name = "SPEED",
+  .stat4Name = "CLEAN"
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  👊 SAITAMA - One Punch Premium Theme
+// ═══════════════════════════════════════════════════════════════════════════════
+const PremiumTheme THEME_HERO_SAITAMA = {
+  .characterName = "Saitama",
+  .characterTitle = "One Punch Man",
+  .seriesName = "ONE PUNCH MAN",
+  .signatureMove = "Serious Punch",
+  .catchphrase = "OK.",
+  
+  .primary = SAITAMA_PRIMARY,         // Yellow suit
+  .secondary = SAITAMA_SECONDARY,     // Red cape
+  .accent = SAITAMA_ACCENT,           // White (bald)
+  .background = SAITAMA_BACKGROUND,   // Black
+  .text = 0xFFE0,                     // Yellow text
+  .glow = SAITAMA_GLOW,
+  .highlight = SAITAMA_FIST,
+  
+  .effectColor1 = SAITAMA_CAPE,       // Cape flow
+  .effectColor2 = SAITAMA_FIST,       // Punch impact
+  .effectColor3 = SAITAMA_PRIMARY,    // Yellow flash
+  
+  .cornerRadius = 0,                  // Simple, flat
+  .glowIntensity = 150,               // Understated power
+  .animationSpeed = 5,                // Casual, bored
+  .useGradient = false,               // Simple aesthetic
+  .useGlow = true,
+  .darkMode = true,
+  
+  .stat1Name = "PUNCH",
+  .stat2Name = "RANK",
+  .stat3Name = "BORED",
+  .stat4Name = "SALES"
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  💚 DEKU - Plus Ultra Premium Theme
+// ═══════════════════════════════════════════════════════════════════════════════
+const PremiumTheme THEME_PLUS_ULTRA_DEKU = {
+  .characterName = "Izuku Midoriya",
+  .characterTitle = "The Greatest Hero",
+  .seriesName = "MY HERO ACADEMIA",
+  .signatureMove = "United States of Smash",
+  .catchphrase = "PLUS ULTRA!",
+  
+  .primary = DEKU_PRIMARY,            // Hero Green
+  .secondary = DEKU_SECONDARY,        // Black costume
+  .accent = DEKU_ACCENT,              // Yellow (All Might)
+  .background = DEKU_BACKGROUND,      // Dark
+  .text = 0x07E0,                     // Green text
+  .glow = DEKU_GLOW,
+  .highlight = DEKU_LIGHTNING,
+  
+  .effectColor1 = DEKU_LIGHTNING,     // OFA Lightning
+  .effectColor2 = DEKU_FULL_COWL,     // Full Cowl
+  .effectColor3 = DEKU_VEINS,         // Power veins
+  
+  .cornerRadius = 12,
+  .glowIntensity = 230,               // Intense OFA glow
+  .animationSpeed = 8,
+  .useGradient = true,
+  .useGlow = true,
+  .darkMode = true,
+  
+  .stat1Name = "OFA %",
+  .stat2Name = "QUIRKS",
+  .stat3Name = "SMASH",
+  .stat4Name = "HERO"
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  DAILY CHARACTER ARRAY
+// ═══════════════════════════════════════════════════════════════════════════════
+static const PremiumTheme* dailyThemes[RANDOM_CHAR_COUNT] = {
+  &THEME_SAGE_NARUTO,
+  &THEME_UI_GOKU,
+  &THEME_SUN_TANJIRO,
+  &THEME_INFINITY_GOJO,
+  &THEME_CAPTAIN_LEVI,
+  &THEME_HERO_SAITAMA,
+  &THEME_PLUS_ULTRA_DEKU
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  THEME FUNCTIONS IMPLEMENTATION
 // ═══════════════════════════════════════════════════════════════════════════════
 
 void initThemes() {
-  updateDailyCharacter();
-  applyTheme(watch.theme);
-  Serial.println("[OK] Premium Themes Initialized");
+  currentTheme = &THEME_GEAR5_LUFFY;
+  Serial.println("[THEME] Premium themes initialized");
+  Serial.printf("[THEME] Default: %s - %s\n", 
+    currentTheme->characterName, 
+    currentTheme->characterTitle);
 }
 
-RandomCharacter calculateDailyCharacter() {
-  int dayOfYear = watch.day;
-  for (int m = 1; m < watch.month; m++) {
-    int daysInMonth[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-    dayOfYear += daysInMonth[m - 1];
+void setTheme(ThemeType type) {
+  switch (type) {
+    case THEME_LUFFY:
+      currentTheme = &THEME_GEAR5_LUFFY;
+      break;
+    case THEME_JINWOO:
+      currentTheme = &THEME_SHADOW_MONARCH;
+      break;
+    case THEME_YUGO:
+      currentTheme = &THEME_PORTAL_MASTER;
+      break;
+    case THEME_RANDOM:
+      currentTheme = getDailyCharacterTheme();
+      break;
+    default:
+      currentTheme = &THEME_GEAR5_LUFFY;
   }
-  return (RandomCharacter)(dayOfYear % RANDOM_CHAR_COUNT);
-}
-
-void updateDailyCharacter() {
-  int dayOfYear = watch.day;
-  for (int m = 1; m < watch.month; m++) {
-    int daysInMonth[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-    dayOfYear += daysInMonth[m - 1];
-  }
-
-  if (watch.lastRandomDay != dayOfYear) {
-    watch.lastRandomDay = dayOfYear;
-    watch.dailyCharacter = calculateDailyCharacter();
-    Serial.printf("[THEME] Today's character: %s - %s\n", 
-      getRandomCharacterName(watch.dailyCharacter),
-      getRandomCharacterTitle(watch.dailyCharacter));
-  }
-}
-
-ThemeColors getRandomCharacterColors(RandomCharacter character) {
-  switch(character) {
-    case CHAR_NARUTO:  return narutoColors;
-    case CHAR_GOKU:    return gokuColors;
-    case CHAR_TANJIRO: return tanjiroColors;
-    case CHAR_GOJO:    return gojoColors;
-    case CHAR_LEVI:    return leviColors;
-    case CHAR_SAITAMA: return saitamaColors;
-    case CHAR_DEKU:    return dekuColors;
-    default:           return narutoColors;
-  }
-}
-
-ThemeColors getThemeColors(ThemeType theme) {
-  switch(theme) {
-    case THEME_LUFFY:  return luffyColors;
-    case THEME_JINWOO: return jinwooColors;
-    case THEME_YUGO:   return yugoColors;
-    case THEME_RANDOM: return getRandomCharacterColors(watch.dailyCharacter);
-    default:           return luffyColors;
-  }
-}
-
-const char* getThemeName(ThemeType theme) {
-  switch(theme) {
-    case THEME_LUFFY:  return "Gear 5 Sun God";
-    case THEME_JINWOO: return "Shadow Monarch";
-    case THEME_YUGO:   return "Portal Master";
-    case THEME_RANDOM: return "Daily Hero";
-    default:           return "Unknown";
-  }
-}
-
-const char* getRandomCharacterName(RandomCharacter character) {
-  return (character < RANDOM_CHAR_COUNT) ? randomCharNames[character] : "Unknown";
-}
-
-const char* getRandomCharacterTitle(RandomCharacter character) {
-  return (character < RANDOM_CHAR_COUNT) ? randomCharTitles[character] : "Unknown";
-}
-
-const char* getRandomCharacterSeries(RandomCharacter character) {
-  return (character < RANDOM_CHAR_COUNT) ? randomCharSeries[character] : "Unknown";
-}
-
-void applyTheme(ThemeType theme) {
-  watch.theme = theme;
-  if (theme == THEME_RANDOM) {
-    updateDailyCharacter();
-  }
-  userData.theme = theme;
-  saveUserData();
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-//  PREMIUM UI ELEMENTS (Apple Watch Style)
-// ═══════════════════════════════════════════════════════════════════════════════
-
-/**
- * Glassmorphism Card - Premium frosted glass effect
- * Simulated on LVGL with layered transparency
- */
-void drawGlassmorphismCard(lv_obj_t* parent, int x, int y, int w, int h, uint32_t tint) {
-  ThemeColors colors = getThemeColors(watch.theme);
   
-  // Outer glow/shadow layer
-  lv_obj_t* glow = lv_obj_create(parent);
-  lv_obj_set_size(glow, w + 4, h + 4);
-  lv_obj_set_pos(glow, x - 2, y - 2);
-  lv_obj_set_style_bg_color(glow, lv_color_hex(colors.glow), 0);
-  lv_obj_set_style_bg_opa(glow, LV_OPA_10, 0);
-  lv_obj_set_style_radius(glow, 18, 0);
-  lv_obj_set_style_border_width(glow, 0, 0);
-  lv_obj_clear_flag(glow, LV_OBJ_FLAG_CLICKABLE);
-  
-  // Main glass card
-  lv_obj_t* card = lv_obj_create(parent);
-  lv_obj_set_size(card, w, h);
-  lv_obj_set_pos(card, x, y);
-  lv_obj_set_style_bg_color(card, lv_color_hex(colors.surface), 0);
-  lv_obj_set_style_bg_opa(card, LV_OPA_80, 0);  // Semi-transparent
-  lv_obj_set_style_radius(card, 16, 0);
-  lv_obj_set_style_border_color(card, lv_color_hex(colors.border), 0);
-  lv_obj_set_style_border_width(card, 1, 0);
-  lv_obj_set_style_border_opa(card, LV_OPA_50, 0);
-  lv_obj_clear_flag(card, LV_OBJ_FLAG_CLICKABLE);
-  
-  // Inner highlight (top edge reflection)
-  lv_obj_t* highlight = lv_obj_create(card);
-  lv_obj_set_size(highlight, w - 20, 2);
-  lv_obj_align(highlight, LV_ALIGN_TOP_MID, 0, 4);
-  lv_obj_set_style_bg_color(highlight, lv_color_hex(0xFFFFFF), 0);
-  lv_obj_set_style_bg_opa(highlight, LV_OPA_10, 0);
-  lv_obj_set_style_radius(highlight, 1, 0);
-  lv_obj_set_style_border_width(highlight, 0, 0);
-  lv_obj_clear_flag(highlight, LV_OBJ_FLAG_CLICKABLE);
+  Serial.printf("[THEME] Switched to: %s - %s\n", 
+    currentTheme->characterName, 
+    currentTheme->characterTitle);
 }
 
-/**
- * Premium Glow Effect - Subtle ambient lighting
- */
-void drawPremiumGlow(lv_obj_t* parent, uint32_t color, int intensity) {
-  // Multi-layer glow for premium effect
-  for (int i = 3; i > 0; i--) {
-    lv_obj_t* glow = lv_obj_create(parent);
-    int size = 150 + (i * 50 * intensity / 100);
-    lv_obj_set_size(glow, size, size);
-    lv_obj_align(glow, LV_ALIGN_CENTER, 0, 30);
-    lv_obj_set_style_radius(glow, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_color(glow, lv_color_hex(color), 0);
-    lv_obj_set_style_bg_opa(glow, LV_OPA_TRANSP + (4 - i) * 3, 0);
-    lv_obj_set_style_border_width(glow, 0, 0);
-    lv_obj_clear_flag(glow, LV_OBJ_FLAG_CLICKABLE);
+const PremiumTheme* getCurrentTheme() {
+  return currentTheme;
+}
+
+const PremiumTheme* getDailyCharacterTheme() {
+  // Get day of year for daily rotation
+  time_t now = time(nullptr);
+  struct tm* timeinfo = localtime(&now);
+  int dayOfYear = timeinfo->tm_yday;
+  
+  // Rotate through 7 characters
+  int charIndex = dayOfYear % RANDOM_CHAR_COUNT;
+  
+  return dailyThemes[charIndex];
+}
+
+lv_color_t themeColor(uint16_t rgb565) {
+  return lv_color_hex(rgb565);
+}
+
+void applyThemeToScreen(lv_obj_t* screen) {
+  if (!currentTheme || !screen) return;
+  
+  // Set background color
+  lv_obj_set_style_bg_color(screen, themeColor(currentTheme->background), 0);
+  lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, 0);
+  
+  // Add gradient if enabled
+  if (currentTheme->useGradient) {
+    lv_obj_set_style_bg_grad_color(screen, themeColor(currentTheme->primary), 0);
+    lv_obj_set_style_bg_grad_dir(screen, LV_GRAD_DIR_VER, 0);
   }
 }
 
-/**
- * Anime Power Aura - Character-specific glow effects
- */
-void drawAnimePowerAura(lv_obj_t* parent, uint32_t color, int intensity) {
-  // Concentric rings with fade
-  for (int i = 0; i < 4; i++) {
-    lv_obj_t* ring = lv_obj_create(parent);
-    int size = 280 - i * 40;
-    lv_obj_set_size(ring, size, size);
-    lv_obj_align(ring, LV_ALIGN_CENTER, 0, 0);
-    lv_obj_set_style_radius(ring, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_opa(ring, LV_OPA_0, 0);
-    lv_obj_set_style_border_color(ring, lv_color_hex(color), 0);
-    lv_obj_set_style_border_width(ring, 1, 0);
-    lv_obj_set_style_border_opa(ring, LV_OPA_10 + i * 8, 0);
-    lv_obj_clear_flag(ring, LV_OBJ_FLAG_CLICKABLE);
+lv_obj_t* createThemedContainer(lv_obj_t* parent, int width, int height) {
+  lv_obj_t* cont = lv_obj_create(parent);
+  lv_obj_set_size(cont, width, height);
+  lv_obj_set_style_bg_color(cont, themeColor(currentTheme->secondary), 0);
+  lv_obj_set_style_bg_opa(cont, LV_OPA_80, 0);
+  lv_obj_set_style_radius(cont, currentTheme->cornerRadius, 0);
+  lv_obj_set_style_border_width(cont, 2, 0);
+  lv_obj_set_style_border_color(cont, themeColor(currentTheme->primary), 0);
+  
+  // Add glow effect if enabled
+  if (currentTheme->useGlow) {
+    lv_obj_set_style_shadow_color(cont, themeColor(currentTheme->glow), 0);
+    lv_obj_set_style_shadow_width(cont, currentTheme->glowIntensity / 10, 0);
+    lv_obj_set_style_shadow_spread(cont, 5, 0);
+    lv_obj_set_style_shadow_opa(cont, currentTheme->glowIntensity, 0);
   }
+  
+  return cont;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  THEME SELECTOR SCREEN (Premium Style)
-// ═══════════════════════════════════════════════════════════════════════════════
-
-lv_obj_t* createWallpaperScreen() {
-  ThemeColors colors = getThemeColors(watch.theme);
+lv_obj_t* createThemedButton(lv_obj_t* parent, const char* text) {
+  lv_obj_t* btn = lv_btn_create(parent);
+  lv_obj_set_style_bg_color(btn, themeColor(currentTheme->primary), 0);
+  lv_obj_set_style_bg_color(btn, themeColor(currentTheme->highlight), LV_STATE_PRESSED);
+  lv_obj_set_style_radius(btn, currentTheme->cornerRadius, 0);
   
-  lv_obj_t* scr = lv_obj_create(NULL);
-  lv_obj_set_style_bg_color(scr, lv_color_hex(colors.background), 0);
-
-  createTitleBar(scr, "Themes");
-
-  // Premium theme cards
-  const char* names[] = {
-    "Gear 5\nSun God",
-    "Jin-Woo\nShadow Monarch",
-    "Yugo\nPortal Master",
-    "Random\nDaily Hero"
-  };
-  
-  const char* subtitles[] = {
-    "Clean white & gold",
-    "Deep purple luxury",
-    "Teal exploration",
-    "New hero every day"
-  };
-  
-  const uint32_t cardColors[] = {0xFFD700, 0x9370DB, 0x00D4AA, 0xFF8C00};
-
-  for (int i = 0; i < 4; i++) {
-    // Card background with glow
-    lv_obj_t* cardBg = lv_obj_create(scr);
-    lv_obj_set_size(cardBg, LCD_WIDTH - 30, 85);
-    lv_obj_align(cardBg, LV_ALIGN_TOP_MID, 0, 58 + i * 92);
-    lv_obj_set_style_bg_color(cardBg, lv_color_hex(colors.surface), 0);
-    lv_obj_set_style_bg_opa(cardBg, LV_OPA_90, 0);
-    lv_obj_set_style_radius(cardBg, 16, 0);
-    lv_obj_set_style_border_color(cardBg, lv_color_hex(cardColors[i]), 0);
-    lv_obj_set_style_border_width(cardBg, 2, 0);
-    lv_obj_set_style_border_opa(cardBg, i == (int)watch.theme ? LV_OPA_100 : LV_OPA_30, 0);
-    lv_obj_set_user_data(cardBg, (void*)(intptr_t)i);
-
-    lv_obj_add_event_cb(cardBg, [](lv_event_t* e) {
-      lv_obj_t* card = lv_event_get_target(e);
-      ThemeType theme = (ThemeType)(intptr_t)lv_obj_get_user_data(card);
-      applyTheme(theme);
-
-      // Refresh to show new theme
-      for (int j = 0; j < 16; j++) {
-        if (screens[j]) {
-          lv_obj_del(screens[j]);
-          screens[j] = nullptr;
-        }
-      }
-      showScreen(SCREEN_CLOCK);
-    }, LV_EVENT_CLICKED, NULL);
-
-    // Accent stripe on left
-    lv_obj_t* stripe = lv_obj_create(cardBg);
-    lv_obj_set_size(stripe, 4, 65);
-    lv_obj_align(stripe, LV_ALIGN_LEFT_MID, 8, 0);
-    lv_obj_set_style_bg_color(stripe, lv_color_hex(cardColors[i]), 0);
-    lv_obj_set_style_radius(stripe, 2, 0);
-    lv_obj_set_style_border_width(stripe, 0, 0);
-    lv_obj_clear_flag(stripe, LV_OBJ_FLAG_CLICKABLE);
-
-    // Theme name
-    lv_obj_t* nameLbl = lv_label_create(cardBg);
-    lv_obj_set_style_text_font(nameLbl, &lv_font_montserrat_16, 0);
-    lv_obj_set_style_text_color(nameLbl, lv_color_hex(colors.text), 0);
-    lv_label_set_text(nameLbl, names[i]);
-    lv_obj_align(nameLbl, LV_ALIGN_LEFT_MID, 22, -10);
-
-    // Subtitle
-    lv_obj_t* subLbl = lv_label_create(cardBg);
-    lv_obj_set_style_text_font(subLbl, &lv_font_montserrat_12, 0);
-    lv_obj_set_style_text_color(subLbl, lv_color_hex(colors.textSecondary), 0);
-    lv_label_set_text(subLbl, subtitles[i]);
-    lv_obj_align(subLbl, LV_ALIGN_LEFT_MID, 22, 20);
-
-    // Selected indicator
-    if (i == (int)watch.theme) {
-      lv_obj_t* check = lv_label_create(cardBg);
-      lv_obj_set_style_text_color(check, lv_color_hex(cardColors[i]), 0);
-      lv_obj_set_style_text_font(check, &lv_font_montserrat_20, 0);
-      lv_label_set_text(check, LV_SYMBOL_OK);
-      lv_obj_align(check, LV_ALIGN_RIGHT_MID, -15, 0);
-    }
-
-    // Today's character for Random
-    if (i == THEME_RANDOM) {
-      lv_obj_t* charLbl = lv_label_create(cardBg);
-      lv_obj_set_style_text_font(charLbl, &lv_font_montserrat_12, 0);
-      lv_obj_set_style_text_color(charLbl, lv_color_hex(cardColors[i]), 0);
-      lv_label_set_text_fmt(charLbl, "Today: %s", getRandomCharacterName(watch.dailyCharacter));
-      lv_obj_align(charLbl, LV_ALIGN_RIGHT_MID, -15, 15);
-    }
+  // Add glow on focus
+  if (currentTheme->useGlow) {
+    lv_obj_set_style_shadow_color(btn, themeColor(currentTheme->glow), LV_STATE_FOCUSED);
+    lv_obj_set_style_shadow_width(btn, 15, LV_STATE_FOCUSED);
+    lv_obj_set_style_shadow_opa(btn, 200, LV_STATE_FOCUSED);
   }
+  
+  lv_obj_t* label = lv_label_create(btn);
+  lv_label_set_text(label, text);
+  lv_obj_set_style_text_color(label, themeColor(currentTheme->text), 0);
+  lv_obj_center(label);
+  
+  return btn;
+}
 
-  return scr;
+lv_obj_t* createThemedLabel(lv_obj_t* parent, const char* text, bool isTitle) {
+  lv_obj_t* label = lv_label_create(parent);
+  lv_label_set_text(label, text);
+  
+  if (isTitle) {
+    lv_obj_set_style_text_color(label, themeColor(currentTheme->primary), 0);
+    lv_obj_set_style_text_font(label, &lv_font_montserrat_24, 0);
+  } else {
+    lv_obj_set_style_text_color(label, themeColor(currentTheme->text), 0);
+    lv_obj_set_style_text_font(label, &lv_font_montserrat_16, 0);
+  }
+  
+  return label;
+}
+
+void createSignatureEffect(lv_obj_t* parent) {
+  // Create character-specific visual effect
+  lv_obj_t* effect = lv_obj_create(parent);
+  lv_obj_set_size(effect, 60, 60);
+  lv_obj_align(effect, LV_ALIGN_TOP_RIGHT, -10, 10);
+  lv_obj_set_style_bg_color(effect, themeColor(currentTheme->effectColor1), 0);
+  lv_obj_set_style_bg_opa(effect, LV_OPA_60, 0);
+  lv_obj_set_style_radius(effect, currentTheme->cornerRadius, 0);
+  lv_obj_clear_flag(effect, LV_OBJ_FLAG_SCROLLABLE);
+  
+  // Add glow
+  lv_obj_set_style_shadow_color(effect, themeColor(currentTheme->glow), 0);
+  lv_obj_set_style_shadow_width(effect, 20, 0);
+  lv_obj_set_style_shadow_opa(effect, currentTheme->glowIntensity, 0);
 }
