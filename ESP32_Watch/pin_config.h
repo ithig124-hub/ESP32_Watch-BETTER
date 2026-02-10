@@ -1,28 +1,34 @@
 /**
  * Pin Configuration for Waveshare ESP32-S3-Touch-AMOLED-1.8
- * FIXED VERSION - Added Power Button Pin
+ * FIXED VERSION - Corrected pins from official Waveshare reference
  */
 
 #ifndef PIN_CONFIG_H
 #define PIN_CONFIG_H
 
-// Display (SH8601 QSPI AMOLED)
+// ═══════════════════════════════════════════════════════════════════════════════
+//  DISPLAY (SH8601 QSPI AMOLED) - CORRECTED FROM WAVESHARE REFERENCE
+// ═══════════════════════════════════════════════════════════════════════════════
 #define LCD_WIDTH  368
 #define LCD_HEIGHT 448
-#define LCD_CS     6
-#define LCD_SCLK   47
-#define LCD_SDIO0  18
-#define LCD_SDIO1  7
-#define LCD_SDIO2  48
-#define LCD_SDIO3  5
+#define LCD_CS     12
+#define LCD_SCLK   11
+#define LCD_SDIO0  4
+#define LCD_SDIO1  5
+#define LCD_SDIO2  6
+#define LCD_SDIO3  7
 
-// Touch (FT3168)
-#define TP_INT     8
+// ═══════════════════════════════════════════════════════════════════════════════
+//  TOUCH (FT3168) - CORRECTED PINS
+// ═══════════════════════════════════════════════════════════════════════════════
+#define TP_INT     21
 #define TP_RST     -1
 
-// I2C
-#define IIC_SDA    10
-#define IIC_SCL    11
+// ═══════════════════════════════════════════════════════════════════════════════
+//  I2C - CORRECTED FROM WAVESHARE REFERENCE
+// ═══════════════════════════════════════════════════════════════════════════════
+#define IIC_SDA    15
+#define IIC_SCL    14
 
 // I2C Addresses
 #define TOUCH_ADDR    0x38  // FT3168
@@ -31,23 +37,30 @@
 #define PMU_ADDR      0x34  // AXP2101
 #define EXPANDER_ADDR 0x20  // XCA9554
 
-// SD Card (SDMMC)
-#define SDMMC_CMD  13
-#define SDMMC_CLK  12
-#define SDMMC_DATA 9
+// ═══════════════════════════════════════════════════════════════════════════════
+//  SD CARD (SDMMC) - CORRECTED FROM WAVESHARE REFERENCE
+// ═══════════════════════════════════════════════════════════════════════════════
+#define SDMMC_CMD  1
+#define SDMMC_CLK  2
+#define SDMMC_DATA 3
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  POWER BUTTON - DIRECTLY CONTROL SCREEN ON/OFF
+//  AUDIO (ES8311) - FROM WAVESHARE REFERENCE
 // ═══════════════════════════════════════════════════════════════════════════════
-// If your board has a physical button, define it here
-// Common GPIO pins for side button: 0, 14, 21, 38, 39, etc.
-// Set to -1 if no physical button available
+#define I2S_MCK    16
+#define I2S_BCLK   9
+#define I2S_WS     45
+#define I2S_DO     10
+#define I2S_DI     8
+#define PA_EN      46
+
+// Legacy audio defines for compatibility
+#define I2S_LRCK   I2S_WS
+#define I2S_DOUT   I2S_DO
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  POWER BUTTON
+// ═══════════════════════════════════════════════════════════════════════════════
 #define PWR_BUTTON_PIN  0   // Boot button can be used as power toggle
-                            // Change to your actual button GPIO if different
-
-// Audio (optional)
-#define I2S_BCLK   -1
-#define I2S_LRCK   -1
-#define I2S_DOUT   -1
 
 #endif

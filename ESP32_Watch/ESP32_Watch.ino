@@ -299,22 +299,46 @@ void lvgl_touch_read(lv_indev_drv_t *drv, lv_indev_data_t *data) {
 void lvgl_tick(void *arg) { lv_tick_inc(2); }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  INITIALIZATION
+//  INITIALIZATION - FIXED I2C INITIALIZATION
 // ═══════════════════════════════════════════════════════════════════════════════
 void initI2C() {
+  // Initialize I2C bus with correct pins from Waveshare reference
+  // SDA=GPIO15, SCL=GPIO14, 400kHz
   Wire.begin(IIC_SDA, IIC_SCL);
   Wire.setClock(400000);
-  delay(50);
-  Serial.println("[OK] I2C Bus");
+  delay(100);  // Give bus time to stabilize
+  
+  Serial.println("[OK] I2C Bus initialized");
+  Serial.printf("     SDA: GPIO%d, SCL: GPIO%d\n", IIC_SDA, IIC_SCL);
+  
+  // Scan I2C bus for debugging
+  Serial.println("[I2C] Scanning bus...");
+  int deviceCount = 0;
+  for (uint8_t addr = 1; addr < 127; addr++) {
+    Wire.beginTransmission(addr);
+    if (Wire.endTransmission() == 0) {
+      Serial.printf("     Found device at 0x%02X", addr);
+      if (addr == 0x38) Serial.print(" (FT3168 Touch)");
+      else if (addr == 0x6B) Serial.print(" (QMI8658 IMU)");
+      else if (addr == 0x51) Serial.print(" (PCF85063 RTC)");
+      else if (addr == 0x34) Serial.print(" (AXP2101 PMU)");
+      else if (addr == 0x20) Serial.print(" (XCA9554 Expander)");
+      Serial.println();
+      deviceCount++;
+    }
+  }
+  Serial.printf("[I2C] Found %d device(s)\n", deviceCount);
 }
 
 void initExpander() {
+  // I/O Expander is optional on some boards
   if (expander.begin(0x20, &Wire)) {
-    Serial.println("[OK] I/O Expander");
+    Serial.println("[OK] I/O Expander (XCA9554)");
     expander.pinMode(0, OUTPUT);
     expander.pinMode(1, OUTPUT);
     expander.pinMode(2, OUTPUT);
 
+    // Reset sequence for peripherals
     expander.digitalWrite(0, LOW);
     expander.digitalWrite(1, LOW);
     expander.digitalWrite(2, LOW);
@@ -323,24 +347,36 @@ void initExpander() {
     expander.digitalWrite(1, HIGH);
     expander.digitalWrite(2, HIGH);
     delay(50);
+  } else {
+    Serial.println("[INFO] I/O Expander not found (optional)");
   }
 }
 
 void initDisplay() {
+  Serial.println("[DISP] Initializing SH8601 QSPI AMOLED...");
+  Serial.printf("       Size: %dx%d, CS: GPIO%d, SCLK: GPIO%d\n", 
+                LCD_WIDTH, LCD_HEIGHT, LCD_CS, LCD_SCLK);
+  
   gfx->begin();
   gfx->setBrightness(powerState.currentBrightness);
-  gfx->fillScreen(0x0000);
-  Serial.println("[OK] Display");
+  gfx->fillScreen(0x0000);  // Clear to black
+  Serial.println("[OK] Display initialized");
 }
 
 void initTouch() {
   Serial.println("[TOUCH] Initializing FT3168...");
+  Serial.printf("        INT Pin: GPIO%d\n", TP_INT);
 
-  int retries = 3;
+  // Configure interrupt pin
+  pinMode(TP_INT, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(TP_INT), Arduino_IIC_Touch_Interrupt, FALLING);
+
+  int retries = 5;  // Increased retries
   while (retries > 0) {
     if (FT3168->begin()) {
-      Serial.println("[OK] Touch controller (FT3168)");
+      Serial.println("[OK] Touch controller (FT3168) initialized");
 
+      // Set touch to monitor mode for power efficiency
       FT3168->IIC_Write_Device_State(
         FT3168->Arduino_IIC_Touch::Device::TOUCH_POWER_MODE,
         FT3168->Arduino_IIC_Touch::Device_Mode::TOUCH_POWER_MONITOR
@@ -349,32 +385,44 @@ void initTouch() {
       return;
     }
 
-    Serial.printf("[TOUCH] Init failed, retrying... (%d)\n", retries);
-    delay(100);
+    Serial.printf("[TOUCH] Init attempt %d failed, retrying...\n", 6 - retries);
+    delay(200);  // Longer delay between retries
     retries--;
   }
 
-  Serial.println("[WARN] Touch controller not responding");
+  Serial.println("[WARN] Touch controller not responding - check wiring!");
+  Serial.println("       Expected: FT3168 at I2C address 0x38");
 }
 
 void initPMU() {
+  Serial.println("[PMU] Initializing AXP2101...");
+  
+  // Try to initialize PMU
   if (pmu.begin(Wire, AXP2101_SLAVE_ADDRESS, IIC_SDA, IIC_SCL)) {
     hasPMU = true;
+    
+    // Disable all IRQs during setup
     pmu.disableIRQ(XPOWERS_AXP2101_ALL_IRQ);
+    
+    // Configure charging
     pmu.setChargeTargetVoltage(XPOWERS_AXP2101_CHG_VOL_4V2);
     pmu.enableBattDetection();
     pmu.enableBattVoltageMeasure();
 
-    pmu.setALDO1Voltage(1800); pmu.enableALDO1();
-    pmu.setALDO2Voltage(2800); pmu.enableALDO2();
-    pmu.setALDO3Voltage(3300); pmu.enableALDO3();
-    pmu.setALDO4Voltage(3300); pmu.enableALDO4();
-    pmu.setBLDO1Voltage(1800); pmu.enableBLDO1();
-    pmu.setBLDO2Voltage(3300); pmu.enableBLDO2();
+    // Configure power rails for peripherals
+    pmu.setALDO1Voltage(1800); pmu.enableALDO1();  // 1.8V rail
+    pmu.setALDO2Voltage(2800); pmu.enableALDO2();  // 2.8V rail
+    pmu.setALDO3Voltage(3300); pmu.enableALDO3();  // 3.3V rail
+    pmu.setALDO4Voltage(3300); pmu.enableALDO4();  // 3.3V rail
+    pmu.setBLDO1Voltage(1800); pmu.enableBLDO1();  // 1.8V rail
+    pmu.setBLDO2Voltage(3300); pmu.enableBLDO2();  // 3.3V rail
 
-    Serial.println("[OK] PMU (AXP2101)");
+    Serial.println("[OK] PMU (AXP2101) configured");
+    Serial.printf("     Battery: %d%%, Charging: %s\n", 
+                  pmu.getBatteryPercent(),
+                  pmu.isCharging() ? "Yes" : "No");
   } else {
-    Serial.println("[WARN] PMU not found");
+    Serial.println("[INFO] PMU not found (optional on some boards)");
   }
 }
 
@@ -413,10 +461,14 @@ void initLVGL() {
 }
 
 void initSD() {
+  Serial.println("[SD] Initializing SD Card...");
+  Serial.printf("     CLK: GPIO%d, CMD: GPIO%d, DATA: GPIO%d\n",
+                SDMMC_CLK, SDMMC_CMD, SDMMC_DATA);
+  
   if (SD_MMC.setPins(SDMMC_CLK, SDMMC_CMD, SDMMC_DATA)) {
     if (SD_MMC.begin("/sdcard", true, false, SDMMC_FREQ_DEFAULT)) {
       hasSD = true;
-      Serial.printf("[OK] SD Card (%lluMB)\n", SD_MMC.cardSize() / (1024 * 1024));
+      Serial.printf("[OK] SD Card mounted (%llu MB)\n", SD_MMC.cardSize() / (1024 * 1024));
     } else {
       Serial.println("[INFO] SD Card not inserted");
     }
@@ -426,41 +478,63 @@ void initSD() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  SETUP
+//  SETUP - FIXED INITIALIZATION ORDER
 // ═══════════════════════════════════════════════════════════════════════════════
 void setup() {
   Serial.begin(115200);
-  delay(500);
+  delay(1000);  // Wait for serial and power stabilization
 
   Serial.println("\n═══════════════════════════════════════════════");
   Serial.println("  ESP32 Watch - FIXED VERSION");
-  Serial.println("  NO Screen Timeout + Power Button + Tap Wake");
+  Serial.println("  Pin config from Waveshare reference");
   Serial.println("═══════════════════════════════════════════════\n");
 
+  // 1. Initialize I2C bus first (required for all I2C devices)
   initI2C();
+  
+  // 2. Initialize I/O expander (may control power to other peripherals)
   initExpander();
+  
+  // 3. Initialize PMU (controls power rails)
   initPMU();
+  
+  // Small delay after PMU to let power rails stabilize
+  delay(50);
+  
+  // 4. Initialize display
   initDisplay();
+  
+  // 5. Initialize touch controller
   initTouch();
+  
+  // 6. Initialize LVGL graphics library
   initLVGL();
+  
+  // 7. Initialize SD card (optional)
   initSD();
-  initPowerButton();  // Initialize power button
+  
+  // 8. Initialize power button
+  initPowerButton();
 
-  // Initialize themes
+  // 9. Initialize themes
   initThemes();
 
-  // Load saved data
+  // 10. Load saved user data
   loadUserData();
 
-  // Show clock screen
+  // 11. Show clock screen
   showScreen(SCREEN_CLOCK);
 
+  // Reset activity timers
   powerState.lastActivityMs = millis();
   watch.lastActivityMs = millis();
 
   Serial.println("\n═══════════════════════════════════════════════");
   Serial.println("  Boot Complete!");
-  Serial.printf("  SD: %s | PMU: %s\n", hasSD ? "OK" : "NO", hasPMU ? "OK" : "NO");
+  Serial.printf("  Touch: %s | SD: %s | PMU: %s\n", 
+                FT3168->IIC_Interrupt_Flag ? "ERR" : "OK",
+                hasSD ? "OK" : "NO", 
+                hasPMU ? "OK" : "NO");
   Serial.println("  Screen Timeout: DISABLED");
   Serial.println("  Tap to Wake: ENABLED");
   Serial.println("  Power Button: ENABLED");
