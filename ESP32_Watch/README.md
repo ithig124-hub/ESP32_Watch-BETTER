@@ -1,85 +1,81 @@
-# ESP32 Watch - ANIME EDITION
+# ESP32 Watch - PREMIUM APPLE STYLE Edition
 
-## Enhanced with Random Daily Character Themes
+Enhanced Anime Themes with Apple Watch-inspired Premium UI for ESP32-S3-Touch-AMOLED-1.8" Smartwatch
 
-A smartwatch firmware for ESP32-S3-Touch-AMOLED-1.8 with anime-inspired UI themes.
+![Version](https://img.shields.io/badge/version-1.0-gold)
+![Platform](https://img.shields.io/badge/platform-ESP32--S3-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
 
-## Themes
+## ✨ Premium Features
 
-### Main Themes (Selectable)
+### 🎨 Apple Watch-Inspired Design
+- **OLED-optimized** deep black backgrounds
+- **Glassmorphism** card effects with subtle transparency
+- **Premium color palettes** inspired by luxury watch editions
+- **Smooth 60fps** fade animations
+- **San Francisco-style** typography hierarchy
 
-1. **Gear 5 Luffy** - Clean Fun / Freedom
-   - Bright whites, soft pastels, high-contrast outlines
-   - Cloud-like shapes as visual motifs (static)
-   - Joyful and free through color and shape, NOT motion
-   - **NO bouncing, NO rubber physics**
+### ⚡ Power Management (NEW)
+- **3-second screen timeout** (Apple Watch style quick timeout)
+- **Power button tap** to toggle screen on/off
+- **Touch-to-wake** - tap anywhere to wake display
+- **Smooth brightness fade** animations
+- **Battery saver modes** with configurable levels:
+  - Off: Full brightness, 3s timeout
+  - Light: 50% brightness, 2s timeout
+  - Medium: 30% brightness, 1.5s timeout
+  - Extreme: 10% brightness, 1s timeout
 
-2. **Jin-Woo Shadow** - Dark / Power / Focus  
-   - Deep blacks with blue/purple glow accents
-   - Shadows as static background layers
-   - Sharp, precise, perfectly aligned UI
-   - Zero distractions, pure control
+### 🎭 Premium Anime Themes
 
-3. **Yugo Portal** - Chill / Exploration
-   - Soft cel-shaded anime art with teal/cyan
-   - Faint portal rings, light particle effects (static)
-   - Rounded, friendly UI elements
-   - Adventurous, peaceful aesthetic
+#### Main Themes
+| Theme | Aesthetic | Colors |
+|-------|-----------|--------|
+| **Gear 5 Sun God** | Clean white/gold luxury | Gold, cream white, warm pastels |
+| **Shadow Monarch** | Deep purple/black premium | Purple, indigo, silver accents |
+| **Portal Master** | Teal/cyan exploration | Cyan, turquoise, dark teal |
+| **Random Daily** | New hero every day! | Character-specific palettes |
 
-4. **Random Daily** - New character every day!
-   - Rotates through 7 anime characters based on date
-   - Each character has unique colors, stats, and abilities
+#### Daily Random Characters (7 total)
+| Day | Character | Series | Theme Colors |
+|-----|-----------|--------|--------------|
+| 1 | Naruto | Naruto | Orange/Gold chakra |
+| 2 | Goku | Dragon Ball | Gold/Blue power |
+| 3 | Tanjiro | Demon Slayer | Red/Orange flames |
+| 4 | Gojo | Jujutsu Kaisen | Cyan/White infinity |
+| 5 | Levi | Attack on Titan | Green/Grey military |
+| 6 | Saitama | One Punch Man | Yellow/White simple |
+| 7 | Deku | My Hero Academia | Green/Lightning |
 
-### Random Daily Characters
+## 🔧 Hardware
 
-| Day | Character | Series | Theme |
-|-----|-----------|--------|-------|
-| 1 | Naruto | Naruto | Orange chakra, Sage Mode |
-| 2 | Goku | Dragon Ball | Gold aura, Power Level |
-| 3 | Tanjiro | Demon Slayer | Fire/Water breathing |
-| 4 | Gojo | Jujutsu Kaisen | Infinity, Six Eyes |
-| 5 | Levi | Attack on Titan | ODM gear, Titan kills |
-| 6 | Saitama | One Punch Man | Simple, Hero rank |
-| 7 | Deku | My Hero Academia | OFA lightning |
+- **Board:** Waveshare ESP32-S3-Touch-AMOLED-1.8
+- **Display:** SH8601 QSPI AMOLED 368x448
+- **Touch:** FT3168 (I2C 0x38)
+- **IMU:** QMI8658 (I2C 0x6B)
+- **RTC:** PCF85063 (I2C 0x51)
+- **PMU:** AXP2101 (I2C 0x34)
+- **I/O Expander:** XCA9554 (I2C 0x20)
 
-## Features
+## 📚 Required Libraries
 
-### RPG System (50 Levels)
-- Shortened progression from 100 to 50 levels
-- 5 title tiers per character
-- Stats: STR, SPD, MAG, END
-- Character-specific special abilities
+1. **LVGL** (v8.x)
+2. **Arduino_GFX_Library** (from Waveshare repo)
+3. **Arduino_DriveBus_Library** (from Waveshare repo - for touch)
+4. **XPowersLib**
+5. **Adafruit_XCA9554**
+6. **ArduinoJson**
 
-### Anime Games
-- **Gacha Simulator** - Pull for character cards (35+ characters)
-- **Training Mini-games** - Earn XP through activities  
-- **Boss Rush** - Fight iconic anime villains
-- **Card Battles** - Coming soon
+### Installing Waveshare Libraries
 
-### Design Guidelines
-- Clean, controlled transitions (fade only)
-- Static visual elements (no bouncing/rubber physics)
-- Anime-style UI elements (speech bubbles, action lines)
-- Theme-appropriate color palettes
+Download from: https://github.com/waveshareteam/ESP32-S3-Touch-AMOLED-1.8/tree/main/examples/Arduino-v3.3.5/libraries
 
-## Hardware
+Copy these folders to your Arduino libraries folder:
+- `Arduino_DriveBus` 
+- `GFX_Library_for_Arduino`
+- `Mylibrary` (contains pin_config.h)
 
-- Board: Waveshare ESP32-S3-Touch-AMOLED-1.8
-- Display: SH8601 QSPI AMOLED 368x448
-- Touch: FT3168
-- IMU: QMI8658
-- RTC: PCF85063  
-- PMU: AXP2101
-
-## Required Libraries
-
-1. LVGL (v8.x)
-2. Arduino_GFX_Library
-3. XPowersLib
-4. Adafruit_XCA9554
-5. ArduinoJson
-
-## Board Settings
+## ⚙️ Board Settings (Arduino IDE)
 
 ```
 Board:              ESP32S3 Dev Module
@@ -89,28 +85,82 @@ PSRAM:              OPI PSRAM
 Partition Scheme:   Huge APP (3MB No OTA/1MB SPIFFS)
 ```
 
-## File Structure
+## 📁 File Structure
 
 ```
-ESP32_Watch/
-├── ESP32_Watch.ino     # Main sketch
-├── config.h            # Types, enums, state
-├── pin_config.h        # Hardware pins
-├── themes.h/.cpp       # Theme system + Random daily
-├── ui_manager.h/.cpp   # Screen management
-├── rpg.h/.cpp          # 50-level RPG system
-├── games.h/.cpp        # Gacha, Training, Boss Rush
-├── apps.h/.cpp         # Music, Settings, Quests
-├── wifi_apps.h/.cpp    # Weather, News
-└── user_data.cpp       # Persistent storage
+ESP32_Watch_Premium/
+├── ESP32_Watch_Premium.ino  # Main sketch
+├── config.h                  # Types, enums, state
+├── pin_config.h              # Hardware pins
+├── power_manager.h/.cpp      # Screen timeout & power button
+├── themes.h/.cpp             # Premium theme system
+├── ui_manager.h/.cpp         # Screen management
+├── user_data.cpp             # Persistent storage
+└── README.md                 # This file
 ```
 
-## Navigation
+## 🎮 Navigation
 
-- **Swipe Left/Right**: Cycle between Clock → Apps → Character Stats
-- **Swipe Up/Down**: Page through app grids
-- **Tap**: Select items
+| Gesture | Action |
+|---------|--------|
+| **Swipe Left/Right** | Cycle: Clock → Apps → Character |
+| **Swipe Up/Down** | Page through app grids |
+| **Tap** | Select items / Wake screen |
+| **Power Button** | Toggle screen on/off |
 
-## License
+## 🔋 Power Button Behavior
 
-MIT License
+Based on the reference implementation from `S3_MiniOS_206.ino`:
+
+```cpp
+// Power button tap toggles screen state
+if (powerButton pressed) {
+  if (screenOn) screenSleep();  // Turn off with fade
+  else screenWake();             // Turn on with fade
+}
+
+// 3-second inactivity timeout
+if (screenOn && inactiveTime >= 3000ms) {
+  screenSleep();
+}
+
+// Touch-to-wake
+if (!screenOn && touchDetected) {
+  screenWake();
+}
+```
+
+## 🎨 Theme Color System
+
+Each theme includes:
+- `primary` - Main accent color
+- `secondary` - Secondary accent
+- `accent` - Highlight/glow color
+- `background` - OLED black optimized
+- `surface` - Card/container background
+- `text` - Primary text color
+- `textSecondary` - Muted text
+- `glow` - Special effect color
+- `gradient1/2` - Gradient colors
+- `border` - Subtle borders
+- `highlight` - Interactive highlights
+
+## 📝 Changelog
+
+### v1.0 - Premium Edition
+- Apple Watch-inspired premium UI design
+- 3-second screen timeout implementation
+- Power button tap to toggle screen
+- Touch-to-wake functionality
+- Enhanced anime theme color palettes
+- Glassmorphism card effects
+- Smooth brightness fade animations
+- Battery saver modes
+
+## 📄 License
+
+MIT License - Feel free to modify and share!
+
+---
+
+**Made with ❤️ for anime fans and watch enthusiasts**

@@ -1,46 +1,36 @@
 /**
- * Theme System - Luffy, JinWoo, Yugo + Random Daily
- * No bouncing, no rubber physics - clean controlled animations
+ * Premium Theme System - Apple Watch Inspired
+ * Enhanced Anime Themes with Luxury Aesthetics
  */
 
 #ifndef THEMES_H
 #define THEMES_H
 
-#include <lvgl.h>
 #include "config.h"
+#include <lvgl.h>
 
-// Initialize themes
+// Initialize theme system
 void initThemes();
 
-// Get colors for theme (handles Random theme automatically)
-ThemeColors getThemeColors(ThemeType theme);
-
-// Get colors for specific random character
-ThemeColors getRandomCharacterColors(RandomCharacter character);
-
-// Apply theme to UI
+// Theme management
 void applyTheme(ThemeType theme);
-
-// Get theme name
+ThemeColors getThemeColors(ThemeType theme);
 const char* getThemeName(ThemeType theme);
+
+// Random daily character system
+void updateDailyCharacter();
+RandomCharacter calculateDailyCharacter();
 const char* getRandomCharacterName(RandomCharacter character);
 const char* getRandomCharacterTitle(RandomCharacter character);
 const char* getRandomCharacterSeries(RandomCharacter character);
 
-// Wallpaper/Theme selector screen
+// Premium UI elements (Apple Watch style)
+void drawGlassmorphismCard(lv_obj_t* parent, int x, int y, int w, int h, uint32_t tint);
+void drawPremiumGlow(lv_obj_t* parent, uint32_t color, int intensity);
+void drawSubtleGradient(lv_obj_t* parent, uint32_t color1, uint32_t color2);
+void drawAnimePowerAura(lv_obj_t* parent, uint32_t color, int intensity);
+
+// Theme selector screen
 lv_obj_t* createWallpaperScreen();
-
-// Daily character rotation
-RandomCharacter calculateDailyCharacter();
-void updateDailyCharacter();
-
-// Anime-style UI elements (speech bubbles, action lines - static)
-void drawSpeechBubble(lv_obj_t* parent, const char* text, int x, int y);
-void drawActionLines(lv_obj_t* parent, uint32_t color);
-void drawPowerAura(lv_obj_t* parent, uint32_t color, int intensity);
-
-// Theme-specific effects (static visual elements, no motion)
-void drawThemeEffects(lv_obj_t* parent, ThemeType theme);
-void drawRandomCharacterEffects(lv_obj_t* parent, RandomCharacter character);
 
 #endif

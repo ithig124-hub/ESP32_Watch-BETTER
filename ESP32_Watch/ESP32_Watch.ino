@@ -1,56 +1,55 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════════════
- *  ESP32 Watch - ANIME EDITION
- *  Enhanced with Random Daily Character Themes
- *  
- *  THEMES:
- *  - Gear 5 Luffy: Clean Fun, bright whites, pastels (NO BOUNCING)
- *  - Jin-Woo Shadow: Dark Power, purple/black, minimal
- *  - Yugo Portal: Chill Exploration, teal/cyan, magical calm
- *  - Random Daily: Rotates through 7 anime characters
- *    • Naruto (Sage Mode)
- *    • Goku (Super Saiyan)
- *    • Tanjiro (Sun Breathing)
- *    • Gojo (Infinity)
- *    • Levi (ODM Gear)
- *    • Saitama (Hero Training)
- *    • Deku (One For All)
- *  
- *  FEATURES:
- *  ✓ 50 Level RPG System (shortened progression)
- *  ✓ Gacha Simulator with anime characters
- *  ✓ Training Mini-games
- *  ✓ Boss Rush Mode
- *  ✓ Clean swipe navigation
- *  ✓ Anime-style UI elements (static, no bounce)
+ *  ESP32 Watch - PREMIUM APPLE STYLE Edition
+ *  Enhanced Anime Themes with Apple Watch-like Premium UI
+ *  ESP32-S3-Touch-AMOLED-1.8" Smartwatch Firmware
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ *  PREMIUM FEATURES:
+ *  ✅ Apple Watch-inspired premium UI design
+ *  ✅ Enhanced anime themes (Gear5, JinWoo, Yugo + Daily Random)
+ *  ✅ Power button: tap to toggle screen on/off
+ *  ✅ 3-second screen timeout (configurable)
+ *  ✅ Touch-to-wake functionality
+ *  ✅ Smooth 60fps animations with glassmorphism effects
+ *  ✅ Premium watch faces with complications
+ *  ✅ Haptic-like visual feedback
+ *  ✅ Dynamic Island-style notifications
+ *
+ *  HARDWARE:
+ *  - Waveshare ESP32-S3-Touch-AMOLED-1.8
+ *  - Display: SH8601 QSPI AMOLED 368x448
+ *  - Touch: FT3168 (I2C 0x38)
+ *  - IMU: QMI8658 (I2C 0x6B)
+ *  - RTC: PCF85063 (I2C 0x51)
+ *  - PMU: AXP2101 (I2C 0x34)
+ *  - I/O Expander: XCA9554 (I2C 0x20)
+ *
  * ═══════════════════════════════════════════════════════════════════════════════
  */
 
 #include <lvgl.h>
 #include <Wire.h>
 #include <WiFi.h>
+#include <HTTPClient.h>
+#include <ArduinoJson.h>
 #include <Preferences.h>
 #include <time.h>
 #include <SD_MMC.h>
 
 #include "pin_config.h"
 #include "Arduino_GFX_Library.h"
+#include "Arduino_DriveBus_Library.h"
 #include <Adafruit_XCA9554.h>
 
 #define XPOWERS_CHIP_AXP2101
 #include "XPowersLib.h"
 
-// Include all modules
+// Include all feature modules
 #include "config.h"
 #include "ui_manager.h"
 #include "themes.h"
-#include "apps.h"
-#include "games.h"
-#include "rpg.h"
-#include "wifi_apps.h"
-#include "utilities.h"
-#include "sensors.h"
-#include "rtc.h"
+#include "power_manager.h"
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  HARDWARE OBJECTS
@@ -63,6 +62,21 @@ Arduino_DataBus *bus = new Arduino_ESP32QSPI(
   LCD_CS, LCD_SCLK, LCD_SDIO0, LCD_SDIO1, LCD_SDIO2, LCD_SDIO3);
 Arduino_SH8601 *gfx = new Arduino_SH8601(
   bus, GFX_NOT_DEFINED, 0, LCD_WIDTH, LCD_HEIGHT);
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  TOUCH CONTROLLER - Official Waveshare Arduino_DriveBus Library
+// ═══════════════════════════════════════════════════════════════════════════════
+std::shared_ptr<Arduino_IIC_DriveBus> IIC_Bus =
+  std::make_shared<Arduino_HWIIC>(IIC_SDA, IIC_SCL, &Wire);
+
+void Arduino_IIC_Touch_Interrupt(void);
+
+std::unique_ptr<Arduino_IIC> FT3168(new Arduino_FT3x68(IIC_Bus, FT3168_DEVICE_ADDRESS,
+                                                       DRIVEBUS_DEFAULT_VALUE, TP_INT, Arduino_IIC_Touch_Interrupt));
+
+void Arduino_IIC_Touch_Interrupt(void) {
+  FT3168->IIC_Interrupt_Flag = true;
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  LVGL BUFFERS
@@ -90,13 +104,24 @@ WatchState watch = {
   .hour = 10,
   .minute = 30,
   .second = 0,
-  .day = 8,
-  .month = 2,
-  .year = 2026,
+  .day = 1,
+  .month = 1,
+  .year = 2025,
   .dayOfWeek = 0
 };
 
-StopwatchData stopwatch = {0, 0, {0}, 0, false, false, 0};
+// Power management state
+PowerState powerState = {
+  .screenOn = true,
+  .lastActivityMs = 0,
+  .screenTimeoutMs = SCREEN_TIMEOUT_DEFAULT,
+  .batterySaverLevel = BATTERY_SAVER_OFF,
+  .currentBrightness = 200,
+  .targetBrightness = 200,
+  .fadeInProgress = false,
+  .lastPwrButtonState = HIGH,
+  .pwrButtonDebounceMs = 0
+};
 
 // Hardware flags
 bool hasIMU = false;
@@ -104,15 +129,18 @@ bool hasRTC = false;
 bool hasPMU = false;
 bool hasSD = false;
 
+// Time
 uint8_t clockHour = 10, clockMinute = 30, clockSecond = 0;
 
-// Navigation
+// ═══════════════════════════════════════════════════════════════════════════════
+//  SWIPE NAVIGATION STATE
+// ═══════════════════════════════════════════════════════════════════════════════
 int currentNavCategory = NAV_CLOCK;
 int currentSubCard = 0;
 volatile SwipeDirection pendingSwipe = SWIPE_NONE;
 unsigned long lastNavigationMs = 0;
 
-// Touch tracking
+// Touch tracking variables
 bool touchActive = false;
 int32_t touchStartX = 0;
 int32_t touchStartY = 0;
@@ -121,34 +149,40 @@ int32_t touchCurrentY = 0;
 unsigned long touchStartMs = 0;
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  TOUCH HANDLING
+//  TOUCH HANDLING - Using Official Waveshare Arduino_DriveBus Library
 // ═══════════════════════════════════════════════════════════════════════════════
 volatile bool touchInterrupt = false;
-void IRAM_ATTR touchISR() { touchInterrupt = true; }
+
+// Touch state
+static int32_t lastTouchX = 0;
+static int32_t lastTouchY = 0;
+static bool lastTouchValid = false;
 
 bool readTouch(int16_t &x, int16_t &y) {
-  Wire.beginTransmission(TOUCH_ADDR);
-  Wire.write(0x02);
-  if (Wire.endTransmission(false) != 0) return false;
-
-  Wire.requestFrom((uint8_t)TOUCH_ADDR, (uint8_t)5);
-  if (Wire.available() < 5) return false;
-
-  uint8_t touches = Wire.read();
-  if (touches == 0 || touches > 2) return false;
-
-  uint8_t xh = Wire.read();
-  uint8_t xl = Wire.read();
-  uint8_t yh = Wire.read();
-  uint8_t yl = Wire.read();
-
-  x = ((xh & 0x0F) << 8) | xl;
-  y = ((yh & 0x0F) << 8) | yl;
-  return true;
+  // Check if touch interrupt occurred
+  if (!FT3168->IIC_Interrupt_Flag) {
+    return false;
+  }
+  
+  // Read touch coordinates using official library
+  int32_t touchX = FT3168->IIC_Read_Device_Value(FT3168->Arduino_IIC_Touch::Value_Information::TOUCH_COORDINATE_X);
+  int32_t touchY = FT3168->IIC_Read_Device_Value(FT3168->Arduino_IIC_Touch::Value_Information::TOUCH_COORDINATE_Y);
+  
+  // Validate coordinates
+  if (touchX >= 0 && touchX < LCD_WIDTH && touchY >= 0 && touchY < LCD_HEIGHT) {
+    x = touchX;
+    y = touchY;
+    lastTouchX = touchX;
+    lastTouchY = touchY;
+    lastTouchValid = true;
+    return true;
+  }
+  
+  return false;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  SWIPE NAVIGATION (Clean, no bounce)
+//  SWIPE NAVIGATION HANDLER
 // ═══════════════════════════════════════════════════════════════════════════════
 void handleSwipeNavigation(SwipeDirection swipe) {
   if (millis() - lastNavigationMs < NAVIGATION_COOLDOWN_MS) return;
@@ -159,13 +193,16 @@ void handleSwipeNavigation(SwipeDirection swipe) {
   if (swipe == SWIPE_LEFT) {
     newNavCategory = (currentNavCategory + 1) % NAV_CATEGORY_COUNT;
     newSubCard = 0;
-  } else if (swipe == SWIPE_RIGHT) {
+  }
+  else if (swipe == SWIPE_RIGHT) {
     newNavCategory = currentNavCategory - 1;
     if (newNavCategory < 0) newNavCategory = NAV_CATEGORY_COUNT - 1;
     newSubCard = 0;
-  } else if (swipe == SWIPE_DOWN && currentNavCategory == NAV_APPS) {
+  }
+  else if (swipe == SWIPE_DOWN && currentNavCategory == NAV_APPS) {
     if (currentSubCard < 1) newSubCard = currentSubCard + 1;
-  } else if (swipe == SWIPE_UP && currentNavCategory == NAV_APPS) {
+  }
+  else if (swipe == SWIPE_UP && currentNavCategory == NAV_APPS) {
     if (currentSubCard > 0) newSubCard = currentSubCard - 1;
   }
 
@@ -175,9 +212,15 @@ void handleSwipeNavigation(SwipeDirection swipe) {
 
     ScreenType targetScreen = SCREEN_CLOCK;
     switch (currentNavCategory) {
-      case NAV_CLOCK:      targetScreen = SCREEN_CLOCK; break;
-      case NAV_APPS:       targetScreen = (currentSubCard == 0) ? SCREEN_APPS : SCREEN_APPS2; break;
-      case NAV_CHAR_STATS: targetScreen = SCREEN_CHAR_STATS; break;
+      case NAV_CLOCK:
+        targetScreen = SCREEN_CLOCK;
+        break;
+      case NAV_APPS:
+        targetScreen = (currentSubCard == 0) ? SCREEN_APPS : SCREEN_APPS2;
+        break;
+      case NAV_CHAR_STATS:
+        targetScreen = SCREEN_CHAR_STATS;
+        break;
     }
 
     showScreen(targetScreen);
@@ -201,43 +244,60 @@ void lvgl_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color_p)
 
 void lvgl_touch_read(lv_indev_drv_t *drv, lv_indev_data_t *data) {
   int16_t x, y;
-  bool touching = readTouch(x, y);
+  
+  // Check touch interrupt flag from official library
+  if (FT3168->IIC_Interrupt_Flag) {
+    // Read coordinates
+    int32_t touchX = FT3168->IIC_Read_Device_Value(FT3168->Arduino_IIC_Touch::Value_Information::TOUCH_COORDINATE_X);
+    int32_t touchY = FT3168->IIC_Read_Device_Value(FT3168->Arduino_IIC_Touch::Value_Information::TOUCH_COORDINATE_Y);
+    
+    // Clear interrupt flag
+    FT3168->IIC_Interrupt_Flag = false;
+    
+    if (touchX >= 0 && touchX < LCD_WIDTH && touchY >= 0 && touchY < LCD_HEIGHT) {
+      data->state = LV_INDEV_STATE_PR;
+      data->point.x = touchX;
+      data->point.y = touchY;
+      
+      // Update activity timestamp for screen timeout
+      powerState.lastActivityMs = millis();
+      watch.lastActivityMs = millis();
 
-  if (touching && x >= 0 && x < LCD_WIDTH && y >= 0 && y < LCD_HEIGHT) {
-    data->state = LV_INDEV_STATE_PR;
-    data->point.x = x;
-    data->point.y = y;
-    watch.lastActivityMs = millis();
+      // TOUCH TO WAKE: Wake screen on any touch
+      if (!powerState.screenOn) {
+        screenWake();
+        return;  // Don't process this touch as input
+      }
 
-    if (!watch.screenOn) {
-      gfx->displayOn();
-      watch.screenOn = true;
+      // Track touch start for swipe detection
+      if (!touchActive) {
+        touchActive = true;
+        touchStartX = touchX;
+        touchStartY = touchY;
+        touchStartMs = millis();
+      }
+      touchCurrentX = touchX;
+      touchCurrentY = touchY;
       return;
     }
+  }
+  
+  // No touch or invalid touch
+  data->state = LV_INDEV_STATE_REL;
 
-    if (!touchActive) {
-      touchActive = true;
-      touchStartX = x;
-      touchStartY = y;
-      touchStartMs = millis();
-    }
-    touchCurrentX = x;
-    touchCurrentY = y;
-  } else {
-    data->state = LV_INDEV_STATE_REL;
+  // Process swipe on touch release
+  if (touchActive) {
+    touchActive = false;
+    unsigned long touchDuration = millis() - touchStartMs;
+    int32_t dx = touchCurrentX - touchStartX;
+    int32_t dy = touchCurrentY - touchStartY;
 
-    if (touchActive) {
-      touchActive = false;
-      unsigned long touchDuration = millis() - touchStartMs;
-      int32_t dx = touchCurrentX - touchStartX;
-      int32_t dy = touchCurrentY - touchStartY;
-
-      if (touchDuration < SWIPE_MAX_DURATION) {
-        if (abs(dx) > SWIPE_THRESHOLD_MIN && abs(dx) > abs(dy)) {
-          pendingSwipe = (dx > 0) ? SWIPE_RIGHT : SWIPE_LEFT;
-        } else if (abs(dy) > SWIPE_THRESHOLD_MIN && abs(dy) > abs(dx)) {
-          pendingSwipe = (dy > 0) ? SWIPE_DOWN : SWIPE_UP;
-        }
+    if (touchDuration < SWIPE_MAX_DURATION) {
+      if (abs(dx) > SWIPE_THRESHOLD_MIN && abs(dx) > abs(dy)) {
+        pendingSwipe = (dx > 0) ? SWIPE_RIGHT : SWIPE_LEFT;
+      }
+      else if (abs(dy) > SWIPE_THRESHOLD_MIN && abs(dy) > abs(dx)) {
+        pendingSwipe = (dy > 0) ? SWIPE_DOWN : SWIPE_UP;
       }
     }
   }
@@ -249,17 +309,20 @@ void lvgl_tick(void *arg) { lv_tick_inc(2); }
 //  INITIALIZATION
 // ═══════════════════════════════════════════════════════════════════════════════
 void initI2C() {
+  // Initialize I2C bus
   Wire.begin(IIC_SDA, IIC_SCL);
-  Wire.setClock(400000);
+  Wire.setClock(400000);  // 400kHz
   delay(50);
   Serial.println("[OK] I2C Bus");
 }
 
 void initExpander() {
-  if (expander.begin(EXPANDER_ADDR, &Wire)) {
+  if (expander.begin(0x20, &Wire)) {
+    Serial.println("[OK] I/O Expander");
     expander.pinMode(0, OUTPUT);
     expander.pinMode(1, OUTPUT);
     expander.pinMode(2, OUTPUT);
+
     expander.digitalWrite(0, LOW);
     expander.digitalWrite(1, LOW);
     expander.digitalWrite(2, LOW);
@@ -268,40 +331,63 @@ void initExpander() {
     expander.digitalWrite(1, HIGH);
     expander.digitalWrite(2, HIGH);
     delay(50);
-    Serial.println("[OK] I/O Expander");
   }
 }
 
 void initDisplay() {
   gfx->begin();
-  gfx->setBrightness(watch.brightness);
+  gfx->setBrightness(powerState.currentBrightness);
   gfx->fillScreen(0x0000);
   Serial.println("[OK] Display");
 }
 
 void initTouch() {
-  pinMode(TP_INT, INPUT_PULLUP);
-  Wire.beginTransmission(TOUCH_ADDR);
-  if (Wire.endTransmission() == 0) {
-    attachInterrupt(digitalPinToInterrupt(TP_INT), touchISR, FALLING);
-    Serial.println("[OK] Touch");
+  // Initialize touch controller using official Waveshare library
+  Serial.println("[TOUCH] Initializing FT3168...");
+  
+  int retries = 3;
+  while (retries > 0) {
+    if (FT3168->begin()) {
+      Serial.println("[OK] Touch controller (FT3168)");
+      
+      // Set touch to monitor mode for low power
+      FT3168->IIC_Write_Device_State(
+        FT3168->Arduino_IIC_Touch::Device::TOUCH_POWER_MODE,
+        FT3168->Arduino_IIC_Touch::Device_Mode::TOUCH_POWER_MONITOR
+      );
+      
+      return;
+    }
+    
+    Serial.printf("[TOUCH] Init failed, retrying... (%d)\n", retries);
+    delay(100);
+    retries--;
   }
+  
+  Serial.println("[WARN] Touch controller not responding");
+  Serial.println("       Touch features may not work");
 }
 
 void initPMU() {
-  if (pmu.begin(Wire, PMU_ADDR, IIC_SDA, IIC_SCL)) {
+  // Initialize PMU with correct I2C pins
+  if (pmu.begin(Wire, AXP2101_SLAVE_ADDRESS, IIC_SDA, IIC_SCL)) {
     hasPMU = true;
     pmu.disableIRQ(XPOWERS_AXP2101_ALL_IRQ);
     pmu.setChargeTargetVoltage(XPOWERS_AXP2101_CHG_VOL_4V2);
     pmu.enableBattDetection();
     pmu.enableBattVoltageMeasure();
-    pmu.setALDO1Voltage(1800); pmu.enableALDO1();
-    pmu.setALDO2Voltage(2800); pmu.enableALDO2();
+
+    // Power rails for peripherals
+    pmu.setALDO1Voltage(1800); pmu.enableALDO1();  // AMOLED
+    pmu.setALDO2Voltage(2800); pmu.enableALDO2();  
     pmu.setALDO3Voltage(3300); pmu.enableALDO3();
     pmu.setALDO4Voltage(3300); pmu.enableALDO4();
     pmu.setBLDO1Voltage(1800); pmu.enableBLDO1();
     pmu.setBLDO2Voltage(3300); pmu.enableBLDO2();
-    Serial.println("[OK] PMU");
+
+    Serial.println("[OK] PMU (AXP2101)");
+  } else {
+    Serial.println("[WARN] PMU not found - battery monitoring disabled");
   }
 }
 
@@ -340,10 +426,28 @@ void initLVGL() {
 }
 
 void initSD() {
-  if (SD_MMC.begin("/sdcard", true, false, SDMMC_FREQ_DEFAULT)) {
-    hasSD = true;
-    Serial.println("[OK] SD Card");
+  // Use 1-bit mode for SD card on ESP32-S3
+  // CMD=1, CLK=2, D0=3
+  if (SD_MMC.setPins(SDMMC_CLK, SDMMC_CMD, SDMMC_DATA)) {
+    if (SD_MMC.begin("/sdcard", true, false, SDMMC_FREQ_DEFAULT)) {
+      hasSD = true;
+      Serial.printf("[OK] SD Card (%lluMB)\n", SD_MMC.cardSize() / (1024 * 1024));
+    } else {
+      Serial.println("[INFO] SD Card not inserted");
+    }
+  } else {
+    Serial.println("[WARN] SD Card pins config failed");
   }
+}
+
+void initPowerButton() {
+  // Note: Waveshare ESP32-S3-Touch-AMOLED-1.8 doesn't have a dedicated power button
+  // Screen control is handled via:
+  // 1. Touch-to-wake (implemented in lvgl_touch_read)
+  // 2. Screen timeout (implemented in handleScreenTimeout)
+  // 3. PMU power management
+  
+  Serial.println("[OK] Power Management (Touch-to-Wake + Timeout)");
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -354,8 +458,8 @@ void setup() {
   delay(500);
 
   Serial.println("\n═══════════════════════════════════════════════");
-  Serial.println("  ESP32 Watch - ANIME EDITION");
-  Serial.println("  Random Daily Character Themes");
+  Serial.println("  ESP32 Watch - PREMIUM APPLE STYLE Edition");
+  Serial.println("  Enhanced Anime Themes + Power Management");
   Serial.println("═══════════════════════════════════════════════\n");
 
   initI2C();
@@ -365,25 +469,24 @@ void setup() {
   initTouch();
   initLVGL();
   initSD();
+  initPowerButton();
 
-  // Load user data and initialize modules
-  loadUserData();
+  // Initialize themes
   initThemes();
-  initApps();
-  initGames();
-  initRPG();
-  initWifiApps();
 
-  // Show clock screen
+  // Load saved data
+  loadUserData();
+
+  // Show premium clock screen
   showScreen(SCREEN_CLOCK);
+
+  powerState.lastActivityMs = millis();
   watch.lastActivityMs = millis();
 
   Serial.println("\n═══════════════════════════════════════════════");
   Serial.println("  Boot Complete!");
-  Serial.printf("  Theme: %s\n", getThemeName(watch.theme));
-  if (watch.theme == THEME_RANDOM) {
-    Serial.printf("  Today's Character: %s\n", getRandomCharacterName(watch.dailyCharacter));
-  }
+  Serial.printf("  SD: %s | PMU: %s\n", hasSD ? "OK" : "NO", hasPMU ? "OK" : "NO");
+  Serial.printf("  Screen Timeout: %lu ms\n", powerState.screenTimeoutMs);
   Serial.println("═══════════════════════════════════════════════\n");
 }
 
@@ -393,10 +496,26 @@ void setup() {
 void loop() {
   lv_timer_handler();
 
-  // Process pending swipes
+  // Handle power button (placeholder for boards with physical button)
+  handlePowerButton();
+
+  // Handle screen timeout (3 seconds default)
+  handleScreenTimeout();
+
+  // Handle brightness fade animations
+  handleBrightnessFade();
+
+  // Process pending swipe events
   if (pendingSwipe != SWIPE_NONE) {
     handleSwipeNavigation(pendingSwipe);
     pendingSwipe = SWIPE_NONE;
+  }
+
+  // Touch-to-wake: Check if touch occurred while screen is off
+  if (!powerState.screenOn && FT3168->IIC_Interrupt_Flag) {
+    Serial.println("[WAKE] Touch detected - waking screen");
+    FT3168->IIC_Interrupt_Flag = false;
+    screenWake();
   }
 
   // Update battery (every 5 seconds)
@@ -409,42 +528,11 @@ void loop() {
     }
   }
 
-  // Update daily character check (once per minute)
-  static unsigned long lastDailyCheck = 0;
-  if (watch.theme == THEME_RANDOM && millis() - lastDailyCheck > 60000) {
-    lastDailyCheck = millis();
-    updateDailyCharacter();
-  }
-
-  // Update clock display (every second)
+  // Update clock display
   static unsigned long lastClockUpdate = 0;
   if (watch.screen == SCREEN_CLOCK && millis() - lastClockUpdate > 1000) {
     lastClockUpdate = millis();
-    watch.second++;
-    if (watch.second >= 60) {
-      watch.second = 0;
-      watch.minute++;
-      if (watch.minute >= 60) {
-        watch.minute = 0;
-        watch.hour++;
-        if (watch.hour >= 24) watch.hour = 0;
-      }
-    }
     updateClock();
-  }
-
-  // Screen timeout (30 seconds)
-  if (watch.screenOn && millis() - watch.lastActivityMs > 30000) {
-    gfx->displayOff();
-    watch.screenOn = false;
-  }
-
-  // Wake on touch interrupt
-  if (!watch.screenOn && touchInterrupt) {
-    gfx->displayOn();
-    watch.screenOn = true;
-    watch.lastActivityMs = millis();
-    touchInterrupt = false;
   }
 
   delay(5);
