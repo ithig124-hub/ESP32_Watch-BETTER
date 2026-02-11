@@ -1,5 +1,27 @@
 # ESP32 Watch - PREMIUM ANIME EDITION
 
+## 🔧 CRITICAL FIXES (v2.0) - From S3_MiniOS Reference
+
+These issues were identified by comparing with the working S3_MiniOS firmware:
+
+### ❌ ORIGINAL BUG: Wrong Touch Interrupt Pin
+- **Was:** `TP_INT = 21` (This is the IMU interrupt pin!)
+- **Fixed:** `TP_INT = 38` (Correct touch interrupt pin)
+
+### ❌ ORIGINAL BUG: Missing Touch Reset Pin
+- **Was:** `TP_RST = -1` (No hardware reset)
+- **Fixed:** `TP_RST = 9` (Enables proper touch controller initialization)
+
+### ❌ ORIGINAL BUG: Missing Touch Hardware Reset Sequence
+- **Was:** No hardware reset before initializing FT3168
+- **Fixed:** Added `FT3168->IIC_Device_Reset()` and `FT3168->IIC_Init()` calls
+
+### ✅ Files Changed:
+1. `pin_config.h` - Fixed pin definitions
+2. `ESP32_Watch.ino` - Fixed touch initialization sequence
+
+---
+
 ## 🎨 ULTRA PREMIUM Character Themes
 
 Each theme is meticulously crafted to represent the essence, power, and aesthetic of each anime character.

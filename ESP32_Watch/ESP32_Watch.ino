@@ -1,8 +1,13 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════════════
- *  ESP32 Watch - FIXED VERSION
- *  
- *  FIXES:
+ *  ESP32 Watch - FIXED VERSION v2.1
+ *
+ *  CRITICAL FIXES APPLIED:
+ *  ✅ TP_INT pin corrected: 21 → 38 (was using IMU interrupt pin!)
+ *  ✅ Added TP_RST pin (GPIO 9) for touch hardware reset
+ *  ✅ REMOVED invalid IIC_Device_Reset() calls (method doesn't exist)
+ *  ✅ REMOVED invalid IIC_Init() calls (method doesn't exist)
+ *  ✅ Uses correct Arduino_DriveBus library API: begin() only
  *  ✅ NO automatic screen timeout (screen stays on)
  *  ✅ Tap to wake (screen turns on when touched)
  *  ✅ Power button toggles screen on/off
@@ -12,8 +17,8 @@
  *  HARDWARE:
  *  - Waveshare ESP32-S3-Touch-AMOLED-1.8
  *  - Display: SH8601 QSPI AMOLED 368x448
- *  - Touch: FT3168 (I2C 0x38)
- *  - IMU: QMI8658 (I2C 0x6B)
+ *  - Touch: FT3168 (I2C 0x38, INT: GPIO38, RST: GPIO9)
+ *  - IMU: QMI8658 (I2C 0x6B, INT: GPIO21)
  *  - RTC: PCF85063 (I2C 0x51)
  *  - PMU: AXP2101 (I2C 0x34)
  *  - I/O Expander: XCA9554 (I2C 0x20)
@@ -172,10 +177,10 @@ bool readTouch(int16_t &x, int16_t &y) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  SWIPE NAVIGATION HANDLER (PRESERVED - WITH ANIMATIONS)
+//  SWIPENAVIGATION HANDLER (PRESERVED - WITH ANIMATIONS)
 // ═══════════════════════════════════════════════════════════════════════════════
 void handleSwipeNavigation(SwipeDirection swipe) {
-  if (millis() - lastNavigationMs < NAVIGATION_COOLDOWN_MS) return;
+  if (millis() - lastNavigationMs <NAVIGATION_COOLDOWN_MS) return;
 
   int newNavCategory = currentNavCategory;
   int newSubCard = currentSubCard;
@@ -363,35 +368,58 @@ void initDisplay() {
   Serial.println("[OK] Display initialized");
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+//  FIXED TOUCH INITIALIZATION - Uses correct Arduino_DriveBus API
+// ═══════════════════════════════════════════════════════════════════════════════
 void initTouch() {
   Serial.println("[TOUCH] Initializing FT3168...");
-  Serial.printf("        INT Pin: GPIO%d\n", TP_INT);
+  Serial.printf("        INT Pin: GPIO%d, RST Pin: GPIO%d\n", TP_INT, TP_RST);
+
+  // Hardware reset (if reset pin is defined)
+  #if TP_RST >= 0
+    pinMode(TP_RST, OUTPUT);
+    digitalWrite(TP_RST, LOW);
+    delay(20);
+    digitalWrite(TP_RST, HIGH);
+    delay(100);  // Give touch controller time to boot
+    Serial.println("[TOUCH] Hardware reset completed");
+  #endif
 
   // Configure interrupt pin
   pinMode(TP_INT, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(TP_INT), Arduino_IIC_Touch_Interrupt, FALLING);
 
-  int retries = 5;  // Increased retries
+  // Initialize touch controller using correct API (begin() only)
+  int retries = 5;
   while (retries > 0) {
     if (FT3168->begin()) {
       Serial.println("[OK] Touch controller (FT3168) initialized");
-
+      Serial.printf("     Device ID: 0x%X\n", (int32_t)FT3168->IIC_Read_Device_ID());
+      
       // Set touch to monitor mode for power efficiency
       FT3168->IIC_Write_Device_State(
         FT3168->Arduino_IIC_Touch::Device::TOUCH_POWER_MODE,
         FT3168->Arduino_IIC_Touch::Device_Mode::TOUCH_POWER_MONITOR
       );
-
       return;
     }
 
     Serial.printf("[TOUCH] Init attempt %d failed, retrying...\n", 6 - retries);
-    delay(200);  // Longer delay between retries
+    
+    // Hardware reset on retry
+    #if TP_RST >= 0
+      digitalWrite(TP_RST, LOW);
+      delay(20);
+      digitalWrite(TP_RST, HIGH);
+      delay(100);
+    #endif
+    
+    delay(100);
     retries--;
   }
 
   Serial.println("[WARN] Touch controller not responding - check wiring!");
-  Serial.println("       Expected: FT3168 at I2C address 0x38");
+  Serial.println("       Expected: FT3168 at I2C address 0x38 on INT GPIO 38");
 }
 
 void initPMU() {
@@ -485,8 +513,8 @@ void setup() {
   delay(1000);  // Wait for serial and power stabilization
 
   Serial.println("\n═══════════════════════════════════════════════");
-  Serial.println("  ESP32 Watch - FIXED VERSION");
-  Serial.println("  Pin config from Waveshare reference");
+  Serial.println("  ESP32 Watch - FIXED VERSION v2.1");
+  Serial.println("  Corrected Arduino_DriveBus API usage");
   Serial.println("═══════════════════════════════════════════════\n");
 
   // 1. Initialize I2C bus first (required for all I2C devices)
@@ -530,9 +558,12 @@ void setup() {
   watch.lastActivityMs = millis();
 
   Serial.println("\n═══════════════════════════════════════════════");
-  Serial.println("  Boot Complete!");
-  Serial.printf("  Touch: %s | SD: %s | PMU: %s\n", 
+  Serial.println("  Boot Complete! (FIXED v2.1)");
+  Serial.println("═══════════════════════════════════════════════");
+  Serial.printf("  Touch: %s (INT: GPIO%d, RST: GPIO%d)\n", 
                 FT3168->IIC_Interrupt_Flag ? "ERR" : "OK",
+                TP_INT, TP_RST);
+  Serial.printf("  SD: %s | PMU: %s\n", 
                 hasSD ? "OK" : "NO", 
                 hasPMU ? "OK" : "NO");
   Serial.println("  Screen Timeout: DISABLED");
@@ -561,7 +592,7 @@ void loop() {
   handleBrightnessFade();
 
   // ═══════════════════════════════════════════════════════════════════════════
-  //  SWIPE NAVIGATION (PRESERVED)
+  //  SWIPENAVIGATION (PRESERVED)
   // ═══════════════════════════════════════════════════════════════════════════
   if (pendingSwipe != SWIPE_NONE) {
     handleSwipeNavigation(pendingSwipe);
