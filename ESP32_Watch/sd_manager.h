@@ -161,13 +161,13 @@ void cleanOldBackups(int keepCount);
 // FUSION LABS PROTOCOL - COMPLETE WEB SERIAL INTEGRATION
 // =============================================================================
 
-#define WIDGET_OS_NAME          "ESP32 Anime Watch"
-#define WIDGET_OS_VERSION       "1.0.0"
-#define WIDGET_OS_BUILD         "complete_edition"
-#define DEVICE_ID               "WOS-180A"
+#define FUSION_OS_NAME          "Fusion Watch"
+#define FUSION_OS_VERSION       "1.0.0"
+#define FUSION_OS_BUILD         "anime_edition"
+#define DEVICE_ID               "FW-180A"
 #define FUSION_PROTOCOL_VERSION "1.0"
 #define FUSION_LABS_URL         "https://ithig124-hub.github.io/fusion-labs"
-#define FIRMWARE_UPDATE_URL     "https://ithig124-hub.github.io/fusion-labs/firmware/widget-os/180A/latest.json"
+#define FIRMWARE_UPDATE_URL     "https://ithig124-hub.github.io/fusion-labs/fusion-labs/firmware/fusion-watch/180A/latest.json"
 
 // Serial buffer for Web Serial communication
 extern String serialBuffer;

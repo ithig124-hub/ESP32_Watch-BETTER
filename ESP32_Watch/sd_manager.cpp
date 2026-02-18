@@ -871,9 +871,9 @@ void processSerialCommand(const String& command) {
 
 void sendDeviceStatus() {
   Serial.println("WIDGET_STATUS_START");
-  Serial.println("DEVICE:" WIDGET_OS_NAME);
-  Serial.println("VERSION:" WIDGET_OS_VERSION);
-  Serial.println("BUILD:" WIDGET_OS_BUILD);
+  Serial.println("DEVICE:" FUSION_OS_NAME);
+  Serial.println("VERSION:" FUSION_OS_VERSION);
+  Serial.println("BUILD:" FUSION_OS_BUILD);
   Serial.printf("BOARD:%dx%d\n", LCD_WIDTH, LCD_HEIGHT);
   Serial.println("DEVICE_ID:" DEVICE_ID);
   Serial.printf("SD_CARD:%s\n", sdCardInitialized ? "YES" : "NO");
@@ -1142,9 +1142,9 @@ bool checkForUpdates() {
   }
   
   // Compare versions
-  if (otaInfo.version.length() > 0 && otaInfo.version != WIDGET_OS_VERSION) {
+  if (otaInfo.version.length() > 0 && otaInfo.version != FUSION_OS_VERSION) {
     otaInfo.update_available = true;
-    Serial.printf("[OTA] Update available: %s -> %s\n", WIDGET_OS_VERSION, otaInfo.version.c_str());
+    Serial.printf("[OTA] Update available: %s -> %s\n", FUSION_OS_VERSION, otaInfo.version.c_str());
     return true;
   }
   
@@ -1540,7 +1540,7 @@ void drawOTAUpdateScreen() {
   gfx->setTextColor(COLOR_WHITE);
   gfx->setTextSize(1);
   gfx->setCursor(60, 60);
-  gfx->printf("Current: v%s", WIDGET_OS_VERSION);
+  gfx->printf("Current: v%s", FUSION_OS_VERSION);
   
   // WiFi status
   gfx->setTextColor(wifiConnected ? COLOR_GREEN : COLOR_RED);
@@ -1595,7 +1595,7 @@ void drawOTAUpdateScreen() {
     gfx->setTextColor(COLOR_WHITE);
     gfx->setTextSize(1);
     gfx->setCursor(60, 190);
-    gfx->printf("v%s -> v%s", WIDGET_OS_VERSION, otaInfo.version.c_str());
+    gfx->printf("v%s -> v%s", FUSION_OS_VERSION, otaInfo.version.c_str());
     
     if (otaInfo.release_notes.length() > 0) {
       gfx->setCursor(60, 220);
