@@ -277,6 +277,10 @@ CharacterProfile* getCharacterProfile(ThemeType theme) {
   return &character_profiles[0];
 }
 
+CharacterProfile* getCurrentCharacterProfile() {
+  return getCharacterProfile(system_state.current_theme);
+}
+
 const char* getThemeName(ThemeType theme) {
   const char* names[] = {
     "Gear 5 Luffy", "Shadow Monarch", "Portal Master", "Sage Mode",

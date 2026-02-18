@@ -34,6 +34,7 @@ void setTheme(ThemeType theme);
 ThemeColors* getCurrentTheme();
 ThemeColors* getThemeColors(ThemeType theme);
 CharacterProfile* getCharacterProfile(ThemeType theme);
+CharacterProfile* getCurrentCharacterProfile();
 const char* getThemeName(ThemeType theme);
 
 // Daily rotation

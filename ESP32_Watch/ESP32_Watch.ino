@@ -34,6 +34,7 @@
 #include "rpg.h"
 #include "ui.h"
 #include "sd_manager.h"   // SD Card, WiFi, Fusion Labs Protocol
+#include "navigation.h"   // Swipe-based screen navigation
 
 // =============================================================================
 // GLOBAL OBJECTS
@@ -392,6 +393,14 @@ void setup() {
     }
   }
 
+  // Step 9: Initialize Navigation System
+  Serial.println("[INIT] Step 9: Swipe Navigation System");
+  initNavigation();
+  
+  // Draw initial watch face
+  delay(500);  // Brief pause before showing watch face
+  drawCurrentScreen();
+
   Serial.println("\n========================================");
   Serial.println("  INITIALIZATION COMPLETE - FULL FEATURES");
   Serial.printf("  Display: %s | Touch: %s | PMU: %s | LVGL: %s\n",
@@ -404,6 +413,7 @@ void setup() {
     wifiConnected ? "Connected" : "N/A");
   Serial.println("  10 Characters | Gacha | Training | Boss Rush");
   Serial.println("  Fusion Labs Web Serial: Ready");
+  Serial.println("  Navigation: Swipe Left/Right for screens");
   printMemoryStatus();
   Serial.println("========================================\n");
   
@@ -418,12 +428,64 @@ void setup() {
 // LOOP
 // =============================================================================
 
+// Touch handling variables
+static int touchStartX = 0, touchStartY = 0;
+static unsigned long touchStartTime = 0;
+static bool touchActive = false;
+
 void loop() {
   // Feed watchdog to prevent reset
   feedWatchdog();
   
   // Handle Fusion Labs Web Serial commands (high priority)
   handleSerialConfig();
+  
+  // Handle touch input and swipe navigation
+  TouchGesture gesture = handleTouchInput();
+  
+  if (gesture.is_valid) {
+    screenTimeout.resetTimer();  // Reset timeout on any touch
+    
+    switch (gesture.event) {
+      case TOUCH_PRESS:
+        touchStartX = gesture.x;
+        touchStartY = gesture.y;
+        touchStartTime = millis();
+        touchActive = true;
+        break;
+        
+      case TOUCH_RELEASE:
+      case TOUCH_SWIPE_LEFT:
+      case TOUCH_SWIPE_RIGHT:
+      case TOUCH_SWIPE_UP:
+      case TOUCH_SWIPE_DOWN:
+        if (touchActive) {
+          int dx = gesture.x - touchStartX;
+          int dy = gesture.y - touchStartY;
+          unsigned long duration = millis() - touchStartTime;
+          
+          // Check if this is a swipe gesture
+          if (duration < SWIPE_MAX_DURATION_MS && (abs(dx) > SWIPE_THRESHOLD_MIN || abs(dy) > SWIPE_THRESHOLD_MIN)) {
+            handleSwipeNavigation(dx, dy);
+          } else if (duration < 300 && abs(dx) < 20 && abs(dy) < 20) {
+            // This is a tap
+            gesture.event = TOUCH_TAP;
+            gesture.x = touchStartX;
+            gesture.y = touchStartY;
+            handleCurrentScreenTouch(gesture);
+          }
+          touchActive = false;
+        }
+        break;
+        
+      case TOUCH_TAP:
+        handleCurrentScreenTouch(gesture);
+        break;
+        
+      default:
+        break;
+    }
+  }
   
   // Frame rate limiting for smooth performance
   if (frameLimiter.shouldRender()) {
