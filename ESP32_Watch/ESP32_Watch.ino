@@ -1,11 +1,13 @@
 /*
- * ESP32 Watch - Simplified Edition
- * All features consolidated into clean, modular code
+ * ESP32 Watch - COMPLETE EDITION
+ * All 10 anime characters, Gacha, Training, Boss Rush
  * 
  * Hardware: ESP32-S3-Touch-AMOLED-1.8 (Waveshare)
- * Features: RPG System, Games, Themes, WiFi, Music, Weather, Quests
+ * Features: 10 Character Themes, RPG System, Games, Gacha Collection,
+ *           Training Mini-Games, Boss Rush, WiFi, Music, Weather, Quests
  * 
  * Original: https://github.com/ithig124-hub/ESP32_Watch
+ * Enhanced: Full feature list from COMPLETE_FEATURES_LIST.md
  */
 
 #include <Wire.h>
@@ -20,16 +22,18 @@
 #include "XPowersLib.h"
 
 #include "config.h"
+#include "optimizations.h"  // Performance & stability enhancements
 #include "display.h"
 #include "touch.h"
 #include "hardware.h"
 #include "themes.h"
-#include "games.h"
+#include "games.h"        // Includes gacha.h, training.h, boss_rush.h
 #include "apps.h"
 #include "wifi_apps.h"
 #include "filesystem.h"
 #include "rpg.h"
 #include "ui.h"
+#include "sd_manager.h"   // SD Card, WiFi, Fusion Labs Protocol
 
 // =============================================================================
 // GLOBAL OBJECTS
@@ -38,6 +42,11 @@
 XPowersAXP2101 PMU;
 SystemState system_state;
 Adafruit_XCA9554 expander;
+
+// Optimization helpers
+FrameLimiter frameLimiter(30);       // 30 FPS target
+TouchDebouncer touchDebouncer(50);   // 50ms debounce
+ScreenTimeout screenTimeout(30000);  // 30 second timeout
 
 // Display objects
 Arduino_DataBus *bus = new Arduino_ESP32QSPI(
@@ -159,6 +168,15 @@ void initSystemState() {
   system_state.steps_today = 0;
   system_state.step_goal = 10000;
   system_state.sleep_timer = millis();
+  
+  // New complete features initialization
+  system_state.player_gems = 500;           // Starting gems for gacha
+  system_state.player_level = 1;
+  system_state.player_xp = 0;
+  system_state.gacha_cards_collected = 0;
+  system_state.bosses_defeated = 0;
+  system_state.training_streak = 0;
+  system_state.daily_login_count = 0;
 }
 
 void initPMU() {
@@ -198,11 +216,17 @@ void setup() {
   Serial.begin(115200);
   delay(500);
   Serial.println("\n========================================");
-  Serial.println("  ESP32 Watch - Simplified Edition");
-  Serial.println("  All features, cleaner code!");
+  Serial.println("  ESP32 Watch - COMPLETE EDITION");
+  Serial.println("  10 Characters | Gacha | Training | Boss Rush");
   Serial.println("========================================\n");
 
+  // Initialize optimizations first
+  initOptimizations();
+  
   initSystemState();
+  
+  // Load saved data
+  loadSavedData();
   
   // Audio amp enable
   pinMode(PA_PIN, OUTPUT);
@@ -316,6 +340,31 @@ void setup() {
   initializeQuests();
   initializeGames();
   initializeThemes();
+  
+  // Step 7b: Initialize new game systems
+  Serial.println("[INIT] Step 7b: Gacha, Training, Boss Rush");
+  initGachaSystem();
+  initTrainingSystem();
+  initBossRush();
+
+  // Step 7c: Initialize SD Card and WiFi from SD
+  Serial.println("[INIT] Step 7c: SD Card & WiFi");
+  if (initSDCard()) {
+    Serial.println("[INIT] SD Card initialized successfully");
+    
+    // Try to connect WiFi using config from SD card
+    if (initWiFiFromSD()) {
+      Serial.println("[INIT] WiFi connected from SD config");
+    } else {
+      Serial.println("[INIT] WiFi not connected (check SD card config)");
+    }
+  } else {
+    Serial.println("[INIT] SD Card not available - using defaults");
+  }
+  
+  // Step 7d: Initialize Fusion Labs Web Serial
+  Serial.println("[INIT] Step 7d: Fusion Labs Protocol");
+  setupFusionLabsSerial();
 
   // Step 8: Load UI
   if (system_state.lvgl_available) {
@@ -344,13 +393,25 @@ void setup() {
   }
 
   Serial.println("\n========================================");
-  Serial.println("  INITIALIZATION COMPLETE");
+  Serial.println("  INITIALIZATION COMPLETE - FULL FEATURES");
   Serial.printf("  Display: %s | Touch: %s | PMU: %s | LVGL: %s\n",
     system_state.display_available ? "OK" : "FAIL",
     system_state.touch_available ? "OK" : "FAIL",
     system_state.power_available ? "OK" : "N/A",
     system_state.lvgl_available ? "OK" : "FAIL");
+  Serial.printf("  SD Card: %s | WiFi: %s\n",
+    sdCardInitialized ? "OK" : "N/A",
+    wifiConnected ? "Connected" : "N/A");
+  Serial.println("  10 Characters | Gacha | Training | Boss Rush");
+  Serial.println("  Fusion Labs Web Serial: Ready");
+  printMemoryStatus();
   Serial.println("========================================\n");
+  
+  // Check daily login bonus
+  checkDailyLogin();
+  
+  // Reset screen timeout
+  screenTimeout.resetTimer();
 }
 
 // =============================================================================
@@ -358,9 +419,32 @@ void setup() {
 // =============================================================================
 
 void loop() {
-  lv_timer_handler();
+  // Feed watchdog to prevent reset
+  feedWatchdog();
+  
+  // Handle Fusion Labs Web Serial commands (high priority)
+  handleSerialConfig();
+  
+  // Frame rate limiting for smooth performance
+  if (frameLimiter.shouldRender()) {
+    lv_timer_handler();
+  }
+  
+  // Update systems
   updateBattery();
-  delay(5);
+  updateTrainingGame();
+  
+  // Check screen timeout for power saving
+  checkScreenTimeout();
+  
+  // Auto-save progress
+  autoSave();
+  
+  // Auto backup if enabled
+  performAutoBackup();
+  
+  // Small yield for system tasks
+  delay(2);
 }
 
 void updateBattery() {
@@ -370,6 +454,126 @@ void updateBattery() {
     if (PMU.isBatteryConnect()) {
       system_state.battery_percentage = PMU.getBatteryPercent();
       system_state.is_charging = PMU.isCharging();
+      
+      // Low battery warning
+      if (system_state.battery_percentage <= BATTERY_LOW_THRESHOLD && !system_state.is_charging) {
+        system_state.low_battery_warning = true;
+      }
     }
+  }
+}
+
+void checkScreenTimeout() {
+  if (screenTimeout.isTimedOut() && system_state.current_screen != SCREEN_SLEEP) {
+    // Dim screen or enter sleep mode
+    if (screenTimeout.getIdleTime() > 60000) {  // 1 minute = sleep
+      system_state.current_screen = SCREEN_SLEEP;
+      gfx->setBrightness(50);  // Dim display
+      setCPUFrequencyLow();     // Save power
+    }
+  }
+}
+
+void onTouchActivity() {
+  screenTimeout.resetTimer();
+  
+  // Wake from sleep if needed
+  if (system_state.current_screen == SCREEN_SLEEP) {
+    system_state.current_screen = SCREEN_WATCHFACE;
+    gfx->setBrightness(system_state.brightness);
+    setCPUFrequencyNormal();
+  }
+}
+
+// Daily login bonus check
+void checkDailyLogin() {
+  static bool daily_checked = false;
+  if (!daily_checked) {
+    system_state.daily_login_count++;
+    addGems(GEMS_DAILY_LOGIN, "Daily Login");
+    updateDailyCharacter();
+    daily_checked = true;
+    
+    // Save progress
+    saveAllData();
+  }
+}
+
+// =============================================================================
+// DATA PERSISTENCE
+// =============================================================================
+
+void loadSavedData() {
+  Serial.println("[DATA] Loading saved data...");
+  
+  // Load player data
+  DataPersistence::loadPlayerData(
+    system_state.player_level,
+    system_state.player_xp,
+    system_state.player_gems
+  );
+  
+  // Load theme preference
+  system_state.current_theme = (ThemeType)DataPersistence::loadTheme();
+  
+  // Load steps
+  int savedDay;
+  DataPersistence::loadSteps(system_state.steps_today, savedDay);
+  
+  // Reset steps if new day
+  WatchTime now = getCurrentTime();
+  if (savedDay != now.day) {
+    system_state.steps_today = 0;
+  }
+  
+  // Load training streak
+  int lastTrainingDay;
+  DataPersistence::loadTrainingStreak(system_state.training_streak, lastTrainingDay);
+  
+  // Reset streak if missed a day
+  if (now.day - lastTrainingDay > 1) {
+    system_state.training_streak = 0;
+  }
+  
+  // Load settings
+  bool soundEnabled;
+  DataPersistence::loadSettings(system_state.brightness, soundEnabled);
+  
+  Serial.printf("[DATA] Loaded: Level %d, %d gems, %d steps\n",
+                system_state.player_level, system_state.player_gems, system_state.steps_today);
+}
+
+void saveAllData() {
+  Serial.println("[DATA] Saving all data...");
+  
+  // Save player data
+  DataPersistence::savePlayerData(
+    system_state.player_level,
+    system_state.player_xp,
+    system_state.player_gems
+  );
+  
+  // Save theme
+  DataPersistence::saveTheme((int)system_state.current_theme);
+  
+  // Save steps
+  WatchTime now = getCurrentTime();
+  DataPersistence::saveSteps(system_state.steps_today, now.day);
+  
+  // Save training streak
+  DataPersistence::saveTrainingStreak(system_state.training_streak, now.day);
+  
+  // Save settings
+  DataPersistence::saveSettings(system_state.brightness, true);
+  
+  Serial.println("[DATA] Save complete");
+}
+
+// Auto-save every 5 minutes
+void autoSave() {
+  static unsigned long lastSave = 0;
+  if (millis() - lastSave > 300000) {  // 5 minutes
+    lastSave = millis();
+    saveAllData();
   }
 }

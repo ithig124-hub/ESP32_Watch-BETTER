@@ -8,6 +8,7 @@
 #include "display.h"
 #include "themes.h"
 #include "hardware.h"
+#include <SD_MMC.h>
 
 extern Arduino_SH8601 *gfx;
 extern SystemState system_state;
@@ -87,13 +88,93 @@ void updateRPGSystem() {
 }
 
 void saveRPGProgress() {
-  // Save to EEPROM or file
-  Serial.println("[RPG] Progress saved");
+  // Save to SD card if available
+  extern bool sdCardInitialized;
+  if (!sdCardInitialized) {
+    Serial.println("[RPG] SD Card not available, progress not saved");
+    return;
+  }
+  
+  File dataFile = SD_MMC.open("/WATCH/data/rpg_progress.dat", FILE_WRITE);
+  if (!dataFile) {
+    Serial.println("[RPG] Cannot save progress");
+    return;
+  }
+  
+  dataFile.printf("VERSION=1\n");
+  dataFile.printf("CHARACTER_TYPE=%d\n", (int)rpg_character.character_type);
+  dataFile.printf("LEVEL=%d\n", rpg_character.level);
+  dataFile.printf("EXPERIENCE=%lld\n", rpg_character.experience);
+  dataFile.printf("YUGO_PATH=%d\n", (int)rpg_character.yugo_path);
+  dataFile.printf("SHADOW_ARMY=%d\n", rpg_character.shadow_army_size);
+  dataFile.printf("AWAKENED=%d\n", rpg_character.awakened_form ? 1 : 0);
+  dataFile.printf("QUESTS_COMPLETED=%d\n", rpg_character.quests_completed);
+  dataFile.printf("BATTLES_WON=%d\n", rpg_character.battles_won);
+  dataFile.printf("DAYS_ACTIVE=%d\n", rpg_character.days_active);
+  dataFile.printf("TOTAL_STEPS=%ld\n", rpg_character.total_steps);
+  
+  // Save base stats
+  dataFile.printf("BASE_STR=%d\n", rpg_character.base_stats.strength);
+  dataFile.printf("BASE_SPD=%d\n", rpg_character.base_stats.speed);
+  dataFile.printf("BASE_INT=%d\n", rpg_character.base_stats.intelligence);
+  dataFile.printf("BASE_END=%d\n", rpg_character.base_stats.endurance);
+  dataFile.printf("BASE_MAG=%d\n", rpg_character.base_stats.magic);
+  dataFile.printf("BASE_SPECIAL=%d\n", rpg_character.base_stats.special_power);
+  
+  dataFile.close();
+  Serial.println("[RPG] Progress saved to SD card");
 }
 
 bool loadRPGProgress() {
-  // Load from EEPROM or file
-  return false;
+  // Load from SD card if available
+  extern bool sdCardInitialized;
+  if (!sdCardInitialized) {
+    return false;
+  }
+  
+  File dataFile = SD_MMC.open("/WATCH/data/rpg_progress.dat", FILE_READ);
+  if (!dataFile) {
+    Serial.println("[RPG] No saved progress found");
+    return false;
+  }
+  
+  while (dataFile.available()) {
+    String line = dataFile.readStringUntil('\n');
+    line.trim();
+    
+    int eqPos = line.indexOf('=');
+    if (eqPos < 0) continue;
+    
+    String key = line.substring(0, eqPos);
+    String value = line.substring(eqPos + 1);
+    
+    if (key == "CHARACTER_TYPE") rpg_character.character_type = (RPGCharacterType)value.toInt();
+    else if (key == "LEVEL") rpg_character.level = value.toInt();
+    else if (key == "EXPERIENCE") rpg_character.experience = value.toInt();
+    else if (key == "YUGO_PATH") rpg_character.yugo_path = (YugoEndgamePath)value.toInt();
+    else if (key == "SHADOW_ARMY") rpg_character.shadow_army_size = value.toInt();
+    else if (key == "AWAKENED") rpg_character.awakened_form = value.toInt() == 1;
+    else if (key == "QUESTS_COMPLETED") rpg_character.quests_completed = value.toInt();
+    else if (key == "BATTLES_WON") rpg_character.battles_won = value.toInt();
+    else if (key == "DAYS_ACTIVE") rpg_character.days_active = value.toInt();
+    else if (key == "TOTAL_STEPS") rpg_character.total_steps = value.toInt();
+    else if (key == "BASE_STR") rpg_character.base_stats.strength = value.toInt();
+    else if (key == "BASE_SPD") rpg_character.base_stats.speed = value.toInt();
+    else if (key == "BASE_INT") rpg_character.base_stats.intelligence = value.toInt();
+    else if (key == "BASE_END") rpg_character.base_stats.endurance = value.toInt();
+    else if (key == "BASE_MAG") rpg_character.base_stats.magic = value.toInt();
+    else if (key == "BASE_SPECIAL") rpg_character.base_stats.special_power = value.toInt();
+  }
+  
+  dataFile.close();
+  
+  // Calculate current stats and experience needed
+  rpg_character.experience_to_next = getExperienceRequiredForLevel(rpg_character.level + 1);
+  calculateStats();
+  
+  Serial.printf("[RPG] Progress loaded: Level %d, %lld XP\n", 
+                rpg_character.level, rpg_character.experience);
+  return true;
 }
 
 void selectRPGCharacter(RPGCharacterType character) {

@@ -1,12 +1,14 @@
 /*
- * games.cpp - Games Implementation
- * Full game functionality with battle system
+ * games.cpp - Complete Games Implementation
+ * Battle Arena, Snake (Enhanced), Memory, + Gacha, Training, Boss Rush integration
  */
 
 #include "games.h"
 #include "config.h"
 #include "display.h"
 #include "themes.h"
+#include "rpg.h"
+#include "gacha.h"  // For addGems function
 
 extern Arduino_SH8601 *gfx;
 extern SystemState system_state;
@@ -16,29 +18,42 @@ GameSession current_game_session;
 // Battle creatures database
 BattleCreature battle_creatures[] = {
   {"Luffy", "Fighter", 50, 100, 100, 80, 60, 70, {"Gum Gum Pistol", "Gear Second", "Red Hawk", "King Kong Gun"}, {30, 45, 60, 80}, true, COLOR_ORANGE},
-  {"Jinwoo", "Shadow", 50, 100, 100, 90, 70, 85, {"Dagger Strike", "Shadow Exchange", "Ruler's Authority", "Dragon's Fear"}, {35, 50, 70, 90}, true, JINWOO_PURPLE},
-  {"Yugo", "Portal", 50, 100, 100, 70, 80, 75, {"Portal Slash", "Wakfu Beam", "Stasis", "Eliacube Power"}, {25, 40, 55, 75}, true, YUGO_TEAL},
+  {"Jinwoo", "Shadow", 50, 100, 100, 90, 70, 85, {"Dagger Strike", "Shadow Exchange", "Ruler's Authority", "Dragon's Fear"}, {35, 50, 70, 90}, true, JINWOO_MONARCH_PURPLE},
+  {"Yugo", "Portal", 50, 100, 100, 70, 80, 75, {"Portal Slash", "Wakfu Beam", "Stasis", "Eliacube Power"}, {25, 40, 55, 75}, true, YUGO_PORTAL_CYAN},
+  {"Naruto", "Ninja", 50, 100, 100, 75, 65, 80, {"Rasengan", "Shadow Clone", "Sage Mode", "Kurama Mode"}, {35, 40, 60, 85}, true, NARUTO_CHAKRA_ORANGE},
+  {"Goku", "Saiyan", 50, 100, 100, 95, 55, 90, {"Kamehameha", "Spirit Bomb", "UI Dodge", "Ultra Instinct"}, {40, 70, 50, 95}, true, GOKU_UI_SILVER},
+  {"Tanjiro", "Slayer", 50, 100, 100, 72, 75, 70, {"Water Breathing", "Fire Breathing", "Sun Breathing", "Hinokami Kagura"}, {30, 45, 65, 80}, true, TANJIRO_FIRE_ORANGE},
+  {"Gojo", "Sorcerer", 50, 100, 100, 100, 100, 95, {"Red", "Blue", "Hollow Purple", "Infinite Void"}, {40, 45, 90, 100}, true, GOJO_INFINITY_BLUE},
+  {"Levi", "Soldier", 50, 100, 100, 85, 60, 100, {"Spin Attack", "ODM Slice", "Blade Barrage", "Spinning Slash"}, {35, 50, 70, 85}, true, LEVI_SURVEY_GREEN},
+  {"Saitama", "Hero", 50, 100, 100, 100, 50, 80, {"Normal Punch", "Consecutive Punches", "Serious Side Hops", "Serious Punch"}, {100, 100, 50, 999}, true, SAITAMA_HERO_YELLOW},
+  {"Deku", "Hero", 50, 100, 100, 75, 70, 75, {"Detroit Smash", "Delaware Smash", "Full Cowl", "United States Smash"}, {35, 40, 55, 85}, true, DEKU_HERO_GREEN},
   {"Shadow Soldier", "Dark", 20, 60, 60, 40, 30, 35, {"Slash", "Dark Bite", "", ""}, {20, 30, 0, 0}, false, RGB565(50, 0, 80)},
   {"Pirate", "Normal", 15, 50, 50, 35, 25, 30, {"Cutlass", "Cannonball", "", ""}, {15, 25, 0, 0}, false, COLOR_RED},
-  {"Portal Beast", "Magic", 25, 70, 70, 50, 40, 45, {"Teleport", "Energy Blast", "Confusion", ""}, {25, 35, 20, 0}, false, YUGO_ENERGY}
+  {"Portal Beast", "Magic", 25, 70, 70, 50, 40, 45, {"Teleport", "Energy Blast", "Confusion", ""}, {25, 35, 20, 0}, false, YUGO_WAKFU_ENERGY}
 };
-int num_battle_creatures = 6;
+int num_battle_creatures = 13;
 
 // AdvancedGameManager static members
 GameType AdvancedGameManager::current_game = GAME_BATTLE_ARENA;
 GameState AdvancedGameManager::current_state = GAME_MENU;
+
+// Enhanced Snake state
+static int snake_speed_level = 0;  // 0=Normal, 1=Fast, 2=Faster, 3=Extreme
+static int snake_extra_lives = 2;
 
 // =============================================================================
 // GAME INITIALIZATION
 // =============================================================================
 
 void initializeGames() {
-  Serial.println("[Games] Initializing game system...");
+  Serial.println("[Games] Initializing complete game system...");
   current_game_session.state = GAME_MENU;
   current_game_session.score = 0;
   current_game_session.level = 1;
   current_game_session.lives = 3;
   current_game_session.sound_enabled = true;
+  current_game_session.snake_speed_level = 0;
+  current_game_session.snake_extra_lives = 2;
   loadGameProgress();
 }
 
@@ -53,6 +68,13 @@ void launchGame(GameType game) {
     case GAME_WAKFU_QUEST:     initWakfuQuest(); break;
     case GAME_MINI_SNAKE:      initSnakeGame(); break;
     case GAME_MEMORY_MATCH:    initMemoryGame(); break;
+    case GAME_GACHA:           system_state.current_screen = SCREEN_GACHA; break;
+    case GAME_TRAINING_REFLEX:
+    case GAME_TRAINING_TARGET:
+    case GAME_TRAINING_SPEED:
+    case GAME_TRAINING_MEMORY: system_state.current_screen = SCREEN_TRAINING; break;
+    case GAME_BOSS_RUSH:       system_state.current_screen = SCREEN_BOSS_RUSH; break;
+    default: break;
   }
 }
 
@@ -62,19 +84,52 @@ void drawGameMenu() {
   // Title
   gfx->setTextColor(getCurrentTheme()->primary);
   gfx->setTextSize(3);
-  gfx->setCursor(100, 30);
+  gfx->setCursor(100, 20);
   gfx->print("GAMES");
   
-  // Game buttons
-  const char* games[] = {"Battle Arena", "Shadow Dungeon", "Pirate Quest", "Wakfu", "Snake", "Memory"};
+  // Game buttons - 3 columns now to fit more
+  const char* games[] = {"Battle", "Snake", "Memory", "Gacha", "Training", "Boss Rush"};
+  uint16_t colors[] = {COLOR_RED, COLOR_GREEN, COLOR_BLUE, COLOR_PURPLE, COLOR_ORANGE, COLOR_RED};
+  
   for (int i = 0; i < 6; i++) {
-    int x = (i % 2) * 180 + 10;
-    int y = (i / 2) * 90 + 100;
-    drawGameButton(x, y, 170, 80, games[i], false);
+    int x = (i % 3) * 115 + 15;
+    int y = (i / 3) * 100 + 80;
+    
+    gfx->fillRoundRect(x, y, 105, 85, 12, colors[i]);
+    gfx->drawRoundRect(x, y, 105, 85, 12, COLOR_WHITE);
+    
+    gfx->setTextColor(COLOR_WHITE);
+    gfx->setTextSize(1);
+    int textW = strlen(games[i]) * 6;
+    gfx->setCursor(x + (105 - textW)/2, y + 35);
+    gfx->print(games[i]);
+  }
+  
+  // Player stats at bottom
+  gfx->setTextColor(COLOR_GOLD);
+  gfx->setTextSize(1);
+  gfx->setCursor(20, 300);
+  gfx->printf("Gems: %d | Level: %d", system_state.player_gems, system_state.player_level);
+  
+  gfx->setTextColor(COLOR_WHITE);
+  gfx->setCursor(20, 320);
+  gfx->printf("Cards: %d/100 | Bosses: %d/20", 
+              system_state.gacha_cards_collected, system_state.bosses_defeated);
+  
+  // Adventures section
+  gfx->setTextColor(getCurrentTheme()->accent);
+  gfx->setTextSize(2);
+  gfx->setCursor(40, 350);
+  gfx->print("ADVENTURES");
+  
+  const char* adv[] = {"Shadow", "Pirate", "Wakfu"};
+  for (int i = 0; i < 3; i++) {
+    int x = 30 + i * 110;
+    drawGlassButton(x, 380, 100, 35, adv[i], false);
   }
   
   // Back button
-  drawThemeButton(130, 400, 100, 40, "Back", false);
+  drawGlassButton(290, 420, 60, 25, "Back", false);
 }
 
 void handleGameMenuTouch(TouchGesture& gesture) {
@@ -82,18 +137,28 @@ void handleGameMenuTouch(TouchGesture& gesture) {
   
   int x = gesture.x, y = gesture.y;
   
-  // Check game buttons
+  // Check main game buttons (top grid)
   for (int i = 0; i < 6; i++) {
-    int bx = (i % 2) * 180 + 10;
-    int by = (i / 2) * 90 + 100;
-    if (x >= bx && x < bx + 170 && y >= by && y < by + 80) {
-      launchGame((GameType)i);
+    int bx = (i % 3) * 115 + 15;
+    int by = (i / 3) * 100 + 80;
+    if (x >= bx && x < bx + 105 && y >= by && y < by + 85) {
+      GameType gameMap[] = {GAME_BATTLE_ARENA, GAME_MINI_SNAKE, GAME_MEMORY_MATCH,
+                            GAME_GACHA, GAME_TRAINING_REFLEX, GAME_BOSS_RUSH};
+      launchGame(gameMap[i]);
       return;
     }
   }
   
+  // Adventure buttons
+  if (y >= 380 && y < 415) {
+    if (x >= 30 && x < 130) launchGame(GAME_SHADOW_DUNGEON);
+    else if (x >= 140 && x < 240) launchGame(GAME_PIRATE_ADVENTURE);
+    else if (x >= 250 && x < 350) launchGame(GAME_WAKFU_QUEST);
+    return;
+  }
+  
   // Back button
-  if (y >= 400 && y < 440 && x >= 130 && x < 230) {
+  if (y >= 420 && x >= 290) {
     system_state.current_screen = SCREEN_APP_GRID;
   }
 }
@@ -392,13 +457,17 @@ void openPortal() {
 }
 
 // =============================================================================
-// SNAKE GAME
+// SNAKE GAME - ENHANCED
 // =============================================================================
 
 void initSnakeGame() {
   current_game_session.state = GAME_PLAYING;
   current_game_session.snake_length = 3;
   current_game_session.direction = 1;  // 0=up, 1=right, 2=down, 3=left
+  current_game_session.snake_speed_level = 0;  // Start at normal speed
+  current_game_session.snake_extra_lives = 2;  // 2 extra lives
+  current_game_session.lives = 3;
+  current_game_session.score = 0;
   
   for (int i = 0; i < current_game_session.snake_length; i++) {
     current_game_session.snake_x[i] = 5 - i;
@@ -412,31 +481,86 @@ void initSnakeGame() {
 void drawSnakeGame() {
   gfx->fillScreen(COLOR_BLACK);
   
-  gfx->setTextColor(COLOR_GREEN);
+  // Themed title
+  gfx->setTextColor(getCurrentTheme()->primary);
   gfx->setTextSize(2);
   gfx->setCursor(130, 10);
   gfx->print("SNAKE");
   
-  // Draw grid
-  gfx->drawRect(20, 50, 320, 320, COLOR_GREEN);
+  // Speed indicator
+  const char* speeds[] = {"NORMAL", "FAST", "FASTER", "EXTREME"};
+  gfx->setTextSize(1);
+  gfx->setTextColor(current_game_session.snake_speed_level >= 2 ? COLOR_RED : COLOR_WHITE);
+  gfx->setCursor(280, 15);
+  gfx->print(speeds[current_game_session.snake_speed_level]);
   
-  // Draw snake
+  // Lives display
+  gfx->setTextColor(COLOR_GREEN);
+  gfx->setCursor(20, 15);
+  for (int i = 0; i < current_game_session.lives; i++) {
+    gfx->print("*");
+  }
+  
+  // Draw grid with themed border
+  gfx->drawRect(20, 50, 320, 320, getCurrentTheme()->primary);
+  gfx->drawRect(21, 51, 318, 318, getCurrentTheme()->accent);
+  
+  // Draw snake with themed colors
+  uint16_t headColor = getCurrentTheme()->primary;
+  uint16_t bodyColor = getCurrentTheme()->accent;
+  
   for (int i = 0; i < current_game_session.snake_length; i++) {
     int x = current_game_session.snake_x[i] * 16 + 20;
     int y = current_game_session.snake_y[i] * 16 + 50;
-    gfx->fillRect(x, y, 14, 14, i == 0 ? COLOR_GREEN : RGB565(0, 150, 0));
+    
+    if (i == 0) {
+      // Head with eyes
+      gfx->fillRoundRect(x, y, 14, 14, 3, headColor);
+      // Eyes based on direction
+      int ex1, ey1, ex2, ey2;
+      switch (current_game_session.direction) {
+        case 0: ex1 = x+3; ey1 = y+3; ex2 = x+10; ey2 = y+3; break;  // up
+        case 1: ex1 = x+10; ey1 = y+3; ex2 = x+10; ey2 = y+10; break; // right
+        case 2: ex1 = x+3; ey1 = y+10; ex2 = x+10; ey2 = y+10; break; // down
+        case 3: ex1 = x+3; ey1 = y+3; ex2 = x+3; ey2 = y+10; break;   // left
+      }
+      gfx->fillCircle(ex1, ey1, 2, COLOR_WHITE);
+      gfx->fillCircle(ex2, ey2, 2, COLOR_WHITE);
+    } else {
+      // Body segments with gradient effect
+      uint8_t fade = 255 - (i * 10);
+      gfx->fillRoundRect(x, y, 14, 14, 2, bodyColor);
+    }
   }
   
-  // Draw food
+  // Draw food with pulsing effect
   int fx = current_game_session.food_x * 16 + 20;
   int fy = current_game_session.food_y * 16 + 50;
-  gfx->fillRect(fx, fy, 14, 14, COLOR_RED);
   
-  // Score
+  // Animate food
+  static uint8_t foodPulse = 0;
+  foodPulse = (foodPulse + 10) % 255;
+  int pulseSize = 14 + (sin(foodPulse * PI / 128) * 2);
+  
+  gfx->fillCircle(fx + 7, fy + 7, pulseSize/2, COLOR_RED);
+  gfx->fillCircle(fx + 7, fy + 7, pulseSize/2 - 3, COLOR_ORANGE);
+  
+  // Score and level
   gfx->setTextColor(COLOR_WHITE);
   gfx->setTextSize(1);
-  gfx->setCursor(20, 400);
-  gfx->printf("Score: %d  Length: %d", current_game_session.score, current_game_session.snake_length);
+  gfx->setCursor(20, 380);
+  gfx->printf("Score: %d", current_game_session.score);
+  
+  gfx->setCursor(120, 380);
+  gfx->printf("Length: %d", current_game_session.snake_length);
+  
+  gfx->setCursor(220, 380);
+  gfx->printf("Level: %d", current_game_session.snake_speed_level + 1);
+  
+  // Swipe controls hint
+  gfx->setTextColor(COLOR_GRAY);
+  gfx->setCursor(80, 420);
+  gfx->print("Swipe to change direction");
 }
 
 void handleSnakeTouch(TouchGesture& gesture) {
@@ -450,9 +574,22 @@ void handleSnakeTouch(TouchGesture& gesture) {
     current_game_session.direction = 3;
 }
 
+int getSnakeDelay() {
+  // Speed based on level: Normal=200ms, Fast=150ms, Faster=100ms, Extreme=60ms
+  int delays[] = {200, 150, 100, 60};
+  return delays[current_game_session.snake_speed_level];
+}
+
+void increaseSnakeSpeed() {
+  if (current_game_session.snake_speed_level < 3) {
+    current_game_session.snake_speed_level++;
+    Serial.printf("[Snake] Speed increased to level %d\n", current_game_session.snake_speed_level);
+  }
+}
+
 void updateSnake() {
   static unsigned long lastMove = 0;
-  if (millis() - lastMove < 200) return;
+  if (millis() - lastMove < getSnakeDelay()) return;
   lastMove = millis();
   
   // Move body
@@ -473,9 +610,19 @@ void updateSnake() {
   if (current_game_session.snake_x[0] == current_game_session.food_x &&
       current_game_session.snake_y[0] == current_game_session.food_y) {
     current_game_session.snake_length++;
-    current_game_session.score += 10;
+    current_game_session.score += 10 * (current_game_session.snake_speed_level + 1);
     current_game_session.food_x = random(1, 18);
     current_game_session.food_y = random(1, 18);
+    
+    // Increase speed every 5 foods
+    if (current_game_session.snake_length % 5 == 0) {
+      increaseSnakeSpeed();
+    }
+    
+    // Give gems for high scores
+    if (current_game_session.score % 100 == 0) {
+      addGems(GEMS_GAME_WIN_MIN, "Snake Score");
+    }
   }
   
   checkSnakeCollision();
@@ -485,17 +632,41 @@ void checkSnakeCollision() {
   int x = current_game_session.snake_x[0];
   int y = current_game_session.snake_y[0];
   
+  bool collision = false;
+  
   // Wall collision
   if (x < 0 || x >= 20 || y < 0 || y >= 20) {
-    current_game_session.state = GAME_OVER;
-    return;
+    collision = true;
   }
   
   // Self collision
   for (int i = 1; i < current_game_session.snake_length; i++) {
     if (x == current_game_session.snake_x[i] && y == current_game_session.snake_y[i]) {
+      collision = true;
+      break;
+    }
+  }
+  
+  if (collision) {
+    current_game_session.lives--;
+    
+    if (current_game_session.lives <= 0) {
       current_game_session.state = GAME_OVER;
-      return;
+      
+      // Give XP based on score
+      gainExperience(current_game_session.score / 2, "Snake Game");
+    } else {
+      // Respawn with lives remaining
+      current_game_session.snake_length = 3;
+      current_game_session.direction = 1;
+      
+      for (int i = 0; i < current_game_session.snake_length; i++) {
+        current_game_session.snake_x[i] = 5 - i;
+        current_game_session.snake_y[i] = 5;
+      }
+      
+      current_game_session.food_x = random(1, 18);
+      current_game_session.food_y = random(1, 18);
     }
   }
 }

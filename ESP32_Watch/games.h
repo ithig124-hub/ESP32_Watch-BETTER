@@ -1,14 +1,17 @@
 /*
- * games.h - Games System
- * Consolidates: games.h/cpp, core_games.h/cpp
- * 
- * Pokemon Showdown-style battles, Snake, Memory, RPG games
+ * games.h - Complete Games System
+ * Battle Arena, Snake, Memory, Gacha, Training, Boss Rush
  */
 
 #ifndef GAMES_H
 #define GAMES_H
 
 #include "config.h"
+
+// Include sub-game systems
+#include "gacha.h"
+#include "training.h"
+#include "boss_rush.h"
 
 // =============================================================================
 // GAME SYSTEM
@@ -53,12 +56,14 @@ void handleWakfuTouch(TouchGesture& gesture);
 void solvePuzzle();
 void openPortal();
 
-// Snake Game
+// Snake Game - ENHANCED
 void initSnakeGame();
 void drawSnakeGame();
 void handleSnakeTouch(TouchGesture& gesture);
 void updateSnake();
 void checkSnakeCollision();
+void increaseSnakeSpeed();
+int getSnakeDelay();
 
 // Memory Match
 void initMemoryGame();
