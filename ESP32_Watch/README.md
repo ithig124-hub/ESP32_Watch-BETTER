@@ -1,370 +1,213 @@
-# ESP32 Watch - COMPLETE EDITION
+# S3 MiniOS v4.0 - ULTIMATE PREMIUM EDITION
 
-## All Features from COMPLETE_FEATURES_LIST.md Implemented
+## 📱 ESP32-S3 Smartwatch Firmware - Premium LVGL UI + Battery Intelligence
 
-A premium anime-themed smartwatch firmware for the ESP32-S3-Touch-AMOLED-1.8 (Waveshare).
-
-**Now with Fusion Labs Web Serial Integration!**
+This is a **merged firmware** combining the best features from v2.0 (Premium LVGL UI) and v3.1 (Battery Intelligence) for Waveshare ESP32-S3 Touch AMOLED smartwatch boards.
 
 ---
 
-## 🆕 NEW: Fusion Labs Integration
+## 🎨 Supported Boards
 
-### Web Serial Features (via USB)
-Connect your watch to the Fusion Labs website for:
-- **WiFi Configuration** - Edit WiFi settings via USB (no SD card editing needed)
-- **Watch Face Studio** - Create and install custom watch faces
-- **Firmware Updates** - OTA updates via the website
-- **Data Dashboard** - View your gacha collection, boss progress, stats
-- **Backup/Restore** - Backup all your data to your computer
-
-### Fusion Labs Website
-**https://ithig124-hub.github.io/fusion-labs**
-
-### Web Serial Commands
-| Command | Description |
-|---------|-------------|
-| `WIDGET_PING` | Test connection (responds `WIDGET_PONG`) |
-| `WIDGET_STATUS` | Get full device status |
-| `WIDGET_READ_WIFI` | Read WiFi config from SD card |
-| `WIDGET_WRITE_WIFI` | Write WiFi config to SD card |
-| `WIDGET_CHECK_UPDATE` | Check for firmware updates |
-| `WIDGET_DOWNLOAD_UPDATE` | Download firmware to SD |
-| `WIDGET_BACKUP` | Create data backup |
+| Board | Display | Resolution | Folder |
+|-------|---------|------------|--------|
+| ESP32-S3-Touch-AMOLED-1.8" | SH8601 QSPI AMOLED | 368×448 | `S3_MiniOS_1.8/` |
+| ESP32-S3-Touch-AMOLED-2.06" | CO5300 QSPI AMOLED | 412×412 (Round) | `S3_MiniOS_2.06/` |
 
 ---
 
-## 💾 SD Card Storage
+## ✨ Features Overview
 
-### Automatic Folder Structure
-On first boot, the watch creates:
-```
-/WATCH/
-├── data/           # Player progress
-├── wifi/           # WiFi config (config.txt)
-├── gacha/          # Card collection
-├── boss_rush/      # Boss progress
-├── FIRMWARE/       # OTA updates
-├── BACKUPS/        # Auto-backups
-├── LOGS/           # Boot logs
-└── FACES/          # Custom watch faces
-```
+### Premium LVGL UI (from v2.0)
+- 🎨 **8 Apple Watch-style Gradient Themes** (Midnight, Ocean, Sunset, Aurora, Forest, Ruby, Graphite, Mint)
+- 🧭 **Full Sensor Fusion Compass** with Kalman filter and smooth animation
+- 🎮 **Premium Games**: Blackjack with visual cards, Dino Runner with physics, Yes/No Spinner
+- ⭕ **Activity Rings** (Move, Exercise, Stand) - Apple Watch style
+- 📈 **Stocks & Crypto** live prices (BTC, ETH, AAPL, TSLA)
+- 🏃 **Step Tracking** with streak tracking and achievements
+- 🎵 **Music Control** with progress bar
+- ⏱️ **Timers**: Sand Timer, Stopwatch, Countdown, Breathe wellness
+- 📅 **Calendar** with current date highlighting
+- 🖼️ **SD Card Wallpaper Support**
 
-### WiFi Configuration
-Create `/WATCH/wifi/config.txt`:
-```
-SSID1=YourHomeWiFi
-PASSWORD1=YourPassword
-OPEN1=false
-CITY=Perth
-COUNTRY=AU
-GMT_OFFSET=8
-```
-
-### NTP Time Sync
-- Automatically syncs time from `pool.ntp.org` when WiFi connects
-- Timezone configured via GMT_OFFSET in config.txt
-
-### Auto-Backup
-- Backs up all game data every 24 hours
-- Manual backup via Fusion Labs website or serial command
-
----
-
-## 🚀 Performance Optimizations
-
-### Memory Management
-- Smart allocation (PSRAM preferred, fallback to internal RAM)
-- Memory status monitoring
-- Low memory warning at 50KB threshold
-
-### Power Saving
-- CPU frequency scaling (80/160/240 MHz)
-- 30-second screen timeout with auto-dim
-- Auto-sleep after 1 minute of inactivity
-
-### Stability
-- Watchdog timer (30-second timeout with auto-reboot)
-- Touch debouncing (50ms)
-- Frame rate limiting (30 FPS target)
-
-### Data Persistence (NVS)
-- Player progress (level, XP, gems)
-- Theme preference
-- Daily steps (auto-reset on new day)
-- Training streak
-- Boss defeat progress
-- Gacha card collection
-- High scores
-- Settings (brightness, sound)
-- Auto-save every 5 minutes
-
-### Smooth Animations
-- Non-blocking delays
-- Lerp interpolation
-- Ease-out/ease-in-out curves
-
----
-
-## 🎭 10 Premium Anime Character Themes
-
-Each character has unique:
-- Color palette (10 unique colors)
-- Watch face design
-- Activity rings
-- Visual effects (particles, auras, glows)
-- Signature moves and catchphrases
-- Character stats
-
-### Characters:
-
-1. **Luffy - Sun God Nika (Gear 5)** - One Piece
-   - Colors: Sun Gold, Nika White, Energy Orange
-   - Effects: Sun rays, cloud wisps, rubber stretch
-   - Rounded, bouncy UI (20px corners)
-
-2. **Sung Jin-Woo - Shadow Monarch** - Solo Leveling
-   - Colors: Monarch Purple, Void Black, Arise Glow
-   - Effects: Shadow soldiers, void rifts, ARISE text
-   - Sharp, angular UI (5px corners)
-
-3. **Yugo - Portal Master** - Wakfu
-   - Colors: Portal Cyan, Eliatrope Teal, Hat Gold
-   - Effects: Portals, wakfu particles, dimensional rifts
-   - Rounded portal-shaped UI (15px corners)
-
-4. **Naruto - Sage Mode** - Naruto
-   - Colors: Chakra Orange, Kurama Red, Sage Gold
-   - Effects: Sage aura, Kurama flames, Rasengan
-
-5. **Goku - Ultra Instinct** - Dragon Ball
-   - Colors: UI Silver, Divine Silver, Aura White
-   - Effects: Silver glow, speed lines, ki blasts
-
-6. **Tanjiro - Sun Breathing** - Demon Slayer
-   - Colors: Fire Orange, Hanafuda Red, Flame Glow
-   - Effects: Sun flames, water techniques, Nichirin blade
-
-7. **Gojo - Infinity** - Jujutsu Kaisen
-   - Colors: Infinity Blue, Six Eyes Blue, Hollow Purple
-   - Effects: Infinity aura, Six Eyes glow, domain expansion
-
-8. **Levi - Humanity's Strongest** - Attack on Titan
-   - Colors: Survey Green, Military Grey, Silver Blade
-   - Effects: Blade shine, ODM gear motion, speed blur
-
-9. **Saitama - One Punch** - One Punch Man
-   - Colors: Hero Yellow, Cape Red, Golden Punch
-   - Effects: Punch impact (minimal - he's too powerful)
-   - Minimalist UI (0px corners)
-
-10. **Deku - Plus Ultra** - My Hero Academia
-    - Colors: Hero Green, OFA Lightning, Full Cowl
-    - Effects: Lightning crackles, Full Cowl aura, power veins
-
----
-
-## 🎮 Complete Game Systems
-
-### Enhanced Snake Game
-- 4 speed levels (Normal → Fast → Faster → Extreme)
-- 3 lives system with respawn
-- Themed visuals matching current character
-- Animated food with pulsing effect
-- Snake head with eyes based on direction
-- XP and gem rewards
-
-### Gacha Collection System
-- **100 unique cards** across 10 anime series (10 per series)
-- **5 rarity tiers**:
-  - Common (50%) - White border
-  - Rare (30%) - Blue border
-  - Epic (15%) - Purple border
-  - Legendary (4%) - Gold border
-  - MYTHIC (1%) - Rainbow animated border
-- Single pull: 100 gems
-- 10x pull: 900 gems (guaranteed Epic+)
-- Collection rewards at 25/50/75/100 cards
-- Duplicate tracking
-
-### Training Mini-Games Dojo
-- **Reflex Test**: Tap flashing buttons, measures reaction time
-  - Perfect: <150ms, Great: <250ms, Good: <400ms
-- **Target Shoot**: 30-second shooting gallery
-- **Speed Tap**: Tap as fast as possible in 10 seconds
-- **Memory Match**: Remember increasingly long patterns
-- Streak bonuses (3/7/14/30 days)
-- XP rewards with perfect bonuses
-
-### Boss Rush Mode
-- **20 anime bosses** across 4 tiers:
-  - Tier 1 (Lv.1-5): Buggy, Zabuza, Raditz, Hand Demon, Cursed Spirit
-  - Tier 2 (Lv.6-10): Crocodile, Orochimaru, Frieza, Rui, Mahito
-  - Tier 3 (Lv.11-15): Doflamingo, Pain, Cell, Akaza, Sukuna (4 Fingers)
-  - Tier 4 (Lv.16-20): Kaido, Madara, Jiren, Muzan, Sukuna (Full Power)
-- Turn-based combat with:
-  - Attack (combo multiplier)
-  - Defend (50% damage reduction)
-  - Special (100 energy, 3x damage)
-  - Item (3 potions, 50% heal)
-- Combo system (up to +50% damage)
-- No-damage and fast-clear bonuses
-- Gem and XP rewards
-
-### Battle Arena
-- Pokemon Showdown-style battles
-- 10 playable anime characters
-- 4 moves per character
-- Type effectiveness system
-
-### Adventure Games
-- Shadow Dungeon (Jin-Woo themed)
-- Pirate Adventure (Luffy themed)
-- Wakfu Quest (Yugo themed)
-- Memory Match (4x4 card matching)
-
----
-
-## 💎 Gem Economy
-
-### Earning Gems:
-- Daily login: 50 gems
-- Quest completion: 20-100 gems
-- Level up: 100 gems
-- Boss defeat: 50-1000 gems
-- Game wins: 10-50 gems
-- Step goal completion: 30 gems
-- Collection milestones: 500-5000 gems
-
-### Spending Gems:
-- Single gacha pull: 100 gems
-- 10x gacha pull: 900 gems
-
----
-
-## 🌟 Glass Morphism UI
-
-All UI components feature:
-- Semi-transparent backgrounds
-- Soft blur effects (simulated)
-- Themed borders with glow
-- Character-specific corner radius
-- Animated stat bars
-- Pulsing glow effects
-
----
-
-## 📊 Character Stats Screen
-
-- Character portrait area
-- 4 animated stat bars per character
-- Level display with stars
-- Signature catchphrase
-- Glass panel containers
-
----
-
-## ⚙️ Hardware Requirements
-
-- **Board**: ESP32-S3-Touch-AMOLED-1.8 (Waveshare)
-- **Display**: 368x448 AMOLED (QSPI)
-- **Touch**: FT3168 Capacitive Touch
-- **PMU**: AXP2101 Power Management
-- **IMU**: QMI8658 (accelerometer/gyroscope)
-- **RTC**: PCF85063 Real-time Clock
-- **Audio**: ES8311 Codec
-- **Storage**: SD Card (FAT32)
+### Battery Intelligence (from v3.1)
+- 🔋 **Smart Battery Estimation** using 3 algorithms:
+  - Simple (capacity-based)
+  - Weighted (recent usage)
+  - Learned (7-day patterns)
+- 📊 **24-Hour Usage Graphs** (screen time per hour)
+- 📉 **Card Usage Analytics** (% time on each feature)
+- 🔌 **Charging Animation** with status display
+- ⚡ **Battery Saver Mode** (auto-enable at 10%)
+- ⚠️ **Low Battery Popup** at 20% and 10%
+- 💾 **Persistent Data Storage** with auto-save every 2 hours
 
 ---
 
 ## 📁 File Structure
 
+Each board folder contains **5 .ino files** that Arduino IDE will merge automatically:
+
 ```
-ESP32_Watch/
-├── ESP32_Watch.ino    # Main entry point
-├── config.h           # All configurations, enums, structures
-├── optimizations.h    # NEW: Performance & stability helpers
-├── themes.h/cpp       # 10 character themes, watch faces
-├── games.h/cpp        # Game menu, Battle Arena, Snake, Memory
-├── gacha.h/cpp        # Gacha collection system
-├── training.h/cpp     # Training mini-games
-├── boss_rush.h/cpp    # Boss Rush mode
-├── rpg.h/cpp          # RPG progression system
-├── apps.h/cpp         # Standard apps (settings, music, etc.)
-├── ui.h/cpp           # UI utilities
-├── display.h/cpp      # Display driver
-├── touch.h/cpp        # Touch handling
-├── hardware.h/cpp     # Hardware abstraction
-├── filesystem.h/cpp   # SD card file system
-└── wifi_apps.h/cpp    # WiFi and network features
+S3_MiniOS_1.8/  (or S3_MiniOS_2.06/)
+├── S3_MiniOS.ino          # Main: Config, data structures, navigation
+├── S3_MiniOS_Part2.ino    # Clock, Compass, Activity cards
+├── S3_MiniOS_Part3.ino    # Games, Weather, Stocks, Music cards
+├── S3_MiniOS_Part4.ino    # Timers, Streaks, Calendar, System, Battery Stats
+└── S3_MiniOS_Part5.ino    # Setup & Loop
 ```
 
 ---
 
-## 🛠️ Troubleshooting
+## 🛠️ Installation
 
-### Watch freezes/resets
-- Watchdog timer will auto-reboot after 30 seconds of freeze
-- Check Serial monitor for crash logs
+### Required Libraries
+Install these via Arduino Library Manager:
 
-### Memory issues
-- `printMemoryStatus()` shows current heap usage
-- Keep free heap above 50KB for stable operation
-- Large arrays automatically use PSRAM if available
+```
+- LVGL (8.3.x)
+- ArduinoJson
+- XPowersLib
+- Adafruit_BusIO
+- Arduino_GFX_Library (Waveshare fork)
+- Arduino_DriveBus_Library (Waveshare)
+- SensorLib (Waveshare)
+```
 
-### Touch not responding
-- 50ms debounce prevents accidental double-taps
-- `onTouchActivity()` resets screen timeout
+### Board Setup
+1. Install ESP32 Arduino Core (2.0.x or newer)
+2. Select board: **ESP32S3 Dev Module**
+3. Settings:
+   - Flash Mode: QIO 80MHz
+   - Flash Size: 16MB
+   - Partition Scheme: 16M Flash (3MB APP/9.9MB FATFS)
+   - PSRAM: OPI PSRAM
+   - USB CDC On Boot: Enabled
 
-### Data not saving
-- Auto-save runs every 5 minutes
-- Manual save: `saveAllData()`
-- Check NVS namespace "esp32watch"
+### Upload
+1. Copy the appropriate folder (`S3_MiniOS_1.8` or `S3_MiniOS_2.06`) to your Arduino sketches
+2. Open `S3_MiniOS.ino` in Arduino IDE
+3. The IDE will automatically include all Part files
+4. Upload!
 
 ---
 
-## 🚀 Building & Flashing
+## 📶 WiFi Configuration
 
-1. Install Arduino IDE or PlatformIO
-2. Install required libraries:
-   - `Arduino_GFX_Library`
-   - `LVGL`
-   - `XPowersLib`
-   - `Adafruit_XCA9554`
-3. Select board: ESP32-S3 Dev Module
-4. Set partition scheme: Huge APP (3MB)
-5. Upload to device
+Create a file on your SD card at `/wifi/config.txt`:
+
+```ini
+# WiFi Configuration
+WIFI1_SSID=YourNetwork1
+WIFI1_PASS=password1
+
+WIFI2_SSID=YourNetwork2
+WIFI2_PASS=password2
+
+# Weather location
+CITY=Sydney
+COUNTRY=AU
+GMT_OFFSET=10
+```
+
+---
+
+## 📱 Navigation
+
+| Gesture | Action |
+|---------|--------|
+| Swipe Left/Right | Switch categories |
+| Swipe Up/Down | Switch sub-cards within category |
+| Tap | Interact with buttons |
+
+### Categories (12 total)
+1. ⏰ **Clock** - Digital & Analog
+2. 🧭 **Compass** - Heading, Level, Rotation
+3. 🏃 **Activity** - Steps, Rings, Workout, Distance
+4. 🎮 **Games** - Blackjack, Dino, Yes/No
+5. 🌤️ **Weather** - Current & 3-Day Forecast
+6. 📈 **Stocks** - Stocks & Crypto
+7. 🎵 **Media** - Music, Gallery
+8. ⏱️ **Timer** - Sand, Stopwatch, Countdown, Breathe
+9. 🔥 **Streak** - Steps, Games, Achievements
+10. 📅 **Calendar** - Monthly view
+11. ⚙️ **Settings** - Theme, Brightness, Battery Saver
+12. 🔋 **System** - Battery, Stats, Usage Patterns
+
+---
+
+## 🔋 Battery Stats Explained
+
+The System category has 3 sub-cards:
+
+1. **Battery** - Main view with percentage, voltage, estimates
+2. **Battery Stats** - 24h screen time graph, estimate breakdown, card usage
+3. **Usage Patterns** - Weekly screen time, drain analysis
+
+### Estimation Methods
+- **Simple**: Based on battery capacity and current draw
+- **Weighted**: Recent drain rate (40% weight)
+- **Learned**: 7-day average patterns
+- **Combined**: Weighted average of all three (30/40/30)
+
+---
+
+## 🎨 Themes
+
+| Theme | Primary | Accent |
+|-------|---------|--------|
+| Midnight | Dark Gray | Blue |
+| Ocean | Deep Blue | Teal |
+| Sunset | Orange | Gold |
+| Aurora | Purple | Pink |
+| Forest | Dark Green | Mint |
+| Ruby | Dark Red | Coral |
+| Graphite | Charcoal | Gray |
+| Mint | Teal | Cyan |
+
+---
+
+## 📊 Hardware Support
+
+### Sensors
+- ✅ QMI8658 IMU (Accelerometer + Gyroscope)
+- ✅ PCF85063 RTC (Real-Time Clock)
+- ✅ AXP2101 PMU (Power Management)
+- ✅ FT3168 Capacitive Touch
+
+### Connectivity
+- ✅ WiFi (Multi-network support via SD card)
+- ✅ NTP Time Sync
+- ✅ OpenWeatherMap API
+- ✅ CoinGecko Crypto API
+
+### Storage
+- ✅ SD Card (WiFi config, wallpapers)
+- ✅ SPIFFS (future use)
+- ✅ Preferences (persistent settings)
 
 ---
 
 ## 📝 Changelog
 
-### v2.0 - Complete Edition
-- Added 7 new character themes (Naruto, Goku, Tanjiro, Gojo, Levi, Saitama, Deku)
-- Implemented complete Gacha collection system with 100 cards
-- Added Training Dojo with 4 mini-games
-- Added Boss Rush mode with 20 bosses
-- Enhanced Snake game with lives, speed levels, themed visuals
-- Glass morphism UI throughout
-- Gem economy system
-- Daily rotation for themes
-- Character stats screen
-
-### v1.0 - Original
-- 3 character themes (Luffy, Jin-Woo, Yugo)
-- Basic games (Battle Arena, Snake, Memory)
-- RPG progression system
-- Quest system
-- WiFi apps
+### v4.0 (Merged Edition)
+- Combined v2.0 LVGL UI + v3.1 Battery Intelligence
+- Support for both 1.8" and 2.06" boards
+- Fixed all card UI layouts
+- Added mini status bar with battery estimate to all cards
+- Enhanced low battery handling
+- Improved touch gesture detection
 
 ---
 
 ## 🙏 Credits
 
-- Original concept and code base
-- Anime references from their respective creators
-- ESP32 and Arduino community
+- Original LVGL UI: S3_MiniOS v2.0
+- Battery Intelligence: S3_MiniOS v3.1
+- Hardware: Waveshare ESP32-S3-Touch-AMOLED Series
+- Graphics Library: Arduino_GFX
 
 ---
 
-**Enjoy your anime smartwatch! 🎮⌚**
+## 📄 License
+
+MIT License - Feel free to modify and distribute!
