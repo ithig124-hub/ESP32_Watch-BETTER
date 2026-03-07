@@ -52,7 +52,13 @@ inline bool isMemoryLow() {
 #define WDT_TIMEOUT_SECONDS 30
 
 inline void initWatchdog() {
-  esp_task_wdt_init(WDT_TIMEOUT_SECONDS, true);  // Reboot on timeout
+  // ESP-IDF 5.x API - uses config struct
+  esp_task_wdt_config_t wdt_config = {
+    .timeout_ms = WDT_TIMEOUT_SECONDS * 1000,
+    .idle_core_mask = (1 << portNUM_PROCESSORS) - 1,
+    .trigger_panic = true
+  };
+  esp_task_wdt_init(&wdt_config);
   esp_task_wdt_add(NULL);  // Add current task
   Serial.println("[WDT] Watchdog initialized");
 }
@@ -89,7 +95,8 @@ private:
 };
 
 // Smooth value interpolation (for animations)
-inline float lerp(float start, float end, float t) {
+// Renamed to avoid conflict with std::lerp in C++20
+inline float lerpValue(float start, float end, float t) {
   return start + (end - start) * constrain(t, 0.0f, 1.0f);
 }
 

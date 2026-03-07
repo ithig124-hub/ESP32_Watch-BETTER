@@ -19,8 +19,8 @@ static int network_count = 0;
 static int selected_network = -1;
 static String password_input = "";
 
-// Weather data
-static WeatherData cached_weather = {"Unknown", 20.0, 50.0, 1013, "Clear", "01d", 5.0, "", false};
+// Weather data - struct order: location, description, icon, last_update, temperature, humidity, wind_speed, pressure, valid
+static WeatherData cached_weather = {"Unknown", "Clear", "01d", "", 20.0f, 50.0f, 5.0f, 1013, false};
 
 // News data
 static NewsArticle cached_news[5];
@@ -380,7 +380,8 @@ void refreshWeatherData() {
 }
 
 WeatherData fetchWeatherData(const String& location) {
-  WeatherData data = {"Demo City", 22.5, 65.0, 1015, "Partly Cloudy", "02d", 3.5, "", true};
+  // Struct order: location, description, icon, last_update, temperature, humidity, wind_speed, pressure, valid
+  WeatherData data = {"Demo City", "Partly Cloudy", "02d", "", 22.5f, 65.0f, 3.5f, 1015, true};
   
   // In production, this would call OpenWeatherMap API
   // HTTPClient http;

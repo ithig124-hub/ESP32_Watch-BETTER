@@ -1,100 +1,80 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════════════
- *  PIN CONFIGURATION HEADER - Widget OS
- *  ESP32-S3-Touch-AMOLED-2.06" (Waveshare)
+ *  PIN CONFIGURATION - ESP32-S3-Touch-AMOLED-1.8" (Waveshare)
  *  
- *  IMPORTANT: This is for the 2.06" display, NOT the 1.8" display!
- *  Display Driver: CO5300 (not SH8601)
- *  Resolution: 410×502 (not 368×448)
+ *  Display: SH8601 QSPI AMOLED
+ *  Resolution: 368×448
+ *  
+ *  Source: https://github.com/waveshareteam/ESP32-S3-Touch-AMOLED-1.8
  * ═══════════════════════════════════════════════════════════════════════════════
  */
 
 #pragma once
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  POWER MANAGEMENT
+//  POWER MANAGEMENT - AXP2101
 // ═══════════════════════════════════════════════════════════════════════════════
 #define XPOWERS_CHIP_AXP2101
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  DISPLAY - CO5300 QSPI AMOLED (410×502 Rectangular)
-//  NOTE: 2.06" uses CO5300 driver, NOT SH8601!
+//  DISPLAY - SH8601 QSPI AMOLED (368×448)
 // ═══════════════════════════════════════════════════════════════════════════════
-#define LCD_SDIO0       4       // QSPI_SIO0
-#define LCD_SDIO1       5       // QSPI_SI1
-#define LCD_SDIO2       6       // QSPI_SI2
-#define LCD_SDIO3       7       // QSPI_SI3
-#define LCD_SCLK        11      // QSPI_SCL
-#define LCD_CS          12      // LCD_CS
-#define LCD_RESET       8       // LCD_RESET
+#define LCD_SDIO0           4       // QSPI Data 0
+#define LCD_SDIO1           5       // QSPI Data 1
+#define LCD_SDIO2           6       // QSPI Data 2
+#define LCD_SDIO3           7       // QSPI Data 3
+#define LCD_SCLK            11      // QSPI Clock
+#define LCD_CS              12      // Chip Select
 
-// 2.06" Display Resolution (larger than 1.8")
-#define LCD_WIDTH       410
-#define LCD_HEIGHT      502
-
-// Column offset required for CO5300 driver
-#define LCD_COL_OFFSET1 22
-#define LCD_ROW_OFFSET1 0
-#define LCD_COL_OFFSET2 0
-#define LCD_ROW_OFFSET2 0
+#define LCD_WIDTH           368
+#define LCD_HEIGHT          448
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  I2C BUS (Shared: Touch, IMU, RTC, PMU)
+//  I2C BUS (Touch, IMU, RTC, PMU)
 // ═══════════════════════════════════════════════════════════════════════════════
-#define IIC_SDA         15
-#define IIC_SCL         14
+#define IIC_SDA             15
+#define IIC_SCL             14
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  TOUCH - FT3168
 // ═══════════════════════════════════════════════════════════════════════════════
-#define TP_INT          38      // Touch Interrupt
-#define TP_RESET        9       // Touch Reset
-
-// I2C Address (default)
-#define FT3168_DEVICE_ADDRESS   0x38
+#define TP_INT              21      // Touch Interrupt
+#define FT3168_ADDR         0x38    // I2C Address
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  IMU - QMI8658 (6-Axis Accelerometer + Gyroscope)
+//  I2C DEVICE ADDRESSES
 // ═══════════════════════════════════════════════════════════════════════════════
-#define IMU_INT         21      // IMU Interrupt
-
-// I2C Addresses
-#define QMI8658_L_SLAVE_ADDRESS 0x6B
-#define QMI8658_H_SLAVE_ADDRESS 0x6A
-
-// ═══════════════════════════════════════════════════════════════════════════════
-//  RTC - PCF85063
-// ═══════════════════════════════════════════════════════════════════════════════
-#define RTC_INT         39      // RTC Interrupt
-
-// I2C Address
-#define PCF85063_SLAVE_ADDRESS  0x51
+#define AXP2101_ADDR        0x34    // PMU
+#define RTC_ADDR            0x51    // PCF85063 RTC
+#define QMI8658_ADDR        0x6B    // IMU
+#define EXPANDER_ADDR       0x20    // XCA9554 I/O Expander
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  PMU - AXP2101 (Power Management)
+//  AUDIO - ES8311
 // ═══════════════════════════════════════════════════════════════════════════════
-// Uses shared I2C bus (IIC_SDA, IIC_SCL)
-#define AXP2101_SLAVE_ADDRESS   0x34
+#define I2S_MCK_IO          16      // Master Clock
+#define I2S_BCK_IO          9       // Bit Clock
+#define I2S_WS_IO           45      // Word Select
+#define I2S_DO_IO           10      // Data Out
+#define I2S_DI_IO           8       // Data In
+#define PA_PIN              46      // Power Amplifier Enable
+
+// Alternative names
+#define MCLKPIN             16
+#define BCLKPIN             9
+#define WSPIN               45
+#define DOPIN               10
+#define DIPIN               8
+#define PA                  46
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  SD CARD (SDMMC Mode) - Widget OS Storage
+//  SD CARD (SDMMC 1-bit mode)
 // ═══════════════════════════════════════════════════════════════════════════════
-#define SDMMC_CLK       2       // SD_SCK
-#define SDMMC_CMD       1       // SD_MOSI
-#define SDMMC_DATA      3       // SD_MISO
-#define SDMMC_CS        17      // SD_CS (if using SPI mode)
-
-// For compatibility with SD_MMC library
-constexpr int SD_CLK  = SDMMC_CLK;
-constexpr int SD_MOSI = SDMMC_CMD;
-constexpr int SD_MISO = SDMMC_DATA;
+#define SDMMC_CLK           2
+#define SDMMC_CMD           1
+#define SDMMC_DATA          3
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  SYSTEM BUTTONS
+//  MISC
 // ═══════════════════════════════════════════════════════════════════════════════
-#define BOOT_BUTTON     0       // Boot/Flash button (GPIO0)
-
-// ═══════════════════════════════════════════════════════════════════════════════
-//  LVGL BUFFER SIZE (for memory allocation)
-// ═══════════════════════════════════════════════════════════════════════════════
-#define LVGL_BUFFER_LINES   50
+#define BOOT_BUTTON         0       // Boot/Flash button

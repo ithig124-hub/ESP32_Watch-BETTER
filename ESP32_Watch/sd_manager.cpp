@@ -384,7 +384,8 @@ bool connectToNetwork(int networkIndex) {
   return false;
 }
 
-void disconnectWiFi() {
+// disconnectWiFi() is defined in wifi_apps.cpp - renamed here to avoid duplicate
+void disconnectWiFiManager() {
   WiFi.disconnect();
   wifiConnected = false;
   connectedNetworkIndex = -1;

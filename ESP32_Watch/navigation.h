@@ -16,7 +16,7 @@
 // NAVIGATION CONSTANTS
 // =============================================================================
 
-#define SWIPE_THRESHOLD_MIN     40
+#define SWIPE_THRESHOLD_MIN     25   // Lowered for better detection
 #define SWIPE_MAX_DURATION_MS   800
 #define NAVIGATION_COOLDOWN_MS  200
 

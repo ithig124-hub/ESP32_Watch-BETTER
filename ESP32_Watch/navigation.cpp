@@ -19,6 +19,8 @@
 #include "training.h"
 #include "boss_rush.h"
 #include "rpg.h"
+#include "apps.h"
+#include "wifi_apps.h"
 #include <time.h>
 
 extern Arduino_SH8601 *gfx;
@@ -57,14 +59,32 @@ void initNavigation() {
 // =============================================================================
 
 bool canNavigate() {
-  if (navState.navigationLocked) return false;
-  if (navState.isTransitioning) return false;
-  if (millis() - navState.lastNavigationMs < NAVIGATION_COOLDOWN_MS) return false;
+  if (navState.navigationLocked) {
+    Serial.println("[NAV] BLOCKED: navigationLocked");
+    return false;
+  }
+  if (navState.isTransitioning) {
+    Serial.println("[NAV] BLOCKED: isTransitioning");
+    return false;
+  }
+  if (millis() - navState.lastNavigationMs < NAVIGATION_COOLDOWN_MS) {
+    Serial.printf("[NAV] BLOCKED: cooldown (%lu ms remaining)\n", 
+                  NAVIGATION_COOLDOWN_MS - (millis() - navState.lastNavigationMs));
+    return false;
+  }
   return true;
 }
 
 void handleSwipeNavigation(int dx, int dy) {
-  if (!canNavigate()) return;
+  Serial.printf("[NAV] handleSwipeNavigation called: dx=%d, dy=%d\n", dx, dy);
+  
+  if (!canNavigate()) {
+    Serial.println("[NAV] Navigation blocked - resetting locks");
+    // Force reset locks to prevent stuck state
+    navState.navigationLocked = false;
+    navState.isTransitioning = false;
+    return;
+  }
   
   Serial.printf("[NAV] Swipe detected: dx=%d, dy=%d\n", dx, dy);
   
@@ -235,68 +255,10 @@ void drawNavigationIndicators() {
 }
 
 // =============================================================================
-// WATCH FACE SCREEN
+// WATCH FACE SCREEN - Defined in themes.cpp
 // =============================================================================
 
-void drawWatchFace() {
-  gfx->fillScreen(COLOR_BLACK);
-  
-  // Get current time
-  struct tm timeinfo;
-  if (!getLocalTime(&timeinfo)) {
-    // Default time if RTC not available
-    timeinfo.tm_hour = 12;
-    timeinfo.tm_min = 0;
-    timeinfo.tm_sec = 0;
-  }
-  
-  // Theme colors
-  ThemeColors* theme = getCurrentTheme();
-  
-  // Big time display
-  gfx->setTextColor(theme->primary);
-  gfx->setTextSize(6);
-  char timeStr[8];
-  sprintf(timeStr, "%02d:%02d", timeinfo.tm_hour, timeinfo.tm_min);
-  
-  // Center the time
-  int textWidth = 5 * 6 * 6;  // 5 chars, size 6
-  gfx->setCursor((LCD_WIDTH - textWidth) / 2, 150);
-  gfx->print(timeStr);
-  
-  // Seconds
-  gfx->setTextSize(2);
-  gfx->setTextColor(theme->accent);
-  gfx->setCursor(LCD_WIDTH / 2 + 70, 180);
-  gfx->printf("%02d", timeinfo.tm_sec);
-  
-  // Date
-  gfx->setTextSize(2);
-  gfx->setTextColor(COLOR_WHITE);
-  const char* days[] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
-  const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", 
-                          "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
-  gfx->setCursor(LCD_WIDTH / 2 - 60, 250);
-  gfx->printf("%s %s %d", days[timeinfo.tm_wday], months[timeinfo.tm_mon], timeinfo.tm_mday);
-  
-  // Character name at top
-  CharacterProfile* profile = getCurrentCharacterProfile();
-  if (profile) {
-    gfx->setTextColor(theme->primary);
-    gfx->setTextSize(1);
-    gfx->setCursor(LCD_WIDTH / 2 - strlen(profile->name) * 3, 30);
-    gfx->print(profile->name);
-  }
-  
-  // Stats bar at bottom
-  drawStatsBar();
-  
-  // Swipe hint
-  gfx->setTextColor(COLOR_GRAY);
-  gfx->setTextSize(1);
-  gfx->setCursor(LCD_WIDTH / 2 - 50, 400);
-  gfx->print("< SWIPE FOR APPS >");
-}
+// drawWatchFace() is defined in themes.cpp with full themed implementations
 
 void drawStatsBar() {
   int y = 320;
@@ -325,34 +287,60 @@ void drawStatsBar() {
 }
 
 // =============================================================================
-// APP GRID SCREENS
+// APP GRID SCREENS - Modern UI Design
 // =============================================================================
+
+// App icon colors for visual variety
+uint16_t getAppColor(const char* appName) {
+  if (strcmp(appName, "GACHA") == 0) return RGB565(255, 180, 50);   // Gold
+  if (strcmp(appName, "TRAINING") == 0) return RGB565(50, 200, 100); // Green
+  if (strcmp(appName, "BOSS") == 0) return RGB565(220, 60, 60);      // Red
+  if (strcmp(appName, "GAMES") == 0) return RGB565(100, 150, 255);   // Blue
+  if (strcmp(appName, "QUESTS") == 0) return RGB565(200, 100, 255);  // Purple
+  if (strcmp(appName, "MUSIC") == 0) return RGB565(255, 100, 150);   // Pink
+  if (strcmp(appName, "WEATHER") == 0) return RGB565(80, 180, 255);  // Sky blue
+  if (strcmp(appName, "WIFI") == 0) return RGB565(100, 220, 200);    // Teal
+  if (strcmp(appName, "SETTINGS") == 0) return RGB565(150, 150, 160);// Gray
+  if (strcmp(appName, "THEMES") == 0) return RGB565(255, 120, 80);   // Orange
+  if (strcmp(appName, "COLLECT") == 0) return RGB565(255, 200, 100); // Light gold
+  if (strcmp(appName, "FILES") == 0) return RGB565(180, 180, 100);   // Tan
+  if (strcmp(appName, "CALC") == 0) return RGB565(100, 100, 120);    // Dark gray
+  if (strcmp(appName, "TORCH") == 0) return RGB565(255, 255, 150);   // Yellow
+  return RGB565(100, 100, 120);
+}
 
 // App Grid 1 - Main apps
 void drawAppGrid1() {
-  gfx->fillScreen(COLOR_BLACK);
+  // Gradient background
+  for (int y = 0; y < LCD_HEIGHT; y++) {
+    uint8_t shade = map(y, 0, LCD_HEIGHT, 15, 25);
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(shade, shade, shade + 5));
+  }
   
   ThemeColors* theme = getCurrentTheme();
   
+  // Header bar
+  gfx->fillRect(0, 0, LCD_WIDTH, 55, RGB565(25, 25, 30));
+  gfx->drawFastHLine(0, 55, LCD_WIDTH, theme->primary);
+  
   // Title
-  gfx->setTextColor(theme->primary);
   gfx->setTextSize(2);
-  gfx->setCursor(130, 20);
+  gfx->setTextColor(COLOR_WHITE);
+  gfx->setCursor(155, 18);
   gfx->print("APPS");
   
-  // Page indicator
-  gfx->setTextColor(COLOR_GRAY);
-  gfx->setTextSize(1);
-  gfx->setCursor(LCD_WIDTH / 2 - 20, 50);
-  gfx->print("Page 1/2");
+  // Page indicator dots
+  int dotY = 42;
+  gfx->fillCircle(LCD_WIDTH/2 - 8, dotY, 4, theme->primary);  // Active
+  gfx->drawCircle(LCD_WIDTH/2 + 8, dotY, 4, RGB565(80, 80, 80)); // Inactive
   
   // App icons in 3x3 grid
   const char* apps1[] = {"GACHA", "TRAINING", "BOSS", "GAMES", "QUESTS", "MUSIC", "WEATHER", "WIFI", "SETTINGS"};
   int cols = 3, rows = 3;
-  int iconSize = 80;
-  int startX = 30, startY = 80;
-  int spacingX = (LCD_WIDTH - 60) / cols;
-  int spacingY = 100;
+  int iconSize = 75;
+  int startX = 35, startY = 70;
+  int spacingX = (LCD_WIDTH - 70) / cols;
+  int spacingY = 110;
   
   for (int i = 0; i < 9; i++) {
     int col = i % cols;
@@ -360,50 +348,66 @@ void drawAppGrid1() {
     int x = startX + col * spacingX;
     int y = startY + row * spacingY;
     
-    // Icon background
-    gfx->fillRoundRect(x, y, iconSize, iconSize, 15, RGB565(40, 40, 50));
-    gfx->drawRoundRect(x, y, iconSize, iconSize, 15, theme->primary);
+    uint16_t appColor = getAppColor(apps1[i]);
     
-    // App name
+    // Icon shadow
+    gfx->fillRoundRect(x + 3, y + 3, iconSize, iconSize, 18, RGB565(10, 10, 12));
+    
+    // Icon background - gradient effect
+    gfx->fillRoundRect(x, y, iconSize, iconSize, 18, RGB565(35, 35, 45));
+    
+    // Colored accent at top of icon
+    gfx->fillRoundRect(x, y, iconSize, 25, 18, appColor);
+    gfx->fillRect(x, y + 15, iconSize, 10, appColor);
+    
+    // App name - centered
     gfx->setTextColor(COLOR_WHITE);
     gfx->setTextSize(1);
-    int textX = x + (iconSize - strlen(apps1[i]) * 6) / 2;
-    gfx->setCursor(textX, y + iconSize / 2 - 4);
+    int textLen = strlen(apps1[i]) * 6;
+    int textX = x + (iconSize - textLen) / 2;
+    gfx->setCursor(textX, y + iconSize / 2 + 8);
     gfx->print(apps1[i]);
   }
   
-  // Swipe hints
-  gfx->setTextColor(COLOR_GRAY);
+  // Bottom hint
+  gfx->setTextColor(RGB565(100, 100, 110));
   gfx->setTextSize(1);
-  gfx->setCursor(LCD_WIDTH / 2 - 60, LCD_HEIGHT - 45);
-  gfx->print("SWIPE DOWN: PAGE 2");
+  gfx->setCursor(LCD_WIDTH / 2 - 50, LCD_HEIGHT - 25);
+  gfx->print("Swipe for more");
 }
 
 // App Grid 2 - More apps
 void drawAppGrid2() {
-  gfx->fillScreen(COLOR_BLACK);
+  // Gradient background
+  for (int y = 0; y < LCD_HEIGHT; y++) {
+    uint8_t shade = map(y, 0, LCD_HEIGHT, 15, 25);
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(shade, shade, shade + 5));
+  }
   
   ThemeColors* theme = getCurrentTheme();
   
-  // Title
-  gfx->setTextColor(theme->primary);
-  gfx->setTextSize(2);
-  gfx->setCursor(130, 20);
-  gfx->print("APPS");
+  // Header bar
+  gfx->fillRect(0, 0, LCD_WIDTH, 55, RGB565(25, 25, 30));
+  gfx->drawFastHLine(0, 55, LCD_WIDTH, theme->accent);
   
-  // Page indicator
-  gfx->setTextColor(COLOR_GRAY);
-  gfx->setTextSize(1);
-  gfx->setCursor(LCD_WIDTH / 2 - 20, 50);
-  gfx->print("Page 2/2");
+  // Title
+  gfx->setTextSize(2);
+  gfx->setTextColor(COLOR_WHITE);
+  gfx->setCursor(155, 18);
+  gfx->print("MORE");
+  
+  // Page indicator dots
+  int dotY = 42;
+  gfx->drawCircle(LCD_WIDTH/2 - 8, dotY, 4, RGB565(80, 80, 80)); // Inactive
+  gfx->fillCircle(LCD_WIDTH/2 + 8, dotY, 4, theme->accent);       // Active
   
   // App icons in 3x3 grid
   const char* apps2[] = {"THEMES", "COLLECT", "FILES", "CALC", "TORCH", "OTA", "BACKUP", "FUSION", "ABOUT"};
   int cols = 3, rows = 3;
-  int iconSize = 80;
-  int startX = 30, startY = 80;
-  int spacingX = (LCD_WIDTH - 60) / cols;
-  int spacingY = 100;
+  int iconSize = 75;
+  int startX = 35, startY = 70;
+  int spacingX = (LCD_WIDTH - 70) / cols;
+  int spacingY = 110;
   
   for (int i = 0; i < 9; i++) {
     int col = i % cols;
@@ -411,101 +415,39 @@ void drawAppGrid2() {
     int x = startX + col * spacingX;
     int y = startY + row * spacingY;
     
+    uint16_t appColor = getAppColor(apps2[i]);
+    
+    // Icon shadow
+    gfx->fillRoundRect(x + 3, y + 3, iconSize, iconSize, 18, RGB565(10, 10, 12));
+    
     // Icon background
-    gfx->fillRoundRect(x, y, iconSize, iconSize, 15, RGB565(40, 40, 50));
-    gfx->drawRoundRect(x, y, iconSize, iconSize, 15, theme->accent);
+    gfx->fillRoundRect(x, y, iconSize, iconSize, 18, RGB565(35, 35, 45));
+    
+    // Colored accent at top
+    gfx->fillRoundRect(x, y, iconSize, 25, 18, appColor);
+    gfx->fillRect(x, y + 15, iconSize, 10, appColor);
     
     // App name
     gfx->setTextColor(COLOR_WHITE);
     gfx->setTextSize(1);
-    int textX = x + (iconSize - strlen(apps2[i]) * 6) / 2;
-    gfx->setCursor(textX, y + iconSize / 2 - 4);
+    int textLen = strlen(apps2[i]) * 6;
+    int textX = x + (iconSize - textLen) / 2;
+    gfx->setCursor(textX, y + iconSize / 2 + 8);
     gfx->print(apps2[i]);
   }
   
-  // Swipe hints
-  gfx->setTextColor(COLOR_GRAY);
+  // Bottom hint
+  gfx->setTextColor(RGB565(100, 100, 110));
   gfx->setTextSize(1);
-  gfx->setCursor(LCD_WIDTH / 2 - 50, LCD_HEIGHT - 45);
-  gfx->print("SWIPE UP: PAGE 1");
+  gfx->setCursor(LCD_WIDTH / 2 - 50, LCD_HEIGHT - 25);
+  gfx->print("Swipe for more");
 }
 
 // =============================================================================
-// CHARACTER STATS SCREEN
+// CHARACTER STATS SCREEN - Defined in themes.cpp
 // =============================================================================
 
-void drawCharacterStatsScreen() {
-  gfx->fillScreen(COLOR_BLACK);
-  
-  ThemeColors* theme = getCurrentTheme();
-  CharacterProfile* profile = getCurrentCharacterProfile();
-  
-  // Character name and title
-  gfx->setTextColor(theme->primary);
-  gfx->setTextSize(2);
-  if (profile) {
-    gfx->setCursor(LCD_WIDTH / 2 - strlen(profile->name) * 6, 30);
-    gfx->print(profile->name);
-    
-    gfx->setTextColor(theme->accent);
-    gfx->setTextSize(1);
-    gfx->setCursor(LCD_WIDTH / 2 - strlen(profile->title) * 3, 55);
-    gfx->print(profile->title);
-  }
-  
-  // Level and XP
-  gfx->setTextColor(COLOR_WHITE);
-  gfx->setTextSize(3);
-  gfx->setCursor(LCD_WIDTH / 2 - 50, 90);
-  gfx->printf("Lv.%d", system_state.player_level);
-  
-  // XP bar
-  int barX = 40, barY = 140, barW = LCD_WIDTH - 80, barH = 20;
-  int xpProgress = (system_state.player_xp * barW) / max(1, getXPForNextLevel());
-  
-  gfx->fillRoundRect(barX, barY, barW, barH, barH/2, RGB565(40, 40, 40));
-  if (xpProgress > 0) {
-    gfx->fillRoundRect(barX, barY, xpProgress, barH, barH/2, theme->primary);
-  }
-  
-  gfx->setTextColor(COLOR_WHITE);
-  gfx->setTextSize(1);
-  gfx->setCursor(barX, barY + 25);
-  gfx->printf("%d / %d XP", system_state.player_xp, getXPForNextLevel());
-  
-  // Stats panel
-  int statsY = 190;
-  gfx->fillRoundRect(30, statsY, LCD_WIDTH - 60, 180, 15, RGB565(30, 30, 40));
-  
-  // Stats display
-  if (profile) {
-    drawStatBar(50, statsY + 20, profile->stats.stat1_name, profile->stats.stat1_value, theme->primary);
-    drawStatBar(50, statsY + 50, profile->stats.stat2_name, profile->stats.stat2_value, theme->accent);
-    drawStatBar(50, statsY + 80, profile->stats.stat3_name, profile->stats.stat3_value, theme->effect1);
-    drawStatBar(50, statsY + 110, profile->stats.stat4_name, profile->stats.stat4_value, theme->effect2);
-    
-    // Catchphrase
-    gfx->setTextColor(theme->primary);
-    gfx->setTextSize(1);
-    gfx->setCursor(50, statsY + 150);
-    gfx->print(profile->catchphrase);
-  }
-  
-  // Game stats
-  gfx->setTextColor(COLOR_WHITE);
-  gfx->setTextSize(1);
-  gfx->setCursor(50, 390);
-  gfx->printf("Gems: %d  |  Cards: %d/%d  |  Bosses: %d/%d",
-              system_state.player_gems,
-              system_state.gacha_cards_collected, GACHA_TOTAL_CARDS,
-              system_state.bosses_defeated, TOTAL_BOSSES);
-  
-  // Swipe hint
-  gfx->setTextColor(COLOR_GRAY);
-  gfx->setTextSize(1);
-  gfx->setCursor(LCD_WIDTH / 2 - 60, LCD_HEIGHT - 45);
-  gfx->print("< SWIPE FOR WATCH >");
-}
+// drawCharacterStatsScreen() is defined in themes.cpp with full themed implementations
 
 void drawStatBar(int x, int y, const char* name, int value, uint16_t color) {
   int maxWidth = 200;
@@ -562,6 +504,26 @@ void handleCurrentScreenTouch(TouchGesture& gesture) {
 }
 
 void handleAppGridTap(int x, int y) {
+  Serial.printf("[NAV] handleAppGridTap: x=%d, y=%d, page=%d\n", x, y, navState.appGridPage);
+  
+  // The touch coordinates from FT3168 might be in a smaller range
+  // Let's scale them to screen coordinates if needed
+  // Based on logs showing coords 0-32, the touch panel reports in its own coordinate system
+  
+  // Scale touch coordinates to screen resolution
+  // FT3168 appears to report 0-368 for X and 0-448 for Y on this board
+  int screenX = x;
+  int screenY = y;
+  
+  // If coordinates seem too small, they might need scaling
+  // Detect if we're getting raw small coordinates
+  if (x < 50 && y < 50) {
+    // Likely raw coordinates that need scaling
+    screenX = map(x, 0, 32, 0, LCD_WIDTH);
+    screenY = map(y, 0, 48, 0, LCD_HEIGHT);
+    Serial.printf("[NAV] Scaled coords: (%d,%d) -> (%d,%d)\n", x, y, screenX, screenY);
+  }
+  
   // Determine which app was tapped
   int cols = 3;
   int iconSize = 80;
@@ -569,64 +531,89 @@ void handleAppGridTap(int x, int y) {
   int spacingX = (LCD_WIDTH - 60) / cols;
   int spacingY = 100;
   
+  Serial.printf("[NAV] Grid: startX=%d, startY=%d, spacingX=%d, spacingY=%d, iconSize=%d\n",
+                startX, startY, spacingX, spacingY, iconSize);
+  
   for (int i = 0; i < 9; i++) {
     int col = i % cols;
     int row = i / cols;
     int appX = startX + col * spacingX;
     int appY = startY + row * spacingY;
     
-    if (x >= appX && x < appX + iconSize && y >= appY && y < appY + iconSize) {
+    Serial.printf("[NAV] App %d: bounds (%d,%d)-(%d,%d)\n", i, appX, appY, appX+iconSize, appY+iconSize);
+    
+    if (screenX >= appX && screenX < appX + iconSize && screenY >= appY && screenY < appY + iconSize) {
       // App tapped!
       if (navState.appGridPage == 0) {
         // Page 1 apps
         const char* apps1[] = {"GACHA", "TRAINING", "BOSS", "GAMES", "QUESTS", "MUSIC", "WEATHER", "WIFI", "SETTINGS"};
-        Serial.printf("[NAV] App tapped: %s\n", apps1[i]);
+        Serial.printf("[NAV] >>> APP TAPPED: %s <<<\n", apps1[i]);
         openApp(apps1[i]);
       } else {
         // Page 2 apps
         const char* apps2[] = {"THEMES", "COLLECT", "FILES", "CALC", "TORCH", "OTA", "BACKUP", "FUSION", "ABOUT"};
-        Serial.printf("[NAV] App tapped: %s\n", apps2[i]);
+        Serial.printf("[NAV] >>> APP TAPPED: %s <<<\n", apps2[i]);
         openApp(apps2[i]);
       }
       return;
     }
   }
+  
+  Serial.println("[NAV] Tap didn't hit any app icon");
 }
 
 void openApp(const char* appName) {
+  Serial.printf("[NAV] Opening app: %s\n", appName);
+  
   // Lock navigation while in app
   navState.navigationLocked = true;
   
   if (strcmp(appName, "GACHA") == 0) {
     system_state.current_screen = SCREEN_GACHA;
+    drawGachaScreen();
   } else if (strcmp(appName, "TRAINING") == 0) {
     system_state.current_screen = SCREEN_TRAINING;
+    drawTrainingMenu();  // Fixed: was drawTrainingScreen
   } else if (strcmp(appName, "BOSS") == 0) {
     system_state.current_screen = SCREEN_BOSS_RUSH;
+    drawBossRushMenu();
   } else if (strcmp(appName, "GAMES") == 0) {
     system_state.current_screen = SCREEN_GAMES;
+    drawGameMenu();
   } else if (strcmp(appName, "QUESTS") == 0) {
     system_state.current_screen = SCREEN_QUESTS;
+    drawQuestScreen();
   } else if (strcmp(appName, "SETTINGS") == 0) {
     system_state.current_screen = SCREEN_SETTINGS;
+    drawSettingsApp();  // This exists in apps.cpp
   } else if (strcmp(appName, "THEMES") == 0) {
     system_state.current_screen = SCREEN_THEME_SELECTOR;
+    // Theme selector not implemented yet
   } else if (strcmp(appName, "COLLECT") == 0) {
     system_state.current_screen = SCREEN_COLLECTION;
-  } else if (strcmp(appName, "OTA") == 0) {
-    system_state.current_screen = SCREEN_OTA_UPDATE;
-  } else if (strcmp(appName, "BACKUP") == 0) {
-    system_state.current_screen = SCREEN_BACKUP;
-  } else if (strcmp(appName, "FUSION") == 0) {
-    system_state.current_screen = SCREEN_FUSION_LABS;
-  } else if (strcmp(appName, "WIFI") == 0) {
-    system_state.current_screen = SCREEN_WIFI_MANAGER;
+    drawGachaCollection();
+  } else if (strcmp(appName, "MUSIC") == 0) {
+    system_state.current_screen = SCREEN_MUSIC;
+    drawMusicApp();  // This exists in apps.cpp
   } else if (strcmp(appName, "WEATHER") == 0) {
     system_state.current_screen = SCREEN_WEATHER_APP;
+    drawWeatherApp();  // This exists in wifi_apps.cpp
+  } else if (strcmp(appName, "WIFI") == 0) {
+    system_state.current_screen = SCREEN_WIFI_MANAGER;
+    drawNetworkListScreen();  // Fixed: correct function name
+  } else if (strcmp(appName, "CALC") == 0) {
+    system_state.current_screen = SCREEN_CALCULATOR;
+    drawCalculatorApp();  // This exists in apps.cpp
+  } else if (strcmp(appName, "TORCH") == 0) {
+    system_state.current_screen = SCREEN_FLASHLIGHT;
+    drawFlashlightApp();  // This exists in apps.cpp
+  } else if (strcmp(appName, "FILES") == 0) {
+    system_state.current_screen = SCREEN_FILE_BROWSER;
+    drawFileBrowserApp();  // This exists in apps.cpp
+  } else {
+    Serial.printf("[NAV] Unknown app: %s\n", appName);
+    navState.navigationLocked = false;
   }
-  
-  // Note: In a full implementation, each app would have its own draw function
-  // and would unlock navigation when closed (back button)
 }
 
 void returnToAppGrid() {

@@ -9,7 +9,7 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#include &lt;Arduino.h&gt;
+#include <Arduino.h>
 
 // =============================================================================
 // PIN CONFIGURATION (from pin_config.h)
@@ -22,7 +22,7 @@
 #define LCD_SDIO3    7
 #define LCD_SCLK     11
 #define LCD_CS       12
-#define LCD_RESET    8
+#define LCD_RESET    -1  // Not used - uses GFX_NOT_DEFINED
 #define LCD_WIDTH    368
 #define LCD_HEIGHT   448
 
@@ -31,8 +31,8 @@
 #define IIC_SCL      14
 
 // Touch Controller
-#define TP_INT       38
-#define TP_RESET     9
+#define TP_INT       21
+#define TP_RESET     -1  // Not used on 1.8" board
 #define FT3168_ADDR  0x38
 
 // I/O Expander
@@ -218,7 +218,7 @@ enum TouchEvent {
 #define COLOR_PINK      0xF81F
 #define COLOR_SILVER    0xC618
 
-#define RGB565(r,g,b) (((r &amp; 0xF8) &lt;&lt; 8) | ((g &amp; 0xFC) &lt;&lt; 3) | (b &gt;&gt; 3))
+#define RGB565(r,g,b) (((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3))
 
 // === LUFFY GEAR 5 - Sun God Nika ===
 #define LUFFY_NIKA_WHITE    0xFFFF

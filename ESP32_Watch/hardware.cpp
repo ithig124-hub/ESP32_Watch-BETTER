@@ -273,6 +273,10 @@ void updateSensors() {
 // RTC
 // =============================================================================
 
+// Forward declarations for BCD conversion
+uint8_t bcdToDec(uint8_t bcd);
+uint8_t decToBcd(uint8_t dec);
+
 bool initializeRTC() {
   Serial.println("[RTC] Initializing PCF85063...");
   

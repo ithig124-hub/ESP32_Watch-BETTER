@@ -11,6 +11,11 @@
 #include "apps.h"
 #include "wifi_apps.h"
 #include "rpg.h"
+#include "hardware.h"
+#include "navigation.h"
+
+// Forward declarations
+void drawSplashScreen();
 
 extern Arduino_SH8601 *gfx;
 extern SystemState system_state;
@@ -47,7 +52,9 @@ ScreenType getCurrentScreen() {
   return system_state.current_screen;
 }
 
-void drawCurrentScreen() {
+// drawCurrentScreen() is defined in navigation.cpp for swipe navigation
+// This version handles app-specific screens when navigating to apps
+void drawAppScreen() {
   switch(system_state.current_screen) {
     case SCREEN_SPLASH:
       drawSplashScreen();

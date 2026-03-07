@@ -331,90 +331,372 @@ void drawWatchFace() {
 }
 
 void drawLuffyWatchFace() {
-  gfx->fillScreen(COLOR_BLACK);
+  // Pure AMOLED black - pixels off = true black
+  gfx->fillScreen(0x0000);
   
-  // Character signature rings
-  drawCharacterRings(LCD_WIDTH/2, LCD_HEIGHT/2 - 50);
-  
-  // Title with glow effect
-  gfx->setTextColor(LUFFY_SUN_GOLD);
-  gfx->setTextSize(2);
-  gfx->setCursor(85, 30);
-  gfx->print("SUN GOD NIKA");
-  
-  // Time with theme glow
   WatchTime time = getCurrentTime();
-  char timeStr[16];
-  sprintf(timeStr, "%02d:%02d", time.hour, time.minute);
-  gfx->setTextSize(5);
-  gfx->setTextColor(COLOR_WHITE);
-  gfx->setCursor(70, 170);
-  gfx->print(timeStr);
   
-  // Seconds
+  // === AMBIENT GLOW EFFECT - Subtle radial gradient from center ===
+  int centerX = LCD_WIDTH / 2;
+  int centerY = 160;
+  for (int r = 180; r > 0; r -= 3) {
+    uint8_t alpha = map(r, 0, 180, 35, 0);
+    gfx->drawCircle(centerX, centerY, r, RGB565(alpha, alpha/3, 0));
+  }
+  
+  // === CHARACTER SILHOUETTE RING ===
+  // Outer decorative ring
+  for (int i = 0; i < 360; i += 6) {
+    float angle = i * PI / 180.0;
+    int x1 = centerX + cos(angle) * 155;
+    int y1 = centerY + cos(angle) * 155 - 20;
+    int len = (i % 30 == 0) ? 12 : 6;
+    int x2 = centerX + cos(angle) * (155 - len);
+    int y2 = centerY + cos(angle) * (155 - len) - 20;
+    uint16_t tickColor = (i % 30 == 0) ? LUFFY_SUN_GOLD : RGB565(60, 45, 20);
+    gfx->drawLine(x1, y1, x2, y2, tickColor);
+  }
+  
+  // === PREMIUM TIME DISPLAY ===
+  char hourStr[3], minStr[3];
+  sprintf(hourStr, "%02d", time.hour);
+  sprintf(minStr, "%02d", time.minute);
+  
+  // Time position
+  int timeY = 115;
+  
+  // Outer glow layer (very subtle)
+  gfx->setTextSize(9);
+  gfx->setTextColor(RGB565(40, 30, 5));
+  gfx->setCursor(18, timeY);
+  gfx->print(hourStr);
+  gfx->setCursor(195, timeY);
+  gfx->print(minStr);
+  
+  // Main time - crisp white
+  gfx->setTextColor(RGB565(255, 255, 255));
+  gfx->setCursor(20, timeY);
+  gfx->print(hourStr);
+  gfx->setCursor(197, timeY);
+  gfx->print(minStr);
+  
+  // Stylish colon - vertical dots with glow
+  int colonX = 175;
+  int colonY = timeY + 35;
+  // Glow
+  gfx->fillCircle(colonX, colonY - 20, 8, RGB565(50, 35, 10));
+  gfx->fillCircle(colonX, colonY + 20, 8, RGB565(50, 35, 10));
+  // Dots
+  uint16_t colonColor = (time.second % 2) ? LUFFY_SUN_GOLD : RGB565(200, 150, 50);
+  gfx->fillCircle(colonX, colonY - 20, 5, colonColor);
+  gfx->fillCircle(colonX, colonY + 20, 5, colonColor);
+  
+  // Seconds arc around time
+  float secAngle = (time.second / 60.0) * 2 * PI - PI/2;
+  for (float a = -PI/2; a < secAngle; a += 0.05) {
+    int sx = centerX + cos(a) * 140;
+    int sy = centerY - 20 + sin(a) * 65;
+    gfx->fillCircle(sx, sy, 2, LUFFY_ENERGY_ORANGE);
+  }
+  
+  // === DATE PILL ===
+  const char* days[] = {"SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"};
+  const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
+  
+  int dateY = 245;
+  // Pill background with border
+  gfx->fillRoundRect(70, dateY, 230, 32, 16, RGB565(20, 15, 8));
+  gfx->drawRoundRect(70, dateY, 230, 32, 16, RGB565(80, 60, 25));
+  
+  // Day name
+  gfx->setTextSize(1);
+  gfx->setTextColor(LUFFY_SUN_GOLD);
+  gfx->setCursor(85, dateY + 11);
+  gfx->print(days[time.weekday % 7]);
+  
+  // Date number - larger
+  gfx->setTextSize(2);
+  gfx->setTextColor(RGB565(255, 255, 255));
+  gfx->setCursor(210, dateY + 7);
+  gfx->printf("%02d", time.day);
+  
+  // Month
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(180, 140, 60));
+  gfx->setCursor(250, dateY + 11);
+  gfx->print(months[(time.month - 1) % 12]);
+  
+  // === CHARACTER NAME - Subtle at top ===
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(100, 75, 30));
+  gfx->setCursor(centerX - 33, 25);
+  gfx->print("GEAR 5");
+  
+  // === STATS CARDS - Bottom section ===
+  int cardY = 310;
+  int cardH = 55;
+  int cardW = 105;
+  int cardGap = 10;
+  int cardStartX = (LCD_WIDTH - (3 * cardW + 2 * cardGap)) / 2;
+  
+  // Card 1 - Steps
+  gfx->fillRoundRect(cardStartX, cardY, cardW, cardH, 12, RGB565(15, 20, 15));
+  gfx->drawRoundRect(cardStartX, cardY, cardW, cardH, 12, RGB565(50, 80, 50));
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(100, 160, 100));
+  gfx->setCursor(cardStartX + 10, cardY + 8);
+  gfx->print("STEPS");
+  gfx->setTextSize(2);
+  gfx->setTextColor(RGB565(150, 230, 150));
+  gfx->setCursor(cardStartX + 10, cardY + 25);
+  gfx->printf("%d", system_state.steps_today);
+  
+  // Card 2 - Battery
+  int card2X = cardStartX + cardW + cardGap;
+  int battPct = system_state.battery_percentage;
+  uint16_t battAccent = battPct > 20 ? RGB565(50, 70, 90) : RGB565(90, 40, 40);
+  uint16_t battText = battPct > 20 ? RGB565(100, 180, 255) : RGB565(255, 100, 100);
+  gfx->fillRoundRect(card2X, cardY, cardW, cardH, 12, RGB565(15, 18, 22));
+  gfx->drawRoundRect(card2X, cardY, cardW, cardH, 12, battAccent);
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(80, 120, 160));
+  gfx->setCursor(card2X + 10, cardY + 8);
+  gfx->print("BATTERY");
+  gfx->setTextSize(2);
+  gfx->setTextColor(battText);
+  gfx->setCursor(card2X + 10, cardY + 25);
+  gfx->printf("%d%%", battPct);
+  // Mini battery bar
+  gfx->fillRoundRect(card2X + 65, cardY + 30, 30, 10, 3, RGB565(30, 30, 35));
+  gfx->fillRoundRect(card2X + 65, cardY + 30, map(battPct, 0, 100, 0, 30), 10, 3, battText);
+  
+  // Card 3 - Level/Gems
+  int card3X = card2X + cardW + cardGap;
+  gfx->fillRoundRect(card3X, cardY, cardW, cardH, 12, RGB565(22, 18, 10));
+  gfx->drawRoundRect(card3X, cardY, cardW, cardH, 12, RGB565(80, 65, 30));
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(140, 110, 50));
+  gfx->setCursor(card3X + 10, cardY + 8);
+  gfx->print("GEMS");
   gfx->setTextSize(2);
   gfx->setTextColor(LUFFY_SUN_GOLD);
-  gfx->setCursor(260, 195);
-  gfx->printf("%02d", time.second);
+  gfx->setCursor(card3X + 10, cardY + 25);
+  gfx->printf("%d", system_state.player_gems);
   
-  // Date
+  // === PROGRESS RING - Activity ===
+  int ringX = centerX;
+  int ringY = 395;
+  int ringR = 25;
+  
+  // Background ring
+  for (int i = 0; i < 360; i += 3) {
+    float a = i * PI / 180.0 - PI/2;
+    int px = ringX + cos(a) * ringR;
+    int py = ringY + sin(a) * ringR;
+    gfx->drawPixel(px, py, RGB565(40, 40, 45));
+  }
+  
+  // Progress ring
+  float progress = min(1.0f, (float)system_state.steps_today / max(1, system_state.step_goal));
+  int progressDeg = progress * 360;
+  for (int i = 0; i < progressDeg; i += 3) {
+    float a = i * PI / 180.0 - PI/2;
+    int px = ringX + cos(a) * ringR;
+    int py = ringY + sin(a) * ringR;
+    gfx->fillCircle(px, py, 3, LUFFY_SUN_GOLD);
+  }
+  
+  // Center text
   gfx->setTextSize(1);
-  gfx->setTextColor(LUFFY_CLOUD_WHITE);
-  gfx->setCursor(120, 235);
-  gfx->printf("%02d/%02d/%04d", time.day, time.month, time.year);
+  gfx->setTextColor(RGB565(150, 150, 150));
+  int pctVal = (int)(progress * 100);
+  gfx->setCursor(ringX - 12, ringY - 4);
+  gfx->printf("%d%%", pctVal);
   
-  // Signature move
-  gfx->setTextColor(LUFFY_ENERGY_ORANGE);
-  gfx->setCursor(120, 260);
-  gfx->print("Bajrang Gun");
-  
-  // Activity rings
-  drawLuffyActivityRings(LCD_WIDTH/2, 340);
-  
-  // Effects
-  drawLuffyGear5Effects();
-  
-  // Status bar
-  drawBatteryIndicator();
-  drawStepCounter();
+  // Level badge - bottom right
+  gfx->fillRoundRect(LCD_WIDTH - 55, LCD_HEIGHT - 30, 45, 22, 8, LUFFY_SUN_GOLD);
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(0, 0, 0));
+  gfx->setCursor(LCD_WIDTH - 48, LCD_HEIGHT - 24);
+  gfx->printf("Lv%d", system_state.player_level);
 }
 
 void drawJinwooWatchFace() {
-  gfx->fillScreen(JINWOO_ABSOLUTE_DARK);
+  // Pure AMOLED black
+  gfx->fillScreen(0x0000);
   
-  // Shadow particles rising
-  drawJinwooShadows();
-  
-  // Title
-  gfx->setTextColor(JINWOO_MONARCH_PURPLE);
-  gfx->setTextSize(2);
-  gfx->setCursor(60, 30);
-  gfx->print("SHADOW MONARCH");
-  
-  // Time
   WatchTime time = getCurrentTime();
-  char timeStr[16];
-  sprintf(timeStr, "%02d:%02d", time.hour, time.minute);
-  gfx->setTextSize(5);
-  gfx->setTextColor(JINWOO_POWER_VIOLET);
-  gfx->setCursor(70, 170);
-  gfx->print(timeStr);
+  int centerX = LCD_WIDTH / 2;
+  int centerY = 160;
   
-  // Seconds
-  gfx->setTextSize(2);
-  gfx->setTextColor(JINWOO_ARISE_GLOW);
-  gfx->setCursor(260, 195);
-  gfx->printf("%02d", time.second);
+  // === SHADOW PARTICLES - Rising effect ===
+  static uint32_t lastParticleUpdate = 0;
+  static int particleY[20];
+  if (millis() - lastParticleUpdate > 50) {
+    for (int i = 0; i < 20; i++) {
+      particleY[i] = (particleY[i] - 2 + LCD_HEIGHT) % LCD_HEIGHT;
+    }
+    lastParticleUpdate = millis();
+  }
+  for (int i = 0; i < 20; i++) {
+    int px = 30 + (i * 17) % (LCD_WIDTH - 60);
+    int py = particleY[i];
+    int size = 1 + (i % 3);
+    uint8_t bright = 20 + (py * 30) / LCD_HEIGHT;
+    gfx->fillCircle(px, py, size, RGB565(bright, bright/3, bright + 20));
+  }
   
-  // ARISE text effect
-  gfx->setTextColor(JINWOO_ARISE_GLOW);
+  // === MONARCH SYMBOL - Subtle hexagon pattern ===
+  for (int ring = 0; ring < 3; ring++) {
+    int r = 120 + ring * 25;
+    for (int i = 0; i < 6; i++) {
+      float a1 = (i * 60) * PI / 180.0;
+      float a2 = ((i + 1) * 60) * PI / 180.0;
+      int x1 = centerX + cos(a1) * r;
+      int y1 = centerY - 20 + sin(a1) * (r * 0.5);
+      int x2 = centerX + cos(a2) * r;
+      int y2 = centerY - 20 + sin(a2) * (r * 0.5);
+      gfx->drawLine(x1, y1, x2, y2, RGB565(30 - ring*8, 15 - ring*4, 50 - ring*12));
+    }
+  }
+  
+  // === TIME DISPLAY - Glowing purple ===
+  char hourStr[3], minStr[3];
+  sprintf(hourStr, "%02d", time.hour);
+  sprintf(minStr, "%02d", time.minute);
+  
+  int timeY = 110;
+  
+  // Purple glow layers
+  gfx->setTextSize(9);
+  gfx->setTextColor(RGB565(25, 10, 45));
+  gfx->setCursor(15, timeY - 3);
+  gfx->print(hourStr);
+  gfx->setCursor(192, timeY - 3);
+  gfx->print(minStr);
+  
+  gfx->setTextColor(RGB565(50, 25, 80));
+  gfx->setCursor(17, timeY - 1);
+  gfx->print(hourStr);
+  gfx->setCursor(194, timeY - 1);
+  gfx->print(minStr);
+  
+  // Main time - bright purple-white
+  gfx->setTextColor(RGB565(230, 220, 255));
+  gfx->setCursor(20, timeY);
+  gfx->print(hourStr);
+  gfx->setCursor(197, timeY);
+  gfx->print(minStr);
+  
+  // Colon - pulsing glow
+  int colonX = 175;
+  int colonY = timeY + 35;
+  float pulse = 0.5 + 0.5 * sin(millis() / 300.0);
+  uint8_t pulseVal = 100 + pulse * 155;
+  
+  // Glow
+  gfx->fillCircle(colonX, colonY - 20, 10, RGB565(30, 15, 50));
+  gfx->fillCircle(colonX, colonY + 20, 10, RGB565(30, 15, 50));
+  // Core
+  gfx->fillCircle(colonX, colonY - 20, 5, RGB565(pulseVal/2, pulseVal/3, pulseVal));
+  gfx->fillCircle(colonX, colonY + 20, 5, RGB565(pulseVal/2, pulseVal/3, pulseVal));
+  
+  // === ARISE BADGE - Iconic ===
+  int ariseY = 248;
+  
+  // Glow effect behind badge
+  for (int i = 3; i >= 0; i--) {
+    gfx->fillRoundRect(centerX - 60 - i*2, ariseY - 5 - i, 120 + i*4, 38 + i*2, 10, 
+                       RGB565(20 + i*8, 10 + i*4, 40 + i*12));
+  }
+  
+  // Badge
+  gfx->fillRoundRect(centerX - 60, ariseY, 120, 32, 8, RGB565(15, 8, 30));
+  gfx->drawRoundRect(centerX - 60, ariseY, 120, 32, 8, JINWOO_ARISE_GLOW);
+  
+  // ARISE text with glow
   gfx->setTextSize(2);
-  gfx->setCursor(145, 260);
+  gfx->setTextColor(RGB565(60, 40, 100));
+  gfx->setCursor(centerX - 37, ariseY + 7);
+  gfx->print("ARISE!");
+  gfx->setTextColor(JINWOO_ARISE_GLOW);
+  gfx->setCursor(centerX - 36, ariseY + 8);
   gfx->print("ARISE!");
   
-  drawJinwooActivityRings(LCD_WIDTH/2, 340);
-  drawBatteryIndicator();
-  drawStepCounter();
+  // === DATE - Minimal ===
+  const char* days[] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(100, 80, 140));
+  char dateStr[15];
+  sprintf(dateStr, "%s %02d.%02d", days[time.weekday % 7], time.day, time.month);
+  gfx->setCursor(centerX - strlen(dateStr) * 3, 295);
+  gfx->print(dateStr);
+  
+  // === SHADOW ARMY STATS ===
+  int statsY = 320;
+  
+  // Shadows collected (left)
+  gfx->fillRoundRect(20, statsY, 100, 50, 10, RGB565(12, 8, 20));
+  gfx->drawRoundRect(20, statsY, 100, 50, 10, RGB565(50, 35, 80));
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(80, 60, 120));
+  gfx->setCursor(30, statsY + 8);
+  gfx->print("SHADOWS");
+  gfx->setTextSize(2);
+  gfx->setTextColor(JINWOO_MONARCH_PURPLE);
+  gfx->setCursor(30, statsY + 25);
+  gfx->printf("%d", system_state.gacha_cards_collected);
+  
+  // Power level (center) 
+  gfx->fillRoundRect(130, statsY, 110, 50, 10, RGB565(12, 8, 20));
+  gfx->drawRoundRect(130, statsY, 110, 50, 10, RGB565(50, 35, 80));
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(80, 60, 120));
+  gfx->setCursor(145, statsY + 8);
+  gfx->print("LEVEL");
+  gfx->setTextSize(3);
+  gfx->setTextColor(JINWOO_ARISE_GLOW);
+  gfx->setCursor(155, statsY + 22);
+  gfx->printf("%d", system_state.player_level);
+  
+  // Mana/Gems (right)
+  gfx->fillRoundRect(250, statsY, 100, 50, 10, RGB565(12, 8, 20));
+  gfx->drawRoundRect(250, statsY, 100, 50, 10, RGB565(50, 35, 80));
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(80, 60, 120));
+  gfx->setCursor(265, statsY + 8);
+  gfx->print("MANA");
+  gfx->setTextSize(2);
+  gfx->setTextColor(RGB565(150, 120, 220));
+  gfx->setCursor(260, statsY + 25);
+  gfx->printf("%d", system_state.player_gems);
+  
+  // === BOTTOM BAR ===
+  int bottomY = 395;
+  
+  // Battery with shadow styling
+  int battPct = system_state.battery_percentage;
+  gfx->fillRoundRect(30, bottomY, 80, 25, 8, RGB565(15, 10, 25));
+  gfx->drawRoundRect(30, bottomY, 80, 25, 8, RGB565(60, 45, 90));
+  gfx->setTextSize(1);
+  gfx->setTextColor(battPct > 20 ? RGB565(120, 100, 180) : RGB565(200, 80, 80));
+  gfx->setCursor(45, bottomY + 8);
+  gfx->printf("BAT %d%%", battPct);
+  
+  // Steps
+  gfx->fillRoundRect(130, bottomY, 110, 25, 8, RGB565(15, 10, 25));
+  gfx->drawRoundRect(130, bottomY, 110, 25, 8, RGB565(60, 45, 90));
+  gfx->setTextColor(RGB565(100, 80, 150));
+  gfx->setCursor(145, bottomY + 8);
+  gfx->printf("STEPS %d", system_state.steps_today);
+  
+  // Seconds display
+  gfx->fillRoundRect(260, bottomY, 80, 25, 8, RGB565(15, 10, 25));
+  gfx->drawRoundRect(260, bottomY, 80, 25, 8, JINWOO_ARISE_GLOW);
+  gfx->setTextSize(2);
+  gfx->setTextColor(JINWOO_ARISE_GLOW);
+  gfx->setCursor(285, bottomY + 4);
+  gfx->printf("%02d", time.second);
 }
 
 void drawYugoWatchFace() {

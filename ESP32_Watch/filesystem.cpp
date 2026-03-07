@@ -5,6 +5,12 @@
 #include "filesystem.h"
 #include "config.h"
 #include "display.h"
+#include <SD_MMC.h>
+#include <FS.h>
+
+// Forward declarations
+int scanMusicCount();
+int scanPDFCount();
 
 extern SystemState system_state;
 
@@ -298,14 +304,7 @@ String getWallpaperPath(ThemeType theme) {
   }
 }
 
-String getThemeName(ThemeType theme) {
-  switch(theme) {
-    case THEME_LUFFY_GEAR5: return "Luffy Gear 5";
-    case THEME_SUNG_JINWOO: return "Sung Jin-Woo";
-    case THEME_YUGO_WAKFU:  return "Yugo Wakfu";
-    default: return "Custom";
-  }
-}
+// getThemeName is defined in themes.cpp - removed duplicate here
 
 // =============================================================================
 // SETTINGS

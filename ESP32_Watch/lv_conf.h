@@ -46,8 +46,12 @@
 #define LV_USE_ROLLER 1
 #define LV_USE_SLIDER 1
 #define LV_USE_SWITCH 1
-#define LV_USE_TEXTAREA 0
+#define LV_USE_TEXTAREA 1
 #define LV_USE_TABLE 0
+
+// Disable keyboard and spinbox to avoid dependency issues
+#define LV_USE_KEYBOARD 0
+#define LV_USE_SPINBOX 0
 
 // Fonts
 #define LV_FONT_MONTSERRAT_8 0

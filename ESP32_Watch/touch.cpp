@@ -1,216 +1,255 @@
 /*
- * touch.cpp - Touch Input Implementation
- * Direct I2C communication with FT3168
+ * touch.cpp - Touch Input Management (FIXED v2)
+ * FT3168 returns coordinates in SCREEN PIXELS directly (0-368, 0-448)
+ * NOT in 0-4095 range!
  */
 
 #include "touch.h"
 #include "config.h"
+#include <Wire.h>
 
-struct TouchCalibration {
-  int min_x, max_x, min_y, max_y;
-  bool calibrated;
-} touch_cal;
+// Touch state tracking
+static bool touchPressed = false;
+static int touchStartX = 0, touchStartY = 0;
+static int touchLastX = 0, touchLastY = 0;
+static unsigned long touchStartTime = 0;
+static int digitalCrownValue = 0;
 
-static int last_touch_x = -1, last_touch_y = -1;
-static unsigned long touch_start_time = 0;
-static bool touch_pressed = false;
-static int digital_crown_value = 0;
+// FT3168 I2C address
+#define FT3168_ADDR 0x38
 
+// Swipe threshold - LOWERED for better detection
+#define TOUCH_SWIPE_THRESHOLD 25  // 25 pixels minimum for swipe
+
+// =============================================================================
+// LOW-LEVEL TOUCH READ - FT3168 returns screen coordinates directly!
+// =============================================================================
 bool touchRead(uint16_t &x, uint16_t &y) {
-  static unsigned long last_touch_read = 0;
-  static uint16_t cached_x = 0, cached_y = 0;
-  static bool cached_valid = false;
-  
-  if (millis() - last_touch_read < 20) {
-    if (cached_valid) { x = cached_x; y = cached_y; return true; }
-    return false;
-  }
-  last_touch_read = millis();
-  
   Wire.beginTransmission(FT3168_ADDR);
-  Wire.write(0x02);
-  if (Wire.endTransmission(false) != 0) { cached_valid = false; return false; }
-  
-  Wire.requestFrom((uint8_t)FT3168_ADDR, (uint8_t)5);
-  if (Wire.available() < 5) { cached_valid = false; return false; }
-  
-  uint8_t touches = Wire.read();
-  if (touches == 0 || touches > 2) { cached_valid = false; return false; }
-  
-  uint8_t xh = Wire.read(), xl = Wire.read();
-  uint8_t yh = Wire.read(), yl = Wire.read();
-  
-  x = ((xh & 0x0F) << 8) | xl;
-  y = ((yh & 0x0F) << 8) | yl;
-  cached_x = x; cached_y = y; cached_valid = true;
-  return true;
-}
-
-bool touchReadEx(uint16_t &x, uint16_t &y, uint8_t &pressure) {
-  Wire.beginTransmission(FT3168_ADDR);
-  Wire.write(0x02);
+  Wire.write(0x02);  // Touch data register
   if (Wire.endTransmission(false) != 0) return false;
   
-  Wire.requestFrom((uint8_t)FT3168_ADDR, (uint8_t)6);
-  if (Wire.available() < 6) return false;
+  Wire.requestFrom((uint8_t)FT3168_ADDR, (uint8_t)5);
+  if (Wire.available() < 5) return false;
   
   uint8_t touches = Wire.read();
   if (touches == 0 || touches > 2) return false;
   
-  uint8_t xh = Wire.read(), xl = Wire.read();
-  uint8_t yh = Wire.read(), yl = Wire.read();
-  pressure = Wire.read();
+  uint8_t xh = Wire.read();
+  uint8_t xl = Wire.read();
+  uint8_t yh = Wire.read();
+  uint8_t yl = Wire.read();
   
+  // FT3168 returns coordinates in screen pixels directly!
   x = ((xh & 0x0F) << 8) | xl;
   y = ((yh & 0x0F) << 8) | yl;
+  
   return true;
 }
 
-bool initializeTouch() {
-  Serial.println("[Touch] Initializing FT3168...");
-  
-  if (TP_INT >= 0) pinMode(TP_INT, INPUT_PULLUP);
-  delay(100);
-  
-  Wire.beginTransmission(FT3168_ADDR);
-  if (Wire.endTransmission() == 0) {
-    Serial.println("[Touch] FT3168 detected");
-    loadTouchCalibration();
-    return true;
-  }
-  Serial.println("[Touch] FT3168 not responding");
-  loadTouchCalibration();
-  return false;
+bool touchReadEx(uint16_t &x, uint16_t &y, uint8_t &pressure) {
+  pressure = 100;
+  return touchRead(x, y);
 }
 
+// =============================================================================
+// INITIALIZE TOUCH
+// =============================================================================
+bool initializeTouch() {
+  Wire.beginTransmission(FT3168_ADDR);
+  if (Wire.endTransmission() != 0) {
+    Serial.println("[TOUCH] FT3168 not found!");
+    return false;
+  }
+  
+  Serial.println("[TOUCH] FT3168 initialized");
+  Serial.printf("[TOUCH] Swipe threshold: %d pixels\n", TOUCH_SWIPE_THRESHOLD);
+  return true;
+}
+
+// =============================================================================
+// TOUCH GESTURE HANDLING - NO MAPPING NEEDED, coordinates are screen pixels
+// =============================================================================
 TouchGesture handleTouchInput() {
   TouchGesture gesture = {TOUCH_NONE, 0, 0, 0, 0, 0, 0, 0, 0, 0, millis(), 0, false};
   
-  if (TP_INT >= 0 && digitalRead(TP_INT) == HIGH) {
-    if (touch_pressed) {
-      touch_pressed = false;
-      unsigned long duration = millis() - touch_start_time;
-      gesture.event = TOUCH_RELEASE;
-      gesture.x = last_touch_x; gesture.y = last_touch_y;
-      gesture.duration = duration;
-      gesture.is_valid = true;
-      if (duration > 800) gesture.event = TOUCH_LONG_PRESS;
-      else if (duration < 200) gesture.event = TOUCH_TAP;
-    }
-    return gesture;
-  }
-  
   uint16_t raw_x, raw_y;
-  if (!touchRead(raw_x, raw_y)) {
-    if (touch_pressed) {
-      touch_pressed = false;
-      unsigned long duration = millis() - touch_start_time;
-      gesture.event = TOUCH_RELEASE;
-      gesture.x = last_touch_x; gesture.y = last_touch_y;
-      gesture.duration = duration;
-      gesture.is_valid = true;
-      if (duration > 800) gesture.event = TOUCH_LONG_PRESS;
-      else if (duration < 200) gesture.event = TOUCH_TAP;
+  bool hasTouchNow = touchRead(raw_x, raw_y);
+  
+  // NO MAPPING - FT3168 returns screen coordinates directly
+  int touch_x = raw_x;
+  int touch_y = raw_y;
+  
+  // Constrain to screen bounds
+  if (hasTouchNow) {
+    touch_x = constrain(touch_x, 0, LCD_WIDTH - 1);
+    touch_y = constrain(touch_y, 0, LCD_HEIGHT - 1);
+  }
+  
+  // === TOUCH RELEASE ===
+  if (!hasTouchNow && touchPressed) {
+    touchPressed = false;
+    
+    // Calculate total movement from START to END
+    int dx = touchLastX - touchStartX;
+    int dy = touchLastY - touchStartY;
+    unsigned long duration = millis() - touchStartTime;
+    
+    gesture.event = TOUCH_RELEASE;
+    gesture.x = touchLastX;
+    gesture.y = touchLastY;
+    gesture.start_x = touchStartX;
+    gesture.start_y = touchStartY;
+    gesture.end_x = touchLastX;
+    gesture.end_y = touchLastY;
+    gesture.dx = dx;
+    gesture.dy = dy;
+    gesture.duration = duration;
+    gesture.is_valid = true;
+    
+    Serial.printf("[TOUCH] Release: start(%d,%d) end(%d,%d) dx=%d dy=%d dur=%lu\n",
+                  touchStartX, touchStartY, touchLastX, touchLastY, dx, dy, duration);
+    
+    // Determine gesture type
+    if (duration < 800) {  // Quick gesture (increased from 600)
+      if (abs(dx) > TOUCH_SWIPE_THRESHOLD || abs(dy) > TOUCH_SWIPE_THRESHOLD) {
+        // SWIPE DETECTED
+        if (abs(dx) > abs(dy)) {
+          gesture.event = (dx > 0) ? TOUCH_SWIPE_RIGHT : TOUCH_SWIPE_LEFT;
+          Serial.printf("[TOUCH] >>> SWIPE %s (dx=%d) <<<\n", dx > 0 ? "RIGHT" : "LEFT", dx);
+        } else {
+          gesture.event = (dy > 0) ? TOUCH_SWIPE_DOWN : TOUCH_SWIPE_UP;
+          Serial.printf("[TOUCH] >>> SWIPE %s (dy=%d) <<<\n", dy > 0 ? "DOWN" : "UP", dy);
+        }
+      } else if (duration < 400 && abs(dx) < 15 && abs(dy) < 15) {
+        // TAP - reduced movement threshold
+        gesture.event = TOUCH_TAP;
+        gesture.x = touchStartX;
+        gesture.y = touchStartY;
+        Serial.printf("[TOUCH] TAP at (%d,%d)\n", touchStartX, touchStartY);
+      }
+    } else if (duration > 800 && abs(dx) < 20 && abs(dy) < 20) {
+      // LONG PRESS
+      gesture.event = TOUCH_LONG_PRESS;
+      Serial.printf("[TOUCH] LONG_PRESS at (%d,%d) dur=%lu\n", touchStartX, touchStartY, duration);
     }
+    
     return gesture;
   }
   
-  if (raw_x > 4095 || raw_y > 4095) return gesture;
-  
-  int touch_x = map(raw_x, touch_cal.min_x, touch_cal.max_x, 0, DISPLAY_WIDTH);
-  int touch_y = map(raw_y, touch_cal.min_y, touch_cal.max_y, 0, DISPLAY_HEIGHT);
-  touch_x = constrain(touch_x, 0, DISPLAY_WIDTH - 1);
-  touch_y = constrain(touch_y, 0, DISPLAY_HEIGHT - 1);
-  
-  if (!touch_pressed) {
-    touch_pressed = true;
-    touch_start_time = millis();
-    last_touch_x = touch_x; last_touch_y = touch_y;
-    gesture.event = TOUCH_PRESS;
-    gesture.x = touch_x; gesture.y = touch_y;
-    gesture.start_x = touch_x; gesture.start_y = touch_y;
-    gesture.is_valid = true;
-  } else {
-    int dx = touch_x - last_touch_x;
-    int dy = touch_y - last_touch_y;
+  // === NEW TOUCH ===
+  if (hasTouchNow && !touchPressed) {
+    touchPressed = true;
+    touchStartX = touch_x;
+    touchStartY = touch_y;
+    touchLastX = touch_x;
+    touchLastY = touch_y;
+    touchStartTime = millis();
     
-    if (abs(dx) > 5 || abs(dy) > 5) {
+    gesture.event = TOUCH_PRESS;
+    gesture.x = touch_x;
+    gesture.y = touch_y;
+    gesture.start_x = touch_x;
+    gesture.start_y = touch_y;
+    gesture.is_valid = true;
+    
+    Serial.printf("[TOUCH] Press at (%d,%d)\n", touch_x, touch_y);
+    
+    return gesture;
+  }
+  
+  // === TOUCH MOVE ===
+  if (hasTouchNow && touchPressed) {
+    // Only update end position, keep start position
+    touchLastX = touch_x;
+    touchLastY = touch_y;
+    
+    int dx = touch_x - touchStartX;
+    int dy = touch_y - touchStartY;
+    
+    if (abs(dx) > 3 || abs(dy) > 3) {
       gesture.event = TOUCH_MOVE;
-      gesture.x = touch_x; gesture.y = touch_y;
-      gesture.start_x = last_touch_x; gesture.start_y = last_touch_y;
-      gesture.end_x = touch_x; gesture.end_y = touch_y;
-      gesture.dx = dx; gesture.dy = dy;
+      gesture.x = touch_x;
+      gesture.y = touch_y;
+      gesture.start_x = touchStartX;
+      gesture.start_y = touchStartY;
+      gesture.end_x = touch_x;
+      gesture.end_y = touch_y;
+      gesture.dx = dx;
+      gesture.dy = dy;
       gesture.is_valid = true;
-      digital_crown_value += dy;
       
-      unsigned long duration = millis() - touch_start_time;
-      if (duration > 100 && duration < 500) {
-        if (abs(dx) > abs(dy) && abs(dx) > 50)
-          gesture.event = (dx > 0) ? TOUCH_SWIPE_RIGHT : TOUCH_SWIPE_LEFT;
-        else if (abs(dy) > abs(dx) && abs(dy) > 50)
-          gesture.event = (dy > 0) ? TOUCH_SWIPE_DOWN : TOUCH_SWIPE_UP;
-      }
-      last_touch_x = touch_x; last_touch_y = touch_y;
+      // Digital crown simulation for scrolling
+      digitalCrownValue += dy;
     }
   }
+  
   return gesture;
 }
 
-bool isTouchPressed() { return touch_pressed; }
+// =============================================================================
+// HELPER FUNCTIONS
+// =============================================================================
+bool isTouchPressed() {
+  return touchPressed;
+}
 
 void getTouchPosition(int& x, int& y) {
-  x = last_touch_x; y = last_touch_y;
+  x = touchLastX;
+  y = touchLastY;
 }
 
 TouchEvent recognizeGesture(int start_x, int start_y, int end_x, int end_y, unsigned long duration) {
   int dx = end_x - start_x;
   int dy = end_y - start_y;
-  int distance = sqrt(dx*dx + dy*dy);
   
-  if (duration > 800 && distance < 20) return TOUCH_LONG_PRESS;
-  if (duration < 300 && distance < 20) return TOUCH_TAP;
-  if (distance > 50 && duration < 500) {
-    if (abs(dx) > abs(dy)) return (dx > 0) ? TOUCH_SWIPE_RIGHT : TOUCH_SWIPE_LEFT;
-    else return (dy > 0) ? TOUCH_SWIPE_DOWN : TOUCH_SWIPE_UP;
+  if (duration > 800) return TOUCH_LONG_PRESS;
+  
+  if (abs(dx) > TOUCH_SWIPE_THRESHOLD || abs(dy) > TOUCH_SWIPE_THRESHOLD) {
+    if (abs(dx) > abs(dy)) {
+      return (dx > 0) ? TOUCH_SWIPE_RIGHT : TOUCH_SWIPE_LEFT;
+    } else {
+      return (dy > 0) ? TOUCH_SWIPE_DOWN : TOUCH_SWIPE_UP;
+    }
   }
+  
+  if (duration < 400) return TOUCH_TAP;
+  
   return TOUCH_NONE;
 }
 
 bool isSwipeGesture(int start_x, int start_y, int end_x, int end_y) {
   int dx = abs(end_x - start_x);
   int dy = abs(end_y - start_y);
-  return (dx > 50 || dy > 50);
+  return (dx > TOUCH_SWIPE_THRESHOLD || dy > TOUCH_SWIPE_THRESHOLD);
 }
 
 bool isTapGesture(unsigned long duration, int movement) {
-  return duration < 300 && movement < 20;
+  return (duration < 400 && movement < 15);
 }
 
-void calibrateTouch() {
-  touch_cal.min_x = 0; touch_cal.max_x = DISPLAY_WIDTH;
-  touch_cal.min_y = 0; touch_cal.max_y = DISPLAY_HEIGHT;
-  touch_cal.calibrated = true;
-}
+// Calibration - not needed for FT3168, coordinates are screen pixels
+void calibrateTouch() { }
+void saveTouchCalibration() { }
+void loadTouchCalibration() { }
 
-void saveTouchCalibration() {}
+// Digital crown
+int getDigitalCrownValue() { return digitalCrownValue; }
+void resetDigitalCrown() { digitalCrownValue = 0; }
 
-void loadTouchCalibration() {
-  touch_cal.min_x = 0; touch_cal.max_x = DISPLAY_WIDTH;
-  touch_cal.min_y = 0; touch_cal.max_y = DISPLAY_HEIGHT;
-  touch_cal.calibrated = true;
-}
-
-int getDigitalCrownValue() { return digital_crown_value; }
-void resetDigitalCrown() { digital_crown_value = 0; }
-
+// I2C recovery
 bool recoverTouchI2C() {
-  Wire.beginTransmission(FT3168_ADDR);
-  return Wire.endTransmission() == 0;
+  Wire.end();
+  delay(10);
+  Wire.begin(IIC_SDA, IIC_SCL);
+  Wire.setClock(400000);
+  return true;
 }
 
 bool checkAndRecoverTouchI2C() {
-  static unsigned long last_attempt = 0;
-  if (millis() - last_attempt < 5000) return false;
-  last_attempt = millis();
-  return recoverTouchI2C();
+  Wire.beginTransmission(FT3168_ADDR);
+  if (Wire.endTransmission() != 0) {
+    return recoverTouchI2C();
+  }
+  return true;
 }

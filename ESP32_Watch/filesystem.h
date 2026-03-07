@@ -45,7 +45,7 @@ int scanWallpapersByTheme(ThemeType theme, WallpaperFile wallpaper_files[], int 
 bool createWallpaperDirectories();
 bool isValidWallpaperFormat(const String& filename);
 String getWallpaperPath(ThemeType theme);
-String getThemeName(ThemeType theme);
+// String getThemeName(ThemeType theme); // Declared in themes.h
 
 // Settings
 void saveSettingsToFile();

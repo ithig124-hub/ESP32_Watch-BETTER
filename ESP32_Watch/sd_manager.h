@@ -21,6 +21,9 @@
 #include <HTTPClient.h>
 #include <time.h>
 
+// Forward declaration for TouchGesture (defined in touch.h)
+struct TouchGesture;
+
 // =============================================================================
 // SD CARD PATHS (Compatible with S3_MiniOS_206)
 // =============================================================================

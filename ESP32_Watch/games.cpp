@@ -304,7 +304,9 @@ void addBattleLog(String message) {
   }
 }
 
-void checkBattleEnd() {
+// checkBattleEnd is declared in boss_rush.h as bool - use that version
+// This local version is renamed to avoid conflict
+void checkGameBattleEnd() {
   if (current_game_session.enemy_creature.hp <= 0) {
     current_game_session.state = GAME_WIN;
   }
@@ -346,7 +348,7 @@ void drawShadowDungeon() {
     for (int x = 0; x < 10; x++) {
       int px = x * 35 + 20;
       int py = y * 35 + 60;
-      gfx->drawRect(px, py, 32, 32, JINWOO_DARK);
+      gfx->drawRect(px, py, 32, 32, JINWOO_VOID_BLACK);
       
       if (x == current_game_session.player_x && y == current_game_session.player_y) {
         gfx->fillCircle(px + 16, py + 16, 12, JINWOO_PURPLE);

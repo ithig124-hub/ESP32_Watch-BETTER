@@ -460,15 +460,20 @@ void loop() {
       case TOUCH_SWIPE_UP:
       case TOUCH_SWIPE_DOWN:
         if (touchActive) {
-          int dx = gesture.x - touchStartX;
-          int dy = gesture.y - touchStartY;
-          unsigned long duration = millis() - touchStartTime;
+          // Use gesture.dx and gesture.dy which track total movement from start
+          int dx = gesture.dx;
+          int dy = gesture.dy;
+          unsigned long duration = gesture.duration;
+          
+          Serial.printf("[NAV] Release: dx=%d, dy=%d, dur=%lu, event=%d\n", dx, dy, duration, gesture.event);
           
           // Check if this is a swipe gesture
           if (duration < SWIPE_MAX_DURATION_MS && (abs(dx) > SWIPE_THRESHOLD_MIN || abs(dy) > SWIPE_THRESHOLD_MIN)) {
+            Serial.printf("[NAV] SWIPE detected! Calling handleSwipeNavigation\n");
             handleSwipeNavigation(dx, dy);
           } else if (duration < 300 && abs(dx) < 20 && abs(dy) < 20) {
             // This is a tap
+            Serial.printf("[NAV] Tap on watchface\n");
             gesture.event = TOUCH_TAP;
             gesture.x = touchStartX;
             gesture.y = touchStartY;

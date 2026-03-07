@@ -31,7 +31,7 @@ void selectMove(int move_index);
 void executeBattleTurn();
 void dealDamage(BattleCreature& attacker, BattleCreature& defender, int move_index);
 void addBattleLog(String message);
-void checkBattleEnd();
+// void checkBattleEnd(); // Conflicts with boss_rush.h
 void generateRandomEnemy();
 
 // Shadow Dungeon (Jin-Woo themed)
