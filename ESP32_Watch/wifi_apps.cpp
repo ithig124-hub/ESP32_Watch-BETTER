@@ -37,6 +37,11 @@ void initWiFiManager() {
   delay(100);
 }
 
+// Alias function for initWiFiManager
+void initWifiApps() {
+  initWiFiManager();
+}
+
 void updateWiFiManager() {
   static unsigned long lastCheck = 0;
   if (millis() - lastCheck > 5000) {
@@ -205,6 +210,11 @@ void handleWiFiSetupTouch(TouchGesture& gesture) {
   if (gesture.event == TOUCH_TAP && gesture.y >= 420) {
     system_state.current_screen = SCREEN_SETTINGS;
   }
+}
+
+// Alias function for handleWiFiSetupTouch
+void handleWifiManagerTouch(TouchGesture& gesture) {
+  handleWiFiSetupTouch(gesture);
 }
 
 void drawNetworkListScreen() {

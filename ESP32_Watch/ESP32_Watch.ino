@@ -1,213 +1,85 @@
 /*
- * ESP32 Watch - COMPLETE EDITION
- * All 10 anime characters, Gacha, Training, Boss Rush
+ * ESP32_Watch_IMPROVED.ino - Main Firmware
+ * Modern Anime Gaming Smartwatch - Enhanced Edition
  * 
- * Hardware: ESP32-S3-Touch-AMOLED-1.8 (Waveshare)
- * Features: 10 Character Themes, RPG System, Games, Gacha Collection,
- *           Training Mini-Games, Boss Rush, WiFi, Music, Weather, Quests
+ * IMPROVEMENTS OVER ORIGINAL:
+ * - Better swipe navigation with lower thresholds
+ * - All apps are now accessible via tap
+ * - Modern glass morphism UI throughout
+ * - Improved touch responsiveness
+ * - 11 anime character themes with unique visuals (including BoBoiBoy!)
+ * - BoBoiBoy Element Tree with 20 forms
+ * - Better visual hierarchy and contrast
  * 
- * Original: https://github.com/ithig124-hub/ESP32_Watch
- * Enhanced: Full feature list from COMPLETE_FEATURES_LIST.md
+ * Hardware: ESP32-S3-Touch-AMOLED-1.8"
+ * Display: 368x448 SH8601 AMOLED (QSPI)
+ * Touch: FT3168 Capacitive (I2C)
+ * 
+ * Free to modify and distribute!
  */
 
-#include <Wire.h>
-#include <WiFi.h>
-#include <time.h>
-#include <esp_heap_caps.h>
-#include <lvgl.h>
-#include "Arduino_GFX_Library.h"
-#include <Adafruit_XCA9554.h>
-
-#define XPOWERS_CHIP_AXP2101
-#include "XPowersLib.h"
-
 #include "config.h"
-#include "optimizations.h"  // Performance & stability enhancements
 #include "display.h"
-#include "touch.h"
 #include "hardware.h"
+#include "touch.h"
+#include "navigation.h"
 #include "themes.h"
-#include "games.h"        // Includes gacha.h, training.h, boss_rush.h
 #include "apps.h"
+#include "games.h"
+#include "gacha.h"
+#include "training.h"
+#include "boss_rush.h"
+#include "rpg.h"
 #include "wifi_apps.h"
 #include "filesystem.h"
-#include "rpg.h"
+#include "boboiboy_elements.h"
+#include "ochobot.h"
+#include "dynamic_bg.h"
+#include "fusion_game.h"
+#include "character_games.h"
 #include "ui.h"
-#include "sd_manager.h"   // SD Card, WiFi, Fusion Labs Protocol
-#include "navigation.h"   // Swipe-based screen navigation
 
-// =============================================================================
-// GLOBAL OBJECTS
-// =============================================================================
+// Display
+Arduino_SH8601 *gfx = nullptr;
 
-XPowersAXP2101 PMU;
-SystemState system_state;
-Adafruit_XCA9554 expander;
+// Global state
+SystemState system_state = {
+  .current_screen = SCREEN_SPLASH,
+  .current_theme = THEME_LUFFY_GEAR5,
+  .current_app = APP_WATCHFACE,
+  .brightness = 200,
+  .display_available = false,
+  .touch_available = false,
+  .touch_active = false,
+  .power_available = false,
+  .battery_percentage = 85,
+  .is_charging = false,
+  .low_battery_warning = false,
+  .lvgl_available = false,
+  .sleep_timer = 0,
+  .wifi_connected = false,
+  .wifi_ssid = "",
+  .steps_today = 3456,
+  .step_goal = 10000,
+  .player_gems = 500,
+  .player_level = 1,
+  .player_xp = 0,
+  .gacha_cards_collected = 0,
+  .bosses_defeated = 0,
+  .training_streak = 0,
+  .daily_login_count = 0,
+  .music_playing = false,
+  .total_mp3_files = 0,
+  .total_pdf_files = 0,
+  .filesystem_available = false,
+  .current_wallpaper_path = "",
+  .wallpaper_enabled = false
+};
 
-// Optimization helpers
-FrameLimiter frameLimiter(30);       // 30 FPS target
-TouchDebouncer touchDebouncer(50);   // 50ms debounce
-ScreenTimeout screenTimeout(30000);  // 30 second timeout
-
-// Display objects
-Arduino_DataBus *bus = new Arduino_ESP32QSPI(
-  LCD_CS, LCD_SCLK, LCD_SDIO0, LCD_SDIO1, LCD_SDIO2, LCD_SDIO3);
-Arduino_SH8601 *gfx = new Arduino_SH8601(
-  bus, GFX_NOT_DEFINED, 0, LCD_WIDTH, LCD_HEIGHT);
-
-// LVGL buffers
-static lv_disp_draw_buf_t draw_buf;
-static lv_color_t *buf1 = nullptr;
-static lv_color_t *buf2 = nullptr;
-
-// Touch interrupt
+// Touch interrupt flag
 volatile bool touch_interrupt = false;
-void IRAM_ATTR touch_isr() { touch_interrupt = true; }
-
-// =============================================================================
-// TOUCH HANDLING
-// =============================================================================
-
-bool readTouch(int16_t &x, int16_t &y) {
-  Wire.beginTransmission(FT3168_ADDR);
-  Wire.write(0x02);
-  if (Wire.endTransmission(false) != 0) return false;
-  
-  Wire.requestFrom((uint8_t)FT3168_ADDR, (uint8_t)5);
-  if (Wire.available() < 5) return false;
-  
-  uint8_t touches = Wire.read();
-  if (touches == 0 || touches > 2) return false;
-  
-  uint8_t xh = Wire.read(), xl = Wire.read();
-  uint8_t yh = Wire.read(), yl = Wire.read();
-  
-  x = ((xh & 0x0F) << 8) | xl;
-  y = ((yh & 0x0F) << 8) | yl;
-  return true;
-}
-
-// =============================================================================
-// LVGL CALLBACKS
-// =============================================================================
-
-void lvgl_disp_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color_p) {
-  uint32_t w = (area->x2 - area->x1 + 1);
-  uint32_t h = (area->y2 - area->y1 + 1);
-  
-#if (LV_COLOR_16_SWAP != 0)
-  gfx->draw16bitBeRGBBitmap(area->x1, area->y1, (uint16_t *)&color_p->full, w, h);
-#else
-  gfx->draw16bitRGBBitmap(area->x1, area->y1, (uint16_t *)&color_p->full, w, h);
-#endif
-  lv_disp_flush_ready(disp);
-}
-
-void lvgl_touch_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data) {
-  if (!touch_interrupt) {
-    data->state = LV_INDEV_STATE_REL;
-    return;
-  }
-  
-  int16_t x, y;
-  if (readTouch(x, y) && x >= 0 && x < LCD_WIDTH && y >= 0 && y < LCD_HEIGHT) {
-    touch_interrupt = false;
-    data->state = LV_INDEV_STATE_PR;
-    data->point.x = x;
-    data->point.y = y;
-    system_state.touch_active = true;
-    system_state.sleep_timer = millis();
-  } else {
-    touch_interrupt = false;
-    data->state = LV_INDEV_STATE_REL;
-    system_state.touch_active = false;
-  }
-}
-
-#define LVGL_TICK_PERIOD_MS 2
-void lvgl_tick_increment(void *arg) { lv_tick_inc(LVGL_TICK_PERIOD_MS); }
-
-// =============================================================================
-// I2C SCAN
-// =============================================================================
-
-void scanI2C() {
-  Serial.println("\n=== I2C Bus Scan ===");
-  int found = 0;
-  for (uint8_t addr = 1; addr < 127; addr++) {
-    Wire.beginTransmission(addr);
-    if (Wire.endTransmission() == 0) {
-      Serial.printf("  0x%02X - ", addr);
-      switch(addr) {
-        case 0x20: Serial.println("XCA9554 GPIO Expander"); break;
-        case 0x34: Serial.println("AXP2101 PMU"); break;
-        case 0x38: Serial.println("FT3168 Touch"); break;
-        case 0x51: Serial.println("PCF85063 RTC"); break;
-        case 0x6A:
-        case 0x6B: Serial.println("QMI8658 IMU"); break;
-        case 0x18: Serial.println("ES8311 Audio"); break;
-        default: Serial.println("Unknown"); break;
-      }
-      found++;
-    }
-  }
-  Serial.printf("=== Found %d devices ===\n\n", found);
-}
-
-// =============================================================================
-// SYSTEM INITIALIZATION
-// =============================================================================
-
-void initSystemState() {
-  system_state.current_screen = SCREEN_SPLASH;
-  system_state.current_theme = THEME_LUFFY_GEAR5;
-  system_state.current_app = APP_WATCHFACE;
-  system_state.battery_percentage = 100;
-  system_state.is_charging = false;
-  system_state.brightness = 200;
-  system_state.wifi_connected = false;
-  system_state.steps_today = 0;
-  system_state.step_goal = 10000;
-  system_state.sleep_timer = millis();
-  
-  // New complete features initialization
-  system_state.player_gems = 500;           // Starting gems for gacha
-  system_state.player_level = 1;
-  system_state.player_xp = 0;
-  system_state.gacha_cards_collected = 0;
-  system_state.bosses_defeated = 0;
-  system_state.training_streak = 0;
-  system_state.daily_login_count = 0;
-}
-
-void initPMU() {
-  if (PMU.begin(Wire, AXP2101_ADDR, IIC_SDA, IIC_SCL)) {
-    Serial.println("[PMU] AXP2101 initialized OK");
-    system_state.power_available = true;
-    PMU.disableIRQ(XPOWERS_AXP2101_ALL_IRQ);
-    PMU.setChargeTargetVoltage(XPOWERS_AXP2101_CHG_VOL_4V2);
-    PMU.enableBattDetection();
-    PMU.enableBattVoltageMeasure();
-    
-    // Enable power rails for display
-    PMU.setALDO1Voltage(1800); PMU.enableALDO1();
-    PMU.setALDO2Voltage(2800); PMU.enableALDO2();
-    PMU.setALDO3Voltage(3300); PMU.enableALDO3();
-    PMU.setALDO4Voltage(3300); PMU.enableALDO4();
-    PMU.setBLDO1Voltage(1800); PMU.enableBLDO1();
-    PMU.setBLDO2Voltage(3300); PMU.enableBLDO2();
-    
-    delay(100);
-    
-    if (PMU.isBatteryConnect()) {
-      system_state.battery_percentage = PMU.getBatteryPercent();
-      system_state.is_charging = PMU.isCharging();
-    }
-  } else {
-    Serial.println("[PMU] AXP2101 not found");
-    system_state.power_available = false;
-  }
-}
+bool sdCardInitialized = false;
+bool wifiConnected = false;
 
 // =============================================================================
 // SETUP
@@ -216,431 +88,355 @@ void initPMU() {
 void setup() {
   Serial.begin(115200);
   delay(500);
-  Serial.println("\n========================================");
-  Serial.println("  ESP32 Watch - COMPLETE EDITION");
-  Serial.println("  10 Characters | Gacha | Training | Boss Rush");
-  Serial.println("========================================\n");
-
-  // Initialize optimizations first
-  initOptimizations();
   
-  initSystemState();
+  Serial.println("\n===================================");
+  Serial.println(" ESP32 Anime Gaming Watch IMPROVED");
+  Serial.println(" Modern UI | Better Navigation");
+  Serial.println("===================================\n");
   
-  // Load saved data
-  loadSavedData();
+  // Initialize hardware
+  initializeHardware();
   
-  // Audio amp enable
-  pinMode(PA_PIN, OUTPUT);
-  digitalWrite(PA_PIN, HIGH);
-
-  // Step 1: I2C Bus
-  Serial.println("[INIT] Step 1: I2C Bus");
-  Wire.begin(IIC_SDA, IIC_SCL);
-  Wire.setClock(400000);
-  delay(100);
-  scanI2C();
-
-  // Step 2: I/O Expander
-  Serial.println("[INIT] Step 2: I/O Expander");
-  if (expander.begin(EXPANDER_ADDR, &Wire)) {
-    Serial.println("[OK] XCA9554 found");
-    expander.pinMode(0, OUTPUT);
-    expander.pinMode(1, OUTPUT);
-    expander.pinMode(2, OUTPUT);
-    expander.digitalWrite(0, LOW);
-    expander.digitalWrite(1, LOW);
-    expander.digitalWrite(2, LOW);
-    delay(20);
-    expander.digitalWrite(0, HIGH);
-    expander.digitalWrite(1, HIGH);
-    expander.digitalWrite(2, HIGH);
-    delay(50);
-    Serial.println("[OK] Display power enabled");
-  } else {
-    Serial.println("[FAIL] XCA9554 not found!");
-  }
-
-  // Step 3: Display
-  Serial.println("[INIT] Step 3: Display");
-  gfx->begin();
-  gfx->setBrightness(255);
-  delay(100);
-  gfx->fillScreen(0x0000);
-  Serial.println("[OK] Display initialized");
-  system_state.display_available = true;
-
-  // Step 4: Touch
-  Serial.println("[INIT] Step 4: Touch Controller");
-  pinMode(TP_INT, INPUT_PULLUP);
-  Wire.beginTransmission(FT3168_ADDR);
-  if (Wire.endTransmission() == 0) {
-    Serial.println("[OK] Touch detected");
+  // Initialize display
+  initDisplay();
+  
+  // Show splash screen
+  drawSplashScreen();
+  delay(2000);
+  
+  // Initialize touch
+  if (initTouch()) {
+    Serial.println("[INIT] Touch initialized");
     system_state.touch_available = true;
-    attachInterrupt(digitalPinToInterrupt(TP_INT), touch_isr, FALLING);
-  } else {
-    Serial.println("[WARN] Touch not responding");
-    system_state.touch_available = false;
-  }
-
-  // Step 5: PMU
-  Serial.println("[INIT] Step 5: Power Management");
-  initPMU();
-
-  // Step 6: LVGL
-  Serial.println("[INIT] Step 6: LVGL");
-  lv_init();
-  
-  size_t buf_size = LCD_WIDTH * 50;
-  buf1 = (lv_color_t *)heap_caps_malloc(buf_size * sizeof(lv_color_t), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-  buf2 = (lv_color_t *)heap_caps_malloc(buf_size * sizeof(lv_color_t), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-  
-  if (!buf1 || !buf2) {
-    if (buf1) heap_caps_free(buf1);
-    if (buf2) heap_caps_free(buf2);
-    buf1 = (lv_color_t *)heap_caps_malloc(buf_size * sizeof(lv_color_t), MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-    buf2 = (lv_color_t *)heap_caps_malloc(buf_size * sizeof(lv_color_t), MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-  }
-  
-  if (buf1) {
-    lv_disp_draw_buf_init(&draw_buf, buf1, buf2, buf_size);
     
-    static lv_disp_drv_t disp_drv;
-    lv_disp_drv_init(&disp_drv);
-    disp_drv.hor_res = LCD_WIDTH;
-    disp_drv.ver_res = LCD_HEIGHT;
-    disp_drv.flush_cb = lvgl_disp_flush;
-    disp_drv.draw_buf = &draw_buf;
-    lv_disp_drv_register(&disp_drv);
-
-    if (system_state.touch_available) {
-      static lv_indev_drv_t indev_drv;
-      lv_indev_drv_init(&indev_drv);
-      indev_drv.type = LV_INDEV_TYPE_POINTER;
-      indev_drv.read_cb = lvgl_touch_read;
-      lv_indev_drv_register(&indev_drv);
-    }
-
-    const esp_timer_create_args_t timer_args = {
-      .callback = &lvgl_tick_increment,
-      .name = "lvgl_tick"
-    };
-    esp_timer_handle_t timer = NULL;
-    esp_timer_create(&timer_args, &timer);
-    esp_timer_start_periodic(timer, LVGL_TICK_PERIOD_MS * 1000);
-
-    system_state.lvgl_available = true;
-    Serial.println("[OK] LVGL initialized");
-  } else {
-    Serial.println("[FAIL] LVGL buffer allocation failed!");
-    system_state.lvgl_available = false;
+    // Attach touch interrupt
+    attachInterrupt(digitalPinToInterrupt(TP_INT), touchISR, FALLING);
   }
-
-  // Step 7: Additional Features
-  Serial.println("[INIT] Step 7: Additional Features");
-  initializeFileSystem();
-  initializeQuests();
-  initializeGames();
+  
+  // Initialize themes
   initializeThemes();
   
-  // Step 7b: Initialize new game systems
-  Serial.println("[INIT] Step 7b: Gacha, Training, Boss Rush");
-  initGachaSystem();
-  initTrainingSystem();
-  initBossRush();
-
-  // Step 7c: Initialize SD Card and WiFi from SD
-  Serial.println("[INIT] Step 7c: SD Card & WiFi");
-  if (initSDCard()) {
-    Serial.println("[INIT] SD Card initialized successfully");
-    
-    // Try to connect WiFi using config from SD card
-    if (initWiFiFromSD()) {
-      Serial.println("[INIT] WiFi connected from SD config");
-    } else {
-      Serial.println("[INIT] WiFi not connected (check SD card config)");
-    }
-  } else {
-    Serial.println("[INIT] SD Card not available - using defaults");
-  }
-  
-  // Step 7d: Initialize Fusion Labs Web Serial
-  Serial.println("[INIT] Step 7d: Fusion Labs Protocol");
-  setupFusionLabsSerial();
-
-  // Step 8: Load UI
-  if (system_state.lvgl_available) {
-    Serial.println("[INIT] Step 8: Loading UI");
-    gfx->displayOn();
-    gfx->setBrightness(255);
-    
-    // Create initial screen
-    lv_obj_t* scr = lv_scr_act();
-    lv_obj_set_style_bg_color(scr, lv_color_hex(0x0000FF), 0);
-    lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, 0);
-    
-    lv_obj_t* label = lv_label_create(scr);
-    lv_label_set_text(label, "WATCH OK!");
-    lv_obj_set_style_text_color(label, lv_color_hex(0xFFFF00), 0);
-    lv_obj_set_style_text_font(label, &lv_font_montserrat_28, 0);
-    lv_obj_center(label);
-    
-    lv_obj_invalidate(scr);
-    lv_refr_now(NULL);
-    
-    for (int i = 0; i < 10; i++) {
-      lv_timer_handler();
-      delay(10);
-    }
-  }
-
-  // Step 9: Initialize Navigation System
-  Serial.println("[INIT] Step 9: Swipe Navigation System");
+  // Initialize navigation system
   initNavigation();
   
-  // Draw initial watch face
-  delay(500);  // Brief pause before showing watch face
-  drawCurrentScreen();
-
-  Serial.println("\n========================================");
-  Serial.println("  INITIALIZATION COMPLETE - FULL FEATURES");
-  Serial.printf("  Display: %s | Touch: %s | PMU: %s | LVGL: %s\n",
-    system_state.display_available ? "OK" : "FAIL",
-    system_state.touch_available ? "OK" : "FAIL",
-    system_state.power_available ? "OK" : "N/A",
-    system_state.lvgl_available ? "OK" : "FAIL");
-  Serial.printf("  SD Card: %s | WiFi: %s\n",
-    sdCardInitialized ? "OK" : "N/A",
-    wifiConnected ? "Connected" : "N/A");
-  Serial.println("  10 Characters | Gacha | Training | Boss Rush");
-  Serial.println("  Fusion Labs Web Serial: Ready");
-  Serial.println("  Navigation: Swipe Left/Right for screens");
-  printMemoryStatus();
-  Serial.println("========================================\n");
+  // Initialize apps
+  initializeApps();
   
-  // Check daily login bonus
-  checkDailyLogin();
+  // Initialize games
+  initializeGames();
   
-  // Reset screen timeout
-  screenTimeout.resetTimer();
+  // Initialize gacha
+  initGachaSystem();
+  
+  // Initialize training
+  initTrainingSystem();
+  
+  // Initialize boss rush
+  initBossRush();
+  
+  // Initialize RPG
+  initRPGSystem();
+  
+  // Initialize filesystem
+  initFilesystem();
+  
+  // Initialize WiFi apps
+  initWifiApps();
+  
+  // Go to watch face
+  system_state.current_screen = SCREEN_WATCHFACE;
+  drawWatchFace();
+  drawNavigationIndicators();
+  
+  Serial.println("\n[INIT] Ready! Swipe or tap to navigate");
+  Serial.println("       LEFT/RIGHT: Main screens");
+  Serial.println("       TAP: Open apps");
+  Serial.println("       UP/DOWN: App pages (on grid)");
 }
 
 // =============================================================================
-// LOOP
+// TOUCH INTERRUPT HANDLER
 // =============================================================================
 
-// Touch handling variables
-static int touchStartX = 0, touchStartY = 0;
-static unsigned long touchStartTime = 0;
-static bool touchActive = false;
+void IRAM_ATTR touchISR() {
+  touch_interrupt = true;
+}
+
+// =============================================================================
+// SPLASH SCREEN
+// =============================================================================
+
+void drawSplashScreen() {
+  gfx->fillScreen(COLOR_BLACK);
+  
+  // Animated loading
+  int centerX = LCD_WIDTH / 2;
+  int centerY = LCD_HEIGHT / 2;
+  
+  // Logo/Title
+  gfx->setTextColor(RGB565(255, 215, 50));
+  gfx->setTextSize(2);
+  gfx->setCursor(centerX - 80, centerY - 60);
+  gfx->print("ANIME WATCH");
+  
+  gfx->setTextColor(RGB565(100, 180, 255));
+  gfx->setTextSize(1);
+  gfx->setCursor(centerX - 55, centerY - 30);
+  gfx->print("IMPROVED EDITION");
+  
+  // Loading bar
+  gfx->drawRoundRect(centerX - 80, centerY + 30, 160, 20, 10, RGB565(80, 80, 90));
+  
+  for (int i = 0; i <= 150; i += 5) {
+    gfx->fillRoundRect(centerX - 75, centerY + 35, i, 10, 5, RGB565(100, 200, 150));
+    delay(15);
+  }
+  
+  // Features
+  gfx->setTextColor(RGB565(150, 150, 160));
+  gfx->setTextSize(1);
+  gfx->setCursor(centerX - 70, centerY + 70);
+  gfx->print("10 Character Themes");
+  gfx->setCursor(centerX - 60, centerY + 90);
+  gfx->print("Gacha Collection");
+  gfx->setCursor(centerX - 50, centerY + 110);
+  gfx->print("Mini-Games");
+}
+
+// =============================================================================
+// MAIN LOOP
+// =============================================================================
 
 void loop() {
-  // Feed watchdog to prevent reset
-  feedWatchdog();
-  
-  // Handle Fusion Labs Web Serial commands (high priority)
-  handleSerialConfig();
-  
-  // Handle touch input and swipe navigation
+  // Process touch input
   TouchGesture gesture = handleTouchInput();
   
-  if (gesture.is_valid) {
-    screenTimeout.resetTimer();  // Reset timeout on any touch
-    
-    switch (gesture.event) {
-      case TOUCH_PRESS:
-        touchStartX = gesture.x;
-        touchStartY = gesture.y;
-        touchStartTime = millis();
-        touchActive = true;
-        break;
-        
-      case TOUCH_RELEASE:
-      case TOUCH_SWIPE_LEFT:
-      case TOUCH_SWIPE_RIGHT:
-      case TOUCH_SWIPE_UP:
-      case TOUCH_SWIPE_DOWN:
-        if (touchActive) {
-          // Use gesture.dx and gesture.dy which track total movement from start
-          int dx = gesture.dx;
-          int dy = gesture.dy;
-          unsigned long duration = gesture.duration;
-          
-          Serial.printf("[NAV] Release: dx=%d, dy=%d, dur=%lu, event=%d\n", dx, dy, duration, gesture.event);
-          
-          // Check if this is a swipe gesture
-          if (duration < SWIPE_MAX_DURATION_MS && (abs(dx) > SWIPE_THRESHOLD_MIN || abs(dy) > SWIPE_THRESHOLD_MIN)) {
-            Serial.printf("[NAV] SWIPE detected! Calling handleSwipeNavigation\n");
-            handleSwipeNavigation(dx, dy);
-          } else if (duration < 300 && abs(dx) < 20 && abs(dy) < 20) {
-            // This is a tap
-            Serial.printf("[NAV] Tap on watchface\n");
-            gesture.event = TOUCH_TAP;
-            gesture.x = touchStartX;
-            gesture.y = touchStartY;
-            handleCurrentScreenTouch(gesture);
-          }
-          touchActive = false;
-        }
-        break;
-        
-      case TOUCH_TAP:
+  if (gesture.is_valid && gesture.event != TOUCH_NONE && gesture.event != TOUCH_PRESS) {
+    handleTouchGesture(gesture);
+  }
+  
+  // Update dynamic content based on screen
+  updateCurrentScreen();
+  
+  // Reduce CPU usage
+  delay(16);  // ~60 FPS
+}
+
+// =============================================================================
+// TOUCH GESTURE HANDLER
+// =============================================================================
+
+void handleTouchGesture(TouchGesture& gesture) {
+  Serial.printf("[MAIN] Gesture: %d at (%d, %d)\n", gesture.event, gesture.x, gesture.y);
+  
+  // Handle based on current screen type
+  switch (system_state.current_screen) {
+    case SCREEN_WATCHFACE:
+    case SCREEN_APP_GRID:
+    case SCREEN_CHARACTER_STATS:
+      // Main navigation screens - handle swipes and taps
+      if (gesture.event == TOUCH_TAP) {
         handleCurrentScreenTouch(gesture);
-        break;
-        
-      default:
-        break;
-    }
-  }
-  
-  // Frame rate limiting for smooth performance
-  if (frameLimiter.shouldRender()) {
-    lv_timer_handler();
-  }
-  
-  // Update systems
-  updateBattery();
-  updateTrainingGame();
-  
-  // Check screen timeout for power saving
-  checkScreenTimeout();
-  
-  // Auto-save progress
-  autoSave();
-  
-  // Auto backup if enabled
-  performAutoBackup();
-  
-  // Small yield for system tasks
-  delay(2);
-}
-
-void updateBattery() {
-  static unsigned long lastUpdate = 0;
-  if (millis() - lastUpdate > 5000 && system_state.power_available) {
-    lastUpdate = millis();
-    if (PMU.isBatteryConnect()) {
-      system_state.battery_percentage = PMU.getBatteryPercent();
-      system_state.is_charging = PMU.isCharging();
-      
-      // Low battery warning
-      if (system_state.battery_percentage <= BATTERY_LOW_THRESHOLD && !system_state.is_charging) {
-        system_state.low_battery_warning = true;
+      } else if (gesture.event >= TOUCH_SWIPE_LEFT && gesture.event <= TOUCH_SWIPE_DOWN) {
+        handleSwipeNavigation(gesture.dx, gesture.dy);
       }
-    }
-  }
-}
-
-void checkScreenTimeout() {
-  if (screenTimeout.isTimedOut() && system_state.current_screen != SCREEN_SLEEP) {
-    // Dim screen or enter sleep mode
-    if (screenTimeout.getIdleTime() > 60000) {  // 1 minute = sleep
-      system_state.current_screen = SCREEN_SLEEP;
-      gfx->setBrightness(50);  // Dim display
-      setCPUFrequencyLow();     // Save power
-    }
-  }
-}
-
-void onTouchActivity() {
-  screenTimeout.resetTimer();
-  
-  // Wake from sleep if needed
-  if (system_state.current_screen == SCREEN_SLEEP) {
-    system_state.current_screen = SCREEN_WATCHFACE;
-    gfx->setBrightness(system_state.brightness);
-    setCPUFrequencyNormal();
-  }
-}
-
-// Daily login bonus check
-void checkDailyLogin() {
-  static bool daily_checked = false;
-  if (!daily_checked) {
-    system_state.daily_login_count++;
-    addGems(GEMS_DAILY_LOGIN, "Daily Login");
-    updateDailyCharacter();
-    daily_checked = true;
+      break;
     
-    // Save progress
-    saveAllData();
+    case SCREEN_GACHA:
+      if (gesture.event == TOUCH_TAP && gesture.y >= 380) {
+        returnToAppGrid();
+      } else {
+        handleGachaTouch(gesture);
+      }
+      break;
+    
+    case SCREEN_TRAINING:
+      if (gesture.event == TOUCH_TAP && gesture.y >= 420) {
+        returnToAppGrid();
+      } else {
+        handleTrainingMenuTouch(gesture);
+      }
+      break;
+    
+    case SCREEN_BOSS_RUSH:
+      if (gesture.event == TOUCH_TAP && gesture.y >= 420) {
+        returnToAppGrid();
+      } else {
+        handleBossRushTouch(gesture);
+      }
+      break;
+    
+    case SCREEN_GAMES:
+      if (gesture.event == TOUCH_TAP && gesture.y >= 420 && gesture.x >= 290) {
+        returnToAppGrid();
+      } else {
+        handleGameMenuTouch(gesture);
+      }
+      break;
+    
+    case SCREEN_QUESTS:
+      if (gesture.event == TOUCH_TAP && gesture.y >= 420) {
+        returnToAppGrid();
+      } else {
+        handleQuestTouch(gesture);
+      }
+      break;
+    
+    case SCREEN_ELEMENT_TREE:
+      // BoBoiBoy Element Tree - handle swipes for page changes and taps for selection
+      handleElementTreeTouch(gesture);
+      break;
+    
+    case SCREEN_FUSION_GAME:
+      // BoBoiBoy Fusion Minigame
+      handleFusionGameTouch(gesture);
+      break;
+    
+    case SCREEN_CHARACTER_GAME:
+      // Character-specific minigames
+      handleCharacterGameTouch(gesture);
+      break;
+    
+    case SCREEN_SETTINGS:
+      if (gesture.event == TOUCH_TAP && gesture.y >= 420) {
+        returnToAppGrid();
+      } else {
+        handleSettingsTouch(gesture);
+      }
+      break;
+    
+    case SCREEN_THEME_SELECTOR:
+      if (gesture.event == TOUCH_TAP && gesture.y >= 410) {
+        system_state.current_screen = SCREEN_SETTINGS;
+        drawSettingsApp();
+      } else {
+        handleThemeSelectorTouch(gesture);
+        drawThemeSelector();
+      }
+      break;
+    
+    case SCREEN_MUSIC:
+      if (gesture.event == TOUCH_TAP && gesture.y >= 420) {
+        returnToAppGrid();
+      } else {
+        handleMusicTouch(gesture);
+      }
+      break;
+    
+    case SCREEN_WEATHER_APP:
+      if (gesture.event == TOUCH_TAP && gesture.y >= 420) {
+        returnToAppGrid();
+      }
+      break;
+    
+    case SCREEN_WIFI_MANAGER:
+      if (gesture.event == TOUCH_TAP && gesture.y >= 420) {
+        returnToAppGrid();
+      } else {
+        handleWifiManagerTouch(gesture);
+      }
+      break;
+    
+    case SCREEN_COLLECTION:
+      if (gesture.event == TOUCH_TAP && gesture.y >= 420) {
+        system_state.current_screen = SCREEN_GACHA;
+        drawGachaScreen();
+      } else {
+        handleCollectionTouch(gesture);
+      }
+      break;
+    
+    case SCREEN_FILE_BROWSER:
+      if (gesture.event == TOUCH_TAP && gesture.y >= 420) {
+        returnToAppGrid();
+      } else {
+        handleFileBrowserTouch(gesture);
+      }
+      break;
+    
+    case SCREEN_CALCULATOR:
+      if (gesture.event == TOUCH_TAP && gesture.y >= 420) {
+        returnToAppGrid();
+      } else {
+        handleCalculatorTouch(gesture);
+      }
+      break;
+    
+    case SCREEN_FLASHLIGHT:
+      if (gesture.event == TOUCH_SWIPE_RIGHT || gesture.event == TOUCH_SWIPE_LEFT) {
+        returnToAppGrid();
+      } else {
+        handleFlashlightTouch(gesture);
+      }
+      break;
+    
+    default:
+      // For any other screen, tap on back button area returns to app grid
+      if (gesture.event == TOUCH_TAP && gesture.y >= 400) {
+        returnToAppGrid();
+      }
+      break;
   }
 }
 
 // =============================================================================
-// DATA PERSISTENCE
+// SCREEN UPDATE
 // =============================================================================
 
-void loadSavedData() {
-  Serial.println("[DATA] Loading saved data...");
+void updateCurrentScreen() {
+  static unsigned long lastUpdate = 0;
   
-  // Load player data
-  DataPersistence::loadPlayerData(
-    system_state.player_level,
-    system_state.player_xp,
-    system_state.player_gems
-  );
-  
-  // Load theme preference
-  system_state.current_theme = (ThemeType)DataPersistence::loadTheme();
-  
-  // Load steps
-  int savedDay;
-  DataPersistence::loadSteps(system_state.steps_today, savedDay);
-  
-  // Reset steps if new day
-  WatchTime now = getCurrentTime();
-  if (savedDay != now.day) {
-    system_state.steps_today = 0;
+  // Update every second for watch face
+  if (system_state.current_screen == SCREEN_WATCHFACE && millis() - lastUpdate > 1000) {
+    lastUpdate = millis();
+    drawWatchFace();
+    drawNavigationIndicators();
   }
   
-  // Load training streak
-  int lastTrainingDay;
-  DataPersistence::loadTrainingStreak(system_state.training_streak, lastTrainingDay);
+  // Update games
+  if (system_state.current_screen == SCREEN_GAMES) {
+    AdvancedGameManager::updateGame();
+  }
+}
+
+// =============================================================================
+// UTILITY FUNCTIONS
+// =============================================================================
+
+WatchTime getCurrentTime() {
+  WatchTime t;
   
-  // Reset streak if missed a day
-  if (now.day - lastTrainingDay > 1) {
-    system_state.training_streak = 0;
+  // Read from RTC if available
+  time_t now = time(nullptr);
+  struct tm* timeinfo = localtime(&now);
+  
+  if (timeinfo) {
+    t.hour = timeinfo->tm_hour;
+    t.minute = timeinfo->tm_min;
+    t.second = timeinfo->tm_sec;
+    t.day = timeinfo->tm_mday;
+    t.month = timeinfo->tm_mon + 1;
+    t.year = timeinfo->tm_year + 1900;
+    t.weekday = timeinfo->tm_wday;
+  } else {
+    // Fallback
+    t.hour = (millis() / 3600000) % 24;
+    t.minute = (millis() / 60000) % 60;
+    t.second = (millis() / 1000) % 60;
+    t.day = 15;
+    t.month = 6;
+    t.year = 2025;
+    t.weekday = 3;
   }
   
-  // Load settings
-  bool soundEnabled;
-  DataPersistence::loadSettings(system_state.brightness, soundEnabled);
-  
-  Serial.printf("[DATA] Loaded: Level %d, %d gems, %d steps\n",
-                system_state.player_level, system_state.player_gems, system_state.steps_today);
+  return t;
 }
 
 void saveAllData() {
-  Serial.println("[DATA] Saving all data...");
-  
-  // Save player data
-  DataPersistence::savePlayerData(
-    system_state.player_level,
-    system_state.player_xp,
-    system_state.player_gems
-  );
-  
-  // Save theme
-  DataPersistence::saveTheme((int)system_state.current_theme);
-  
-  // Save steps
-  WatchTime now = getCurrentTime();
-  DataPersistence::saveSteps(system_state.steps_today, now.day);
-  
-  // Save training streak
-  DataPersistence::saveTrainingStreak(system_state.training_streak, now.day);
-  
-  // Save settings
-  DataPersistence::saveSettings(system_state.brightness, true);
-  
-  Serial.println("[DATA] Save complete");
-}
-
-// Auto-save every 5 minutes
-void autoSave() {
-  static unsigned long lastSave = 0;
-  if (millis() - lastSave > 300000) {  // 5 minutes
-    lastSave = millis();
-    saveAllData();
-  }
+  saveGachaProgress();
+  saveGameProgress();
+  saveTrainingProgress();
+  saveBossProgress();
+  saveRPGProgress();
+  Serial.println("[SAVE] All data saved");
 }

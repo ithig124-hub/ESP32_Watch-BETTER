@@ -6,6 +6,7 @@
 #ifndef FILESYSTEM_H
 #define FILESYSTEM_H
 
+#include "types.h"  // Must include types.h for FileType, FileInfo, MusicFile, etc.
 #include "config.h"
 #include <SD.h>
 #include <FS.h>
@@ -15,6 +16,7 @@
 // =============================================================================
 
 bool initializeFileSystem();
+void initFilesystem();  // Alias for initializeFileSystem()
 bool checkSDCardAvailable();
 void handleSDCardRemoval();
 

@@ -337,7 +337,7 @@ void bossAction() {
   resetCombo();  // Getting hit resets combo
   
   char log[64];
-  sprintf(log, "%s attacks! %d dmg", boss->name.c_str(), damage);
+  sprintf(log, "%s attacks! %d dmg", boss->name, damage);
   addBattleLogEntry(log);
 }
 
@@ -500,7 +500,7 @@ void drawBossSelection() {
     gfx->setTextSize(1);
     gfx->setTextColor(COLOR_GRAY);
     gfx->setCursor(45, y + 32);
-    gfx->printf("%s | Lv.%d", boss->series.c_str(), boss->level);
+    gfx->printf("%s | Lv.%d", boss->series, boss->level);
     
     // Reward
     gfx->setTextColor(COLOR_GOLD);
@@ -525,7 +525,7 @@ void drawBossBattle() {
   gfx->setTextSize(1);
   gfx->setTextColor(COLOR_GRAY);
   gfx->setCursor(50, 40);
-  gfx->printf("Lv.%d - %s", boss->level, boss->series.c_str());
+  gfx->printf("Lv.%d - %s", boss->level, boss->series);
   
   // Boss HP bar
   drawBossHealthBar(30, 60, 300, 25, *boss);
@@ -673,11 +673,11 @@ void drawBossVictory(BossData& boss) {
   gfx->setTextColor(COLOR_WHITE);
   gfx->setTextSize(2);
   gfx->setCursor(80, 180);
-  gfx->printf("%s defeated!", boss.name.c_str());
+  gfx->printf("%s defeated!", boss.name);
   
   gfx->setTextColor(COLOR_GREEN);
   gfx->setCursor(100, 240);
-  gfx->printf("+%d Gems", boss.gem_reward);
+  gfx->printf("+%d Gems", boss.reward_gems);
   
   gfx->setTextSize(1);
   gfx->setCursor(100, 280);
@@ -729,6 +729,11 @@ void handleBossRushMenuTouch(TouchGesture& gesture) {
   if (y >= 410) {
     system_state.current_screen = SCREEN_GAMES;
   }
+}
+
+// Alias function for handleBossRushMenuTouch
+void handleBossRushTouch(TouchGesture& gesture) {
+  handleBossRushMenuTouch(gesture);
 }
 
 void handleBossSelectionTouch(TouchGesture& gesture) {

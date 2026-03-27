@@ -8,6 +8,7 @@
 #ifndef RPG_H
 #define RPG_H
 
+#include "types.h"  // Must include types.h for RPGCharacterType, QuestData, etc.
 #include "config.h"
 
 // =============================================================================
@@ -69,6 +70,7 @@ void updateQuestProgress();
 bool completeQuest(int quest_id);
 
 void drawQuestScreen();
+void handleQuestTouch(TouchGesture& gesture);  // Quest screen touch handler
 void drawQuestCard(int x, int y, int w, int h, QuestData& quest);
 void showQuestNotification(QuestData& quest);
 void showQuestCompleted(QuestData& quest);

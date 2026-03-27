@@ -28,6 +28,8 @@ struct UIComponent {
 
 void initializeUI();
 void ui_init();  // LVGL compatibility
+void drawSplashScreen();
+void drawAboutScreen();
 
 // Screen management
 void setCurrentScreen(ScreenType screen);

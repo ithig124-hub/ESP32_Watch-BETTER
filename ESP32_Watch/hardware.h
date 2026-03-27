@@ -8,6 +8,7 @@
 #ifndef HARDWARE_H
 #define HARDWARE_H
 
+#include "types.h"  // Must include types.h for BatteryInfo, PowerState, IMUData
 #include "config.h"
 #include <Wire.h>
 #include <time.h>
@@ -15,6 +16,9 @@
 // =============================================================================
 // POWER MANAGEMENT
 // =============================================================================
+
+// Initialize all hardware
+void initializeHardware();
 
 bool initializePower();
 bool initializeAXP2101();

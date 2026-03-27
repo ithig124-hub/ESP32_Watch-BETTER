@@ -23,6 +23,11 @@ bool initializeDisplay() {
   return true;
 }
 
+// Alias function for initializeDisplay
+void initDisplay() {
+  initializeDisplay();
+}
+
 void clearDisplay() {
   gfx->fillScreen(RGB565_BLACK);
 }

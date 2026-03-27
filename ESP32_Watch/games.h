@@ -6,6 +6,7 @@
 #ifndef GAMES_H
 #define GAMES_H
 
+#include "types.h"  // Must include types.h for GameType, GameState, BattleCreature, etc.
 #include "config.h"
 
 // Include sub-game systems

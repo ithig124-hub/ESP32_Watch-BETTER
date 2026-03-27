@@ -6,6 +6,7 @@
 #ifndef WIFI_APPS_H
 #define WIFI_APPS_H
 
+#include "types.h"  // Must include types.h for WiFiState, WeatherData, NewsArticle
 #include "config.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
@@ -30,6 +31,7 @@ struct WiFiConfig {
 // =============================================================================
 
 void initWiFiManager();
+void initWifiApps();  // Alias for initWiFiManager()
 void updateWiFiManager();
 void updateWiFiStatus();
 
@@ -57,6 +59,7 @@ void showWiFiSetupScreen();
 void showNetworkScanScreen();
 void showNetworkStatusScreen();
 void handleWiFiSetupTouch(TouchGesture& gesture);
+void handleWifiManagerTouch(TouchGesture& gesture);  // Alias for WiFi setup touch
 
 void drawNetworkListScreen();
 void drawPasswordEntryScreen();

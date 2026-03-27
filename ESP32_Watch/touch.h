@@ -21,11 +21,15 @@ struct TouchPoint {
 // =============================================================================
 
 bool initializeTouch();
+bool initTouch();  // Alias for initializeTouch()
 bool touchRead(uint16_t &x, uint16_t &y);
 bool touchReadEx(uint16_t &x, uint16_t &y, uint8_t &pressure);
 TouchGesture handleTouchInput();
 bool isTouchPressed();
 void getTouchPosition(int& x, int& y);
+
+// Touch interrupt handler (ISR)
+void IRAM_ATTR touchISR();
 
 // Gesture recognition
 TouchEvent recognizeGesture(int start_x, int start_y, int end_x, int end_y, unsigned long duration);

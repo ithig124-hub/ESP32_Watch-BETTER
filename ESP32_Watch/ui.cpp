@@ -120,6 +120,52 @@ void drawSplashScreen() {
   gfx->print("WATCH");
 }
 
+void drawAboutScreen() {
+  gfx->fillScreen(COLOR_BLACK);
+  
+  // Title
+  gfx->setTextColor(getCurrentTheme()->primary);
+  gfx->setTextSize(2);
+  gfx->setCursor(120, 30);
+  gfx->print("ABOUT");
+  
+  // Info
+  gfx->setTextColor(COLOR_WHITE);
+  gfx->setTextSize(1);
+  
+  gfx->setCursor(30, 80);
+  gfx->print("ESP32 Anime Gaming Smartwatch");
+  
+  gfx->setCursor(30, 110);
+  gfx->print("Version: 2.0 IMPROVED");
+  
+  gfx->setCursor(30, 140);
+  gfx->print("11 Anime Themes");
+  
+  gfx->setCursor(30, 170);
+  gfx->print("BoBoiBoy Element System");
+  
+  gfx->setCursor(30, 200);
+  gfx->print("Fusion Minigame");
+  
+  gfx->setCursor(30, 230);
+  gfx->print("Dynamic Day/Night BG");
+  
+  gfx->setTextColor(getCurrentTheme()->accent);
+  gfx->setCursor(30, 280);
+  gfx->print("Hardware:");
+  
+  gfx->setTextColor(COLOR_GRAY);
+  gfx->setCursor(30, 300);
+  gfx->print("ESP32-S3 + SH8601 AMOLED");
+  
+  gfx->setCursor(30, 320);
+  gfx->print("368x448 pixels");
+  
+  // Back button
+  drawThemeButton(140, 400, 80, 35, "Back", false);
+}
+
 // =============================================================================
 // COMPONENT DRAWING
 // =============================================================================

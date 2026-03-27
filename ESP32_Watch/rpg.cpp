@@ -546,6 +546,28 @@ void drawQuestScreen() {
   drawThemeButton(140, 420, 80, 30, "Back", false);
 }
 
+// Touch handler for quest screen
+void handleQuestTouch(TouchGesture& gesture) {
+  if (gesture.event != TOUCH_TAP) return;
+  
+  // Check for quest taps to claim rewards
+  for (int i = 0; i < min(active_quest_count, 4); i++) {
+    int y = 70 + i * 90;
+    if (gesture.y >= y && gesture.y < y + 80) {
+      if (active_quests[i].completed && !active_quests[i].claimed) {
+        giveQuestReward(active_quests[i]);
+        drawQuestScreen();
+      }
+      return;
+    }
+  }
+  
+  // Back button
+  if (gesture.y >= 410) {
+    system_state.current_screen = SCREEN_CHARACTER_STATS;
+  }
+}
+
 void drawQuestCard(int x, int y, int w, int h, QuestData& quest) {
   uint16_t bg = quest.completed ? RGB565(0, 60, 0) : RGB565(40, 40, 40);
   if (quest.urgent) bg = RGB565(80, 0, 0);
@@ -580,11 +602,11 @@ void drawQuestCard(int x, int y, int w, int h, QuestData& quest) {
 }
 
 void showQuestNotification(QuestData& quest) {
-  drawThemeNotification("New Quest!", quest.title.c_str());
+  drawThemeNotification("New Quest!", quest.title);
 }
 
 void showQuestCompleted(QuestData& quest) {
-  drawThemeNotification("Quest Complete!", quest.title.c_str());
+  drawThemeNotification("Quest Complete!", quest.title);
 }
 
 QuestData generateLuffyQuest() {
@@ -600,7 +622,7 @@ QuestData generateYugoQuest() {
 }
 
 void giveQuestReward(QuestData& quest) {
-  gainExperience(quest.reward_points, quest.title.c_str());
+  gainExperience(quest.reward_points, quest.title);
 }
 
 void updatePlayerLevel() {

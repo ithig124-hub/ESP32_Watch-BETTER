@@ -1,213 +1,212 @@
-# S3 MiniOS v4.0 - ULTIMATE PREMIUM EDITION
+# ESP32 Anime Gaming Smartwatch - IMPROVED Edition
 
-## 📱 ESP32-S3 Smartwatch Firmware - Premium LVGL UI + Battery Intelligence
+A modern anime-themed smartwatch firmware with **11 anime character themes** (including BoBoiBoy!), gacha collection system, mini-games, and improved navigation.
 
-This is a **merged firmware** combining the best features from v2.0 (Premium LVGL UI) and v3.1 (Battery Intelligence) for Waveshare ESP32-S3 Touch AMOLED smartwatch boards.
+## NEW! Latest Features
 
----
+### Dynamic Day/Night Backgrounds
+- All watch faces now change based on time of day
+- **Dawn** (5-8am): Purple-blue to orange-pink gradient, few stars, rising sun
+- **Morning** (8-12pm): Bright blue sky with clouds
+- **Afternoon** (12-5pm): Clear blue sky, full sun
+- **Evening** (5-8pm): Deep purple to orange sunset, stars appearing
+- **Night** (8pm-5am): Dark void with moon and twinkling stars
+- Each character has unique ambient particle effects!
 
-## 🎨 Supported Boards
+### BoBoiBoy: Tap-to-Switch Elements
+- **Tap the center** of the watch face to manually switch elements
+- No more waiting for auto-cycle - instant element changes!
+- Ochobot announces each element change
 
-| Board | Display | Resolution | Folder |
-|-------|---------|------------|--------|
-| ESP32-S3-Touch-AMOLED-1.8" | SH8601 QSPI AMOLED | 368×448 | `S3_MiniOS_1.8/` |
-| ESP32-S3-Touch-AMOLED-2.06" | CO5300 QSPI AMOLED | 412×412 (Round) | `S3_MiniOS_2.06/` |
+### Ochobot Assistant
+- Cute Power Sphere helper appears in BoBoiBoy mode
+- Gives tips and notifications with speech bubbles
+- Bouncing idle animation with blinking eyes
+- Shows element-specific tips
 
----
+### Fusion Minigame (BoBoiBoy)
+- Drag and drop elements (base or evolved) to the fusion zone
+- Valid combinations unlock new fusion forms!
 
-## ✨ Features Overview
+**Official BoBoiBoy Fusions:**
+| Fusion | Elements | First Appearance |
+|--------|----------|------------------|
+| **FrostFire** | Blaze + Ice | BoBoiBoy Movie 2 |
+| **Glacier** | Quake + Ice | BoBoiBoy Movie 2 |
+| **Supra** | Thunderstorm + Solar | BoBoiBoy Movie 2 |
+| **Sori** | Thorn + Solar | Galaxy S2 Issue 9 |
+| **Rumble** | Quake + Thunderstorm | Galaxy S2 Issue 15 |
+| **Sopan** | Solar + Cyclone | Galaxy S2 Issue 20 |
 
-### Premium LVGL UI (from v2.0)
-- 🎨 **8 Apple Watch-style Gradient Themes** (Midnight, Ocean, Sunset, Aurora, Forest, Ruby, Graphite, Mint)
-- 🧭 **Full Sensor Fusion Compass** with Kalman filter and smooth animation
-- 🎮 **Premium Games**: Blackjack with visual cards, Dino Runner with physics, Yes/No Spinner
-- ⭕ **Activity Rings** (Move, Exercise, Stand) - Apple Watch style
-- 📈 **Stocks & Crypto** live prices (BTC, ETH, AAPL, TSLA)
-- 🏃 **Step Tracking** with streak tracking and achievements
-- 🎵 **Music Control** with progress bar
-- ⏱️ **Timers**: Sand Timer, Stopwatch, Countdown, Breathe wellness
-- 📅 **Calendar** with current date highlighting
-- 🖼️ **SD Card Wallpaper Support**
+### Character-Specific Minigames
+| Character | Game | Description |
+|-----------|------|-------------|
+| **Luffy** | Gomu Gomu Punch | Hold to stretch, release at perfect timing |
+| **Gojo** | Domain Dodge | Dodge cursed energy in Unlimited Void |
+| **Levi** | Titan Slayer | Swipe to slash titan napes |
+| **Saitama** | One Punch | Tap once to win (joke game) |
+| **BoBoiBoy** | Element Battle | Rock-paper-scissors combat with elements |
 
-### Battery Intelligence (from v3.1)
-- 🔋 **Smart Battery Estimation** using 3 algorithms:
-  - Simple (capacity-based)
-  - Weighted (recent usage)
-  - Learned (7-day patterns)
-- 📊 **24-Hour Usage Graphs** (screen time per hour)
-- 📉 **Card Usage Analytics** (% time on each feature)
-- 🔌 **Charging Animation** with status display
-- ⚡ **Battery Saver Mode** (auto-enable at 10%)
-- ⚠️ **Low Battery Popup** at 20% and 10%
-- 💾 **Persistent Data Storage** with auto-save every 2 hours
+### Element Battle System
+- Choose your element wisely - each has strengths and weaknesses!
+- Charge power meter by waiting
+- Swipe left/right to switch elements mid-battle
+- Tap to attack when power is charged
 
----
+## Key Improvements Over Original
 
-## 📁 File Structure
+### Navigation
+- **Better Swipe Detection**: Reduced thresholds (30px vs 50px) for easier swipes
+- **All Apps Accessible**: Every app can now be tapped and opened
+- **Clear Touch Targets**: Bigger app icons (100x90px) with better hit detection
+- **Smooth Transitions**: Proper navigation state management
 
-Each board folder contains **5 .ino files** that Arduino IDE will merge automatically:
+### Visual Design
+- **Modern Glass Morphism**: Frosted glass UI throughout
+- **Anime Color Themes**: Each character has a unique color palette
+- **Activity Rings**: Apple Watch-style progress rings
+- **Premium Watch Faces**: 11 distinct designs, one for each character
 
-```
-S3_MiniOS_1.8/  (or S3_MiniOS_2.06/)
-├── S3_MiniOS.ino          # Main: Config, data structures, navigation
-├── S3_MiniOS_Part2.ino    # Clock, Compass, Activity cards
-├── S3_MiniOS_Part3.ino    # Games, Weather, Stocks, Music cards
-├── S3_MiniOS_Part4.ino    # Timers, Streaks, Calendar, System, Battery Stats
-└── S3_MiniOS_Part5.ino    # Setup & Loop
-```
+### Usability
+- **Navigation Indicators**: Dots showing current screen position
+- **Touch Feedback**: Visual feedback on button presses
+- **Better Contrast**: High contrast text on AMOLED
+- **Faster Responsiveness**: Reduced navigation cooldown (200ms)
 
----
+## 11 Anime Character Themes
 
-## 🛠️ Installation
+| # | Character | Anime | Primary Colors |
+|---|-----------|-------|----------------|
+| 1 | **Luffy (Gear 5)** | One Piece | Sun Gold / White |
+| 2 | **Sung Jin-Woo** | Solo Leveling | Monarch Purple / Void Black |
+| 3 | **Yugo** | Wakfu | Portal Cyan / Teal |
+| 4 | **Naruto (Sage)** | Naruto | Chakra Orange / Gold |
+| 5 | **Goku (UI)** | Dragon Ball | Divine Silver / Blue |
+| 6 | **Tanjiro** | Demon Slayer | Fire Orange / Green |
+| 7 | **Gojo** | Jujutsu Kaisen | Infinity Blue / Purple |
+| 8 | **Levi** | Attack on Titan | Military Green / Silver |
+| 9 | **Saitama** | One Punch Man | Hero Yellow / Cape Red |
+| 10 | **Deku** | My Hero Academia | Hero Green / Lightning |
+| 11 | **BoBoiBoy** | BoBoiBoy Galaxy | **7 Elemental Colors** |
 
-### Required Libraries
-Install these via Arduino Library Manager:
+### BoBoiBoy Special Features
+The BoBoiBoy theme includes all **7 elemental forms**:
+- **Halilintar** (Lightning) - Electric Yellow/Black
+- **Taufan** (Wind/Cyclone) - Sky Blue/Cyan  
+- **Gempa** (Earth/Quake) - Brown/Orange
+- **Blaze** (Fire) - Crimson Red
+- **Ice** (Water) - Pure Cyan/White
+- **Thorn** (Leaf) - Forest Green
+- **Solar** (Light) - Golden/Orange
 
-```
-- LVGL (8.3.x)
-- ArduinoJson
-- XPowersLib
-- Adafruit_BusIO
-- Arduino_GFX_Library (Waveshare fork)
-- Arduino_DriveBus_Library (Waveshare)
-- SensorLib (Waveshare)
-```
+**NEW: Tap center to switch elements manually!** Ochobot will announce the change.
 
-### Board Setup
-1. Install ESP32 Arduino Core (2.0.x or newer)
-2. Select board: **ESP32S3 Dev Module**
-3. Settings:
-   - Flash Mode: QIO 80MHz
+### BoBoiBoy Element Tree App
+When in BoBoiBoy mode, the **QUESTS** app is replaced with **ELEMENTS** - a dedicated element tree showing:
+
+**20 Total Forms:**
+- **7 Base Elements** (Tier 1) - Always unlocked
+- **7 Evolved Forms** (Tier 2) - Thunderstorm, Cyclone, Quake, Inferno, Glacier, Darkwood, Supernova
+- **6 Fusions** - FrostFire, Volcanice, ThunderBlaze, Supra, Gentar, Beliung
+
+**Features:**
+- Visual tree with connections showing evolution paths
+- Tap elements to see details (name, power, description)
+- Swipe between Base/Evolved/Fusion pages
+- Unlock progression system (Tier 2 & Fusions can be unlocked through gameplay)
+
+## Apps Included
+
+### Page 1 (Main)
+- **GACHA** - Collect anime character cards
+- **TRAINING** - Mini-games for rewards
+- **BOSS** - Boss Rush mode
+- **GAMES** - Battle Arena, Snake, Memory Match
+- **QUESTS** - Daily/weekly missions
+- **MUSIC** - Audio player
+- **WEATHER** - Weather display
+- **WIFI** - Network manager
+- **SETTINGS** - System settings
+
+### Page 2 (More)
+- **THEMES** - Change character themes
+- **COLLECT** - View card collection
+- **FILES** - File browser
+- **CALC** - Calculator
+- **TORCH** - Flashlight
+- **OTA** - Firmware update
+- **BACKUP** - Data backup
+- **FUSION** - Card fusion (coming soon)
+- **ABOUT** - System info
+
+## Navigation
+
+- **Swipe LEFT/RIGHT**: Switch between main screens
+  - Watchface → App Grid → Character Stats
+- **Swipe UP/DOWN**: Switch app grid pages (on App Grid)
+- **TAP**: Open apps or interact with buttons
+- **Navigation Dots**: Bottom of screen shows current position
+
+## Hardware Requirements
+
+- **MCU**: ESP32-S3 (PSRAM recommended)
+- **Display**: 368x448 SH8601 AMOLED (QSPI)
+- **Touch**: FT3168 Capacitive (I2C)
+- **Power**: AXP2101 PMU
+- **Storage**: SD card for save data
+
+Compatible with: **ESP32-S3-Touch-AMOLED-1.8"**
+
+## Installation
+
+1. Open Arduino IDE 2.0+
+2. Install ESP32 board support
+3. Install required libraries:
+   - Arduino_GFX (for SH8601)
+4. Open `ESP32_Watch_IMPROVED.ino`
+5. Select board: **ESP32-S3 Dev Module**
+6. Configure:
+   - Flash Mode: QIO
    - Flash Size: 16MB
-   - Partition Scheme: 16M Flash (3MB APP/9.9MB FATFS)
    - PSRAM: OPI PSRAM
-   - USB CDC On Boot: Enabled
+7. Upload!
 
-### Upload
-1. Copy the appropriate folder (`S3_MiniOS_1.8` or `S3_MiniOS_2.06`) to your Arduino sketches
-2. Open `S3_MiniOS.ino` in Arduino IDE
-3. The IDE will automatically include all Part files
-4. Upload!
+## File Structure
 
----
-
-## 📶 WiFi Configuration
-
-Create a file on your SD card at `/wifi/config.txt`:
-
-```ini
-# WiFi Configuration
-WIFI1_SSID=YourNetwork1
-WIFI1_PASS=password1
-
-WIFI2_SSID=YourNetwork2
-WIFI2_PASS=password2
-
-# Weather location
-CITY=Sydney
-COUNTRY=AU
-GMT_OFFSET=10
+```
+ESP32_Watch_IMPROVED/
+├── ESP32_Watch_IMPROVED.ino  # Main firmware
+├── config.h                   # Configuration & colors
+├── navigation.h/cpp           # Improved navigation
+├── themes.h/cpp              # 10 character themes
+├── apps.h/cpp                # App implementations
+├── games.h/cpp               # Games system
+├── gacha.h/cpp               # Gacha collection
+├── training.h/cpp            # Training mini-games
+├── boss_rush.h/cpp           # Boss Rush mode
+├── rpg.h/cpp                 # RPG progression
+└── ... (other modules)
 ```
 
----
+## Customization
 
-## 📱 Navigation
+### Adding New Themes
+Edit `themes.cpp` and add:
+1. New `ThemeColors` struct
+2. New `CharacterProfile`
+3. New watch face draw function
+4. Update `setTheme()` switch case
 
-| Gesture | Action |
-|---------|--------|
-| Swipe Left/Right | Switch categories |
-| Swipe Up/Down | Switch sub-cards within category |
-| Tap | Interact with buttons |
+### Changing Colors
+Colors use RGB565 format: `RGB565(r, g, b)`
+Edit the color definitions in `config.h`
 
-### Categories (12 total)
-1. ⏰ **Clock** - Digital & Analog
-2. 🧭 **Compass** - Heading, Level, Rotation
-3. 🏃 **Activity** - Steps, Rings, Workout, Distance
-4. 🎮 **Games** - Blackjack, Dino, Yes/No
-5. 🌤️ **Weather** - Current & 3-Day Forecast
-6. 📈 **Stocks** - Stocks & Crypto
-7. 🎵 **Media** - Music, Gallery
-8. ⏱️ **Timer** - Sand, Stopwatch, Countdown, Breathe
-9. 🔥 **Streak** - Steps, Games, Achievements
-10. 📅 **Calendar** - Monthly view
-11. ⚙️ **Settings** - Theme, Brightness, Battery Saver
-12. 🔋 **System** - Battery, Stats, Usage Patterns
+## Credits
 
----
+- Original firmware concept and base code
+- Enhanced by community contributions
+- Free to modify and distribute!
 
-## 🔋 Battery Stats Explained
+## License
 
-The System category has 3 sub-cards:
-
-1. **Battery** - Main view with percentage, voltage, estimates
-2. **Battery Stats** - 24h screen time graph, estimate breakdown, card usage
-3. **Usage Patterns** - Weekly screen time, drain analysis
-
-### Estimation Methods
-- **Simple**: Based on battery capacity and current draw
-- **Weighted**: Recent drain rate (40% weight)
-- **Learned**: 7-day average patterns
-- **Combined**: Weighted average of all three (30/40/30)
-
----
-
-## 🎨 Themes
-
-| Theme | Primary | Accent |
-|-------|---------|--------|
-| Midnight | Dark Gray | Blue |
-| Ocean | Deep Blue | Teal |
-| Sunset | Orange | Gold |
-| Aurora | Purple | Pink |
-| Forest | Dark Green | Mint |
-| Ruby | Dark Red | Coral |
-| Graphite | Charcoal | Gray |
-| Mint | Teal | Cyan |
-
----
-
-## 📊 Hardware Support
-
-### Sensors
-- ✅ QMI8658 IMU (Accelerometer + Gyroscope)
-- ✅ PCF85063 RTC (Real-Time Clock)
-- ✅ AXP2101 PMU (Power Management)
-- ✅ FT3168 Capacitive Touch
-
-### Connectivity
-- ✅ WiFi (Multi-network support via SD card)
-- ✅ NTP Time Sync
-- ✅ OpenWeatherMap API
-- ✅ CoinGecko Crypto API
-
-### Storage
-- ✅ SD Card (WiFi config, wallpapers)
-- ✅ SPIFFS (future use)
-- ✅ Preferences (persistent settings)
-
----
-
-## 📝 Changelog
-
-### v4.0 (Merged Edition)
-- Combined v2.0 LVGL UI + v3.1 Battery Intelligence
-- Support for both 1.8" and 2.06" boards
-- Fixed all card UI layouts
-- Added mini status bar with battery estimate to all cards
-- Enhanced low battery handling
-- Improved touch gesture detection
-
----
-
-## 🙏 Credits
-
-- Original LVGL UI: S3_MiniOS v2.0
-- Battery Intelligence: S3_MiniOS v3.1
-- Hardware: Waveshare ESP32-S3-Touch-AMOLED Series
-- Graphics Library: Arduino_GFX
-
----
-
-## 📄 License
-
-MIT License - Feel free to modify and distribute!
+Open Source - Free to use, modify, and distribute

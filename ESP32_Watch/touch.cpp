@@ -67,11 +67,24 @@ bool initializeTouch() {
   return true;
 }
 
+// Alias function for initializeTouch
+bool initTouch() {
+  return initializeTouch();
+}
+
+// Touch interrupt flag (declared extern in main .ino)
+extern volatile bool touch_interrupt;
+
+// Touch ISR handler
+void IRAM_ATTR touchISR() {
+  touch_interrupt = true;
+}
+
 // =============================================================================
 // TOUCH GESTURE HANDLING - NO MAPPING NEEDED, coordinates are screen pixels
 // =============================================================================
 TouchGesture handleTouchInput() {
-  TouchGesture gesture = {TOUCH_NONE, 0, 0, 0, 0, 0, 0, 0, 0, 0, millis(), 0, false};
+  TouchGesture gesture = {TOUCH_NONE, 0, 0, 0, 0, 0, 0, 0, 0, 0, millis(), false};
   
   uint16_t raw_x, raw_y;
   bool hasTouchNow = touchRead(raw_x, raw_y);

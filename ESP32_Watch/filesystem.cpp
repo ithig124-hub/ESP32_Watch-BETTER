@@ -52,6 +52,11 @@ bool initializeFileSystem() {
   return false;
 }
 
+// Alias function for initializeFileSystem
+void initFilesystem() {
+  initializeFileSystem();
+}
+
 bool checkSDCardAvailable() {
   return sd_available;
 }

@@ -7,6 +7,7 @@
 #ifndef BOSS_RUSH_H
 #define BOSS_RUSH_H
 
+#include "types.h"  // Must include types.h for BossData, BossTier
 #include "config.h"
 
 // =============================================================================
@@ -60,6 +61,7 @@ void drawBossVictory(BossData& boss);
 void drawBossDefeat();
 
 void handleBossRushMenuTouch(TouchGesture& gesture);
+void handleBossRushTouch(TouchGesture& gesture);  // Alias for menu touch
 void handleBossSelectionTouch(TouchGesture& gesture);
 void handleBossBattleTouch(TouchGesture& gesture);
 

@@ -35,6 +35,31 @@ static bool timer_running = false;
 // POWER MANAGEMENT
 // =============================================================================
 
+void initializeHardware() {
+  Serial.println("[HW] Initializing hardware...");
+  
+  // Initialize I2C
+  Wire.begin(IIC_SDA, IIC_SCL);
+  Wire.setClock(400000);  // 400kHz fast mode
+  
+  // Initialize power management
+  if (initializePower()) {
+    system_state.power_available = true;
+  }
+  
+  // Initialize sensors
+  if (initializeSensors()) {
+    Serial.println("[HW] Sensors initialized");
+  }
+  
+  // Initialize RTC
+  if (initializeRTC()) {
+    Serial.println("[HW] RTC initialized");
+  }
+  
+  Serial.println("[HW] Hardware initialization complete");
+}
+
 bool initializePower() {
   return initializeAXP2101();
 }

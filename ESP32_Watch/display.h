@@ -41,7 +41,9 @@ extern Arduino_SH8601 *gfx;
 // DISPLAY FUNCTIONS
 // =============================================================================
 
+// Initialization
 bool initializeDisplay();
+void initDisplay();  // Alias for initializeDisplay()
 void clearDisplay();
 void updateDisplay();
 void setDisplayBrightness(int brightness);

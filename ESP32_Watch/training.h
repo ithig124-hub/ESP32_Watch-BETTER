@@ -7,6 +7,7 @@
 #ifndef TRAINING_H
 #define TRAINING_H
 
+#include "types.h"  // Must include types.h for TrainingType, TrainingScore
 #include "config.h"
 
 // =============================================================================

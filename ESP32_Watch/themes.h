@@ -1,7 +1,8 @@
 /*
- * themes.h - Complete Theme System
- * All 10 Premium Anime Characters with full effects
- * Daily rotating characters, glass morphism UI
+ * themes.h - IMPROVED Theme System Header
+ * Modern Anime Gaming Smartwatch - Enhanced Edition
+ * 
+ * All 10 Premium Anime Characters with modern visual effects
  */
 
 #ifndef THEMES_H
@@ -9,7 +10,7 @@
 
 #include "config.h"
 
-// Theme color schemes for all 10 characters
+// Theme color schemes for all 11 characters (including BoBoiBoy)
 extern ThemeColors luffy_gear5_theme;
 extern ThemeColors sung_jinwoo_theme;
 extern ThemeColors yugo_wakfu_theme;
@@ -20,10 +21,11 @@ extern ThemeColors gojo_infinity_theme;
 extern ThemeColors levi_strongest_theme;
 extern ThemeColors saitama_opm_theme;
 extern ThemeColors deku_plusultra_theme;
+extern ThemeColors boboiboy_elemental_theme;  // NEW: BoBoiBoy
 extern ThemeColors* current_theme;
 
-// Character profiles for all 10 characters
-extern CharacterProfile character_profiles[10];
+// Character profiles (11 characters)
+extern CharacterProfile character_profiles[11];
 
 // =============================================================================
 // THEME MANAGEMENT
@@ -40,10 +42,10 @@ const char* getThemeName(ThemeType theme);
 // Daily rotation
 void updateDailyCharacter();
 ThemeType getDailyRotationTheme(int day_of_week);
-bool isMainCharacter(ThemeType theme);  // Luffy, Jin-Woo, Yugo always available
+bool isMainCharacter(ThemeType theme);
 
 // =============================================================================
-// WATCH FACES - ALL 10 CHARACTERS
+// WATCH FACES - ALL 10 CHARACTERS (IMPROVED)
 // =============================================================================
 
 void drawWatchFace();
@@ -57,6 +59,7 @@ void drawGojoWatchFace();
 void drawLeviWatchFace();
 void drawSaitamaWatchFace();
 void drawDekuWatchFace();
+void drawBoboiboyWatchFace();  // NEW: BoBoiBoy
 void drawSleepWatchFace();
 
 // Custom wallpaper
@@ -65,73 +68,74 @@ void drawWallpaperOverlayElements();
 void drawMinimalTimeOverlay();
 
 // =============================================================================
-// CHARACTER EFFECTS - ALL 10 CHARACTERS
+// CHARACTER EFFECTS - MODERN ANIME STYLE
 // =============================================================================
 
-// Luffy Gear 5
+// Luffy Gear 5 - Sun God effects
 void drawLuffyGear5Effects();
 void drawLuffySunRays();
 void drawLuffyCloudWisps();
 void drawLuffyRubberStretch();
 
-// Jin-Woo Shadow Monarch
+// Jin-Woo Shadow Monarch - Dark power effects
 void drawJinwooShadows();
 void drawJinwooAriseEffect();
 void drawJinwooVoidRifts();
 void drawJinwooWeaponTrails();
 
-// Yugo Portal Master
+// Yugo Portal Master - Portal energy
 void drawYugoPortals();
 void drawYugoWakfuParticles();
 void drawYugoDimensionalRifts();
 void drawYugoEnergyOrbs();
 
-// Naruto Sage Mode
+// Naruto Sage Mode - Chakra effects
 void drawNarutoSageAura();
 void drawNarutoKuramaFlames();
 void drawNarutoRasengan();
 void drawNarutoShadowClones();
 
-// Goku Ultra Instinct
+// Goku Ultra Instinct - Divine silver aura
 void drawGokuUIAura();
 void drawGokuKiBlasts();
 void drawGokuSpeedLines();
 void drawGokuDivineGlow();
 
-// Tanjiro Sun Breathing
+// Tanjiro Sun Breathing - Fire effects
 void drawTanjiroSunFlames();
 void drawTanjiroWaterTechniques();
 void drawTanjiroHinokamiKagura();
 void drawTanjiroNichirinBlade();
 
-// Gojo Infinity
+// Gojo Infinity - Cursed energy
 void drawGojoInfinityAura();
 void drawGojoSixEyesGlow();
 void drawGojoHollowPurple();
 void drawGojoDomainExpansion();
 
-// Levi Humanity's Strongest
+// Levi - ODM Gear effects
 void drawLeviBladeShine();
 void drawLeviODMGearMotion();
 void drawLeviSpeedBlur();
 void drawLeviCleanAesthetic();
 
-// Saitama One Punch
+// Saitama - Impact effects
 void drawSaitamaPunchImpact();
 void drawSaitamaCapeFlow();
 void drawSaitamaDotEyes();
 void drawSaitamaPowerEffect();
 
-// Deku Plus Ultra
+// Deku - OFA Lightning
 void drawDekuOFALightning();
 void drawDekuFullCowlAura();
 void drawDekuAirForce();
 void drawDekuPowerStrainMarks();
 
 // =============================================================================
-// ACTIVITY RINGS - ALL CHARACTERS
+// ACTIVITY RINGS - CHARACTER THEMED
 // =============================================================================
 
+void drawActivityRing(int centerX, int centerY, int radius, float progress, uint16_t color, int thickness);
 void drawLuffyActivityRings(int centerX, int centerY);
 void drawJinwooActivityRings(int centerX, int centerY);
 void drawYugoActivityRings(int centerX, int centerY);
@@ -142,6 +146,7 @@ void drawGojoActivityRings(int centerX, int centerY);
 void drawLeviActivityRings(int centerX, int centerY);
 void drawSaitamaActivityRings(int centerX, int centerY);
 void drawDekuActivityRings(int centerX, int centerY);
+void drawBoboiboyActivityRings(int centerX, int centerY);  // NEW
 
 // =============================================================================
 // ANIMATIONS
@@ -157,9 +162,10 @@ void playGojoAnimation();
 void playLeviAnimation();
 void playSaitamaAnimation();
 void playDekuAnimation();
+void playBoboiboyAnimation();  // NEW: BoBoiBoy element cycling
 
 // =============================================================================
-// UI ELEMENTS - GLASS MORPHISM
+// UI ELEMENTS - MODERN GLASS MORPHISM
 // =============================================================================
 
 void drawThemeButton(int x, int y, int w, int h, const char* text, bool pressed);
@@ -173,13 +179,17 @@ void drawGlassButton(int x, int y, int w, int h, const char* text, bool pressed)
 void drawGlassCard(int x, int y, int w, int h);
 void drawGlassStatBar(int x, int y, int w, int h, float progress, uint16_t color, const char* label);
 
-// Character Signature Rings
+// Character effects
 void drawCharacterRings(int centerX, int centerY);
 void drawPulsingGlow(int x, int y, int radius, uint16_t color);
 
 // Watch face utilities
 void drawStepCounter();
 void drawBatteryIndicator();
+
+// Character-specific watch face elements
+void drawLuffyStatsCards();
+void drawLuffySunRays();
 
 // =============================================================================
 // CHARACTER STATS DISPLAY

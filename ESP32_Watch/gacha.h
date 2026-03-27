@@ -7,6 +7,7 @@
 #ifndef GACHA_H
 #define GACHA_H
 
+#include "types.h"  // Must include types.h for GachaCard, GachaRarity
 #include "config.h"
 
 // =============================================================================

@@ -213,10 +213,10 @@ void drawBattleArena() {
   
   // Move buttons
   for (int i = 0; i < 4; i++) {
-    if (player.moves[i].length() > 0) {
+    if (strlen(player.moves[i]) > 0) {
       int x = (i % 2) * 180 + 10;
       int y = (i / 2) * 60 + 300;
-      drawGameButton(x, y, 170, 55, player.moves[i].c_str(), current_game_session.selected_move == i);
+      drawGameButton(x, y, 170, 55, player.moves[i], current_game_session.selected_move == i);
     }
   }
   
@@ -263,7 +263,7 @@ void executeBattleTurn() {
   int move_idx = current_game_session.selected_move;
   int damage = calculateDamage(player, enemy, player.move_power[move_idx]);
   enemy.hp -= damage;
-  addBattleLog(player.name + " used " + player.moves[move_idx] + "!");
+  addBattleLog(String(player.name) + " used " + String(player.moves[move_idx]) + "!");
   addBattleLog("Dealt " + String(damage) + " damage!");
   
   if (enemy.hp <= 0) {
@@ -278,7 +278,7 @@ void executeBattleTurn() {
   int enemy_move = random(0, 2);
   damage = calculateDamage(enemy, player, enemy.move_power[enemy_move]);
   player.hp -= damage;
-  addBattleLog(enemy.name + " used " + enemy.moves[enemy_move] + "!");
+  addBattleLog(String(enemy.name) + " used " + String(enemy.moves[enemy_move]) + "!");
   
   if (player.hp <= 0) {
     player.hp = 0;

@@ -1,22 +1,32 @@
 /*
- * themes.cpp - Complete Theme Implementation
- * All 10 Premium Anime Characters with full visual themes
- * Glass morphism UI, character effects, activity rings
+ * themes.cpp - IMPROVED Theme Implementation
+ * Modern Anime Gaming Smartwatch - Enhanced Edition
+ * 
+ * IMPROVEMENTS:
+ * - Modern glass morphism UI throughout
+ * - Better visual hierarchy
+ * - Animated effects for each character
+ * - Improved color contrast
+ * - Premium watch face designs
+ * - Dynamic day/night backgrounds
+ * - Tap-to-switch elements for BoBoiBoy
  */
 
 #include "themes.h"
 #include "config.h"
 #include "display.h"
 #include "hardware.h"
+#include "dynamic_bg.h"
+#include "ochobot.h"
 
 extern Arduino_SH8601 *gfx;
 extern SystemState system_state;
 
 // =============================================================================
-// THEME COLOR DEFINITIONS - ALL 10 CHARACTERS
+// THEME COLOR DEFINITIONS - ALL 10 CHARACTERS (IMPROVED)
 // =============================================================================
 
-// Luffy Gear 5 - Sun God Nika (Very rounded, bouncy, strong sun aura)
+// Luffy Gear 5 - Sun God Nika
 ThemeColors luffy_gear5_theme = {
   .primary = LUFFY_SUN_GOLD,
   .secondary = LUFFY_NIKA_WHITE,
@@ -28,17 +38,17 @@ ThemeColors luffy_gear5_theme = {
   .effect2 = LUFFY_JOY_YELLOW,
   .effect3 = LUFFY_FREEDOM_SKY,
   .effect4 = LUFFY_RUBBER_PINK,
-  .corner_radius = 20,      // Very rounded, cloud-like
-  .glow_intensity = 200,    // Strong sun aura
-  .animation_speed = 8,     // Fast, energetic
-  .border_width = 3         // Bold presence
+  .corner_radius = 20,
+  .glow_intensity = 200,
+  .animation_speed = 8,
+  .border_width = 3
 };
 
-// Jin-Woo - Shadow Monarch (Sharp, angular, MAXIMUM power)
+// Jin-Woo - Shadow Monarch
 ThemeColors sung_jinwoo_theme = {
   .primary = JINWOO_MONARCH_PURPLE,
   .secondary = JINWOO_VOID_BLACK,
-  .accent = JINWOO_POWER_VIOLET,
+  .accent = JINWOO_ARISE_GLOW,
   .background = JINWOO_ABSOLUTE_DARK,
   .text = COLOR_WHITE,
   .shadow = JINWOO_DEATH_BLACK,
@@ -46,13 +56,13 @@ ThemeColors sung_jinwoo_theme = {
   .effect2 = JINWOO_DAGGER_BLUE,
   .effect3 = JINWOO_MIST_PURPLE,
   .effect4 = JINWOO_SOUL_PURPLE,
-  .corner_radius = 5,       // Sharp, angular, precise
-  .glow_intensity = 255,    // MAXIMUM power
-  .animation_speed = 10,    // Instant, dominant
-  .border_width = 2         // Thin, sharp lines
+  .corner_radius = 5,
+  .glow_intensity = 255,
+  .animation_speed = 10,
+  .border_width = 2
 };
 
-// Yugo - Portal Master (Rounded portal-shaped, soft mystical glow)
+// Yugo - Portal Master
 ThemeColors yugo_wakfu_theme = {
   .primary = YUGO_PORTAL_CYAN,
   .secondary = YUGO_ELIATROPE_TEAL,
@@ -64,13 +74,13 @@ ThemeColors yugo_wakfu_theme = {
   .effect2 = YUGO_WAKFU_ENERGY,
   .effect3 = YUGO_PORTAL_RING,
   .effect4 = YUGO_ENERGY_BURST,
-  .corner_radius = 15,      // Rounded, portal-shaped
-  .glow_intensity = 150,    // Soft mystical glow
-  .animation_speed = 7,     // Smooth, flowing
-  .border_width = 3         // Defined portals
+  .corner_radius = 15,
+  .glow_intensity = 150,
+  .animation_speed = 7,
+  .border_width = 3
 };
 
-// Naruto - Sage Mode (Bold, energetic)
+// Naruto - Sage Mode
 ThemeColors naruto_sage_theme = {
   .primary = NARUTO_CHAKRA_ORANGE,
   .secondary = NARUTO_OUTFIT_BLACK,
@@ -88,7 +98,7 @@ ThemeColors naruto_sage_theme = {
   .border_width = 2
 };
 
-// Goku - Ultra Instinct (Divine silver, maximum speed)
+// Goku - Ultra Instinct
 ThemeColors goku_ui_theme = {
   .primary = GOKU_UI_SILVER,
   .secondary = GOKU_GI_BLUE,
@@ -106,7 +116,7 @@ ThemeColors goku_ui_theme = {
   .border_width = 2
 };
 
-// Tanjiro - Sun Breathing (Warm flames, moderate speed)
+// Tanjiro - Sun Breathing
 ThemeColors tanjiro_sun_theme = {
   .primary = TANJIRO_FIRE_ORANGE,
   .secondary = TANJIRO_CHECK_GREEN,
@@ -124,7 +134,7 @@ ThemeColors tanjiro_sun_theme = {
   .border_width = 2
 };
 
-// Gojo - Infinity (Intense blue, fast animations)
+// Gojo - Infinity
 ThemeColors gojo_infinity_theme = {
   .primary = GOJO_INFINITY_BLUE,
   .secondary = GOJO_SNOW_WHITE,
@@ -142,7 +152,7 @@ ThemeColors gojo_infinity_theme = {
   .border_width = 2
 };
 
-// Levi - Humanity's Strongest (Sharp, clean, fast)
+// Levi - Humanity's Strongest
 ThemeColors levi_strongest_theme = {
   .primary = LEVI_SURVEY_GREEN,
   .secondary = LEVI_DARK_UNIFORM,
@@ -160,7 +170,7 @@ ThemeColors levi_strongest_theme = {
   .border_width = 2
 };
 
-// Saitama - One Punch (Minimalist, bold, minimal animations)
+// Saitama - One Punch
 ThemeColors saitama_opm_theme = {
   .primary = SAITAMA_HERO_YELLOW,
   .secondary = SAITAMA_CAPE_RED,
@@ -172,13 +182,13 @@ ThemeColors saitama_opm_theme = {
   .effect2 = SAITAMA_GLOVE_RED,
   .effect3 = SAITAMA_BOOT_YELLOW,
   .effect4 = SAITAMA_BALD_WHITE,
-  .corner_radius = 0,       // Minimalist, bold
+  .corner_radius = 0,
   .glow_intensity = 100,
-  .animation_speed = 1,     // Minimal (he's too powerful to care)
+  .animation_speed = 1,
   .border_width = 3
 };
 
-// Deku - Plus Ultra (Energetic green, fast lightning)
+// Deku - Plus Ultra
 ThemeColors deku_plusultra_theme = {
   .primary = DEKU_HERO_GREEN,
   .secondary = DEKU_COSTUME_BLACK,
@@ -199,40 +209,97 @@ ThemeColors deku_plusultra_theme = {
 ThemeColors* current_theme = &luffy_gear5_theme;
 
 // =============================================================================
-// CHARACTER PROFILES
+// BOBOIBOY ELEMENTAL THEME - Malaysian Anime Hero
+// Power Band with 7 Element Transformations
 // =============================================================================
 
-CharacterProfile character_profiles[10] = {
+ThemeColors boboiboy_elemental_theme = {
+  .primary = BBB_BAND_ORANGE,           // Power Band Orange
+  .secondary = BBB_LIGHTNING_YELLOW,    // Default Lightning
+  .accent = BBB_OCHOBOT_WHITE,          // Ochobot helper
+  .background = RGB565(15, 15, 20),     // Dark background
+  .text = COLOR_WHITE,
+  .shadow = BBB_THUNDERSTORM_BLACK,
+  .effect1 = BBB_FIRE_RED,              // Element effect
+  .effect2 = BBB_WIND_BLUE,             // Element effect
+  .effect3 = BBB_EARTH_BROWN,           // Element effect
+  .effect4 = BBB_LIGHT_GOLD,            // Solar effect
+  .corner_radius = 12,
+  .glow_intensity = 220,
+  .animation_speed = 8,
+  .border_width = 2
+};
+
+// =============================================================================
+// CHARACTER PROFILES (11 characters including BoBoiBoy)
+// =============================================================================
+
+CharacterProfile character_profiles[11] = {
   // Luffy
-  {"Monkey D. Luffy", "Sun God Nika", "One Piece", "Bajrang Gun", "I'm gonna be King of the Pirates!", THEME_LUFFY_GEAR5,
-   {"Haki Mastery", "Three types mastered", 80, "Gear Progression", "Gear 5 unlocked", 100, "Freedom Level", "Unbound by limits", 100, "Will to Dream", "Pirate King ambition", 85}},
+  {"Monkey D. Luffy", "Sun God Nika", "One Piece", "Bajrang Gun", 
+   "I'm gonna be King of the Pirates!", THEME_LUFFY_GEAR5,
+   {"Haki", "All 3 types", 80, "Gear", "5th unlocked", 100, 
+    "Freedom", "Unbound", 100, "Dream", "Pirate King", 85}},
+  
   // Jin-Woo
-  {"Sung Jin-Woo", "Shadow Monarch", "Solo Leveling", "Ruler's Authority", "ARISE!", THEME_SUNG_JINWOO,
-   {"Shadow Army", "10,000+ soldiers", 85, "Monarch Power", "True awakened", 100, "Hunter Level", "SSS-Rank", 87, "Mana Capacity", "Infinite growth", 70}},
+  {"Sung Jin-Woo", "Shadow Monarch", "Solo Leveling", "Ruler's Authority", 
+   "ARISE!", THEME_SUNG_JINWOO,
+   {"Shadows", "10,000+", 85, "Power", "Monarch", 100,
+    "Rank", "SSS", 87, "Mana", "Infinite", 70}},
+  
   // Yugo
-  {"Yugo", "Portal Master", "Wakfu", "Portal Slash", "Adventure awaits!", THEME_YUGO_WAKFU,
-   {"Wakfu Mastery", "Life force energy", 75, "Portal Expertise", "Dimensional gates", 80, "Combat Speed", "Lightning reflexes", 95, "Heart of Adventure", "Never-ending quest", 85}},
+  {"Yugo", "Portal Master", "Wakfu", "Portal Slash", 
+   "Adventure awaits!", THEME_YUGO_WAKFU,
+   {"Wakfu", "Life force", 75, "Portals", "Dimensional", 80,
+    "Speed", "Lightning", 95, "Heart", "Adventurer", 85}},
+  
   // Naruto
-  {"Naruto Uzumaki", "Sage Mode", "Naruto", "Rasengan", "Believe it! Dattebayo!", THEME_NARUTO_SAGE,
-   {"Chakra Reserves", "Nine-Tails infinite", 100, "Sage Mode", "Frog Kumite", 80, "Kurama Bond", "Best friends", 95, "Bonds Strength", "Never abandons", 100}},
+  {"Naruto Uzumaki", "Sage Mode", "Naruto", "Rasengan", 
+   "Believe it! Dattebayo!", THEME_NARUTO_SAGE,
+   {"Chakra", "Nine-Tails", 100, "Sage", "Frog Kumite", 80,
+    "Kurama", "Best friends", 95, "Bonds", "Never breaks", 100}},
+  
   // Goku
-  {"Son Goku", "Ultra Instinct", "Dragon Ball", "Kamehameha", "I am the Saiyan who came from Earth!", THEME_GOKU_UI,
-   {"Power Level", "Breaking limits", 100, "Combat Speed", "Body moves alone", 100, "Ki Control", "Perfect energy", 95, "Transformations", "SSJ to UI", 80}},
+  {"Son Goku", "Ultra Instinct", "Dragon Ball", "Kamehameha", 
+   "I am the Saiyan who came from Earth!", THEME_GOKU_UI,
+   {"Power", "Breaking limits", 100, "Speed", "Body moves", 100,
+    "Ki", "Perfect", 95, "Forms", "SSJ to UI", 80}},
+  
   // Tanjiro
-  {"Tanjiro Kamado", "Sun Breathing", "Demon Slayer", "Hinokami Kagura", "The bond between us can never be severed!", THEME_TANJIRO_SUN,
-   {"Breathing Forms", "13 Sun forms", 80, "Form Count", "All mastered", 95, "Enhanced Smell", "Track demons", 100, "Determination", "Never gives up", 100}},
+  {"Tanjiro Kamado", "Sun Breathing", "Demon Slayer", "Hinokami Kagura", 
+   "The bond between us can never be severed!", THEME_TANJIRO_SUN,
+   {"Breathing", "13 forms", 80, "Forms", "All mastered", 95,
+    "Smell", "Track demons", 100, "Will", "Never gives up", 100}},
+  
   // Gojo
-  {"Satoru Gojo", "Infinity", "Jujutsu Kaisen", "Hollow Purple", "Throughout Heaven and Earth, I alone am the honored one.", THEME_GOJO_INFINITY,
-   {"Infinity", "Perfect Limitless", 100, "Cursed Energy", "Unlimited", 100, "Six Eyes", "See everything", 100, "Domain Expansion", "Unlimited Void", 100}},
+  {"Satoru Gojo", "Infinity", "Jujutsu Kaisen", "Hollow Purple", 
+   "Throughout Heaven and Earth, I alone am the honored one.", THEME_GOJO_INFINITY,
+   {"Infinity", "Perfect", 100, "Energy", "Unlimited", 100,
+    "Six Eyes", "See all", 100, "Domain", "Unlimited Void", 100}},
+  
   // Levi
-  {"Levi Ackerman", "Humanity's Strongest", "Attack on Titan", "Spinning Slash", "Give up on your dreams and die.", THEME_LEVI_STRONGEST,
-   {"Titan Kills", "58+ confirmed", 100, "Kill Speed", "Seconds per titan", 100, "ODM Gear", "Unmatched", 100, "Cleanliness", "OBSESSED", 100}},
+  {"Levi Ackerman", "Humanity's Strongest", "Attack on Titan", "Spinning Slash", 
+   "Give up on your dreams and die.", THEME_LEVI_STRONGEST,
+   {"Kills", "58+ Titans", 100, "Speed", "Seconds/Titan", 100,
+    "ODM Gear", "Unmatched", 100, "Clean", "OBSESSED", 100}},
+  
   // Saitama
-  {"Saitama", "One Punch", "One Punch Man", "Serious Punch", "OK.", THEME_SAITAMA_OPM,
-   {"Punch Power", "Infinite", 100, "Hero Rank", "C-Class Rank 7", 7, "Boredom Level", "No opponents", 100, "Bargain Hunting", "Expert", 100}},
+  {"Saitama", "One Punch", "One Punch Man", "Serious Punch", 
+   "OK.", THEME_SAITAMA_OPM,
+   {"Punch", "Infinite", 100, "Rank", "C-Class #7", 7,
+    "Boredom", "No opponents", 100, "Bargains", "Expert", 100}},
+  
   // Deku
-  {"Izuku Midoriya", "Plus Ultra", "My Hero Academia", "United States of Smash", "A hero is someone who saves people!", THEME_DEKU_PLUSULTRA,
-   {"One For All", "45% control", 45, "Quirks Unlocked", "7 of 9", 77, "Smash Power", "Building level", 80, "Hero Spirit", "Saves everyone", 100}}
+  {"Izuku Midoriya", "Plus Ultra", "My Hero Academia", "United States of Smash", 
+   "A hero is someone who saves people!", THEME_DEKU_PLUSULTRA,
+   {"OFA", "45% control", 45, "Quirks", "7 of 9", 77,
+    "Smash", "Building level", 80, "Spirit", "Saves all", 100}},
+  
+  // BoBoiBoy - NEW
+  {"BoBoiBoy", "Elemental Hero", "BoBoiBoy Galaxy", "Elemental Fusion", 
+   "BoBoiBoy Kuasa Tujuh!", THEME_BOBOIBOY,
+   {"Elements", "7 Forms", 100, "Fusions", "6 Types", 85,
+    "Power Band", "Ochobot", 90, "Teamwork", "TAPOPS", 95}}
 };
 
 // =============================================================================
@@ -240,14 +307,14 @@ CharacterProfile character_profiles[10] = {
 // =============================================================================
 
 void initializeThemes() {
-  Serial.println("[Themes] Initializing complete theme system (10 characters)...");
+  Serial.println("[Themes] Initializing 10 anime character themes...");
   setTheme(system_state.current_theme);
 }
 
 void setTheme(ThemeType theme) {
   system_state.current_theme = theme;
   current_theme = getThemeColors(theme);
-  Serial.printf("[Themes] Theme set to: %s\n", getThemeName(theme));
+  Serial.printf("[Themes] Active: %s\n", getThemeName(theme));
 }
 
 ThemeColors* getCurrentTheme() {
@@ -266,6 +333,7 @@ ThemeColors* getThemeColors(ThemeType theme) {
     case THEME_LEVI_STRONGEST: return &levi_strongest_theme;
     case THEME_SAITAMA_OPM:    return &saitama_opm_theme;
     case THEME_DEKU_PLUSULTRA: return &deku_plusultra_theme;
+    case THEME_BOBOIBOY:       return &boboiboy_elemental_theme;
     default: return &luffy_gear5_theme;
   }
 }
@@ -285,33 +353,34 @@ const char* getThemeName(ThemeType theme) {
   const char* names[] = {
     "Gear 5 Luffy", "Shadow Monarch", "Portal Master", "Sage Mode",
     "Ultra Instinct", "Sun Breathing", "Infinity", "Humanity's Strongest",
-    "One Punch", "Plus Ultra", "Custom"
+    "One Punch", "Plus Ultra", "BoBoiBoy", "Custom"
   };
   if (theme <= THEME_CUSTOM) return names[(int)theme];
   return "Unknown";
 }
 
-// Main characters always available: Luffy, Jin-Woo, Yugo
 bool isMainCharacter(ThemeType theme) {
-  return theme == THEME_LUFFY_GEAR5 || theme == THEME_SUNG_JINWOO || theme == THEME_YUGO_WAKFU;
+  return theme == THEME_LUFFY_GEAR5 || 
+         theme == THEME_SUNG_JINWOO || 
+         theme == THEME_YUGO_WAKFU;
 }
 
-// Daily rotation for the other 7 characters
 ThemeType getDailyRotationTheme(int day_of_week) {
-  // Rotate through: Naruto, Goku, Tanjiro, Gojo, Levi, Saitama, Deku
-  ThemeType rotation[] = {THEME_NARUTO_SAGE, THEME_GOKU_UI, THEME_TANJIRO_SUN,
-                          THEME_GOJO_INFINITY, THEME_LEVI_STRONGEST, THEME_SAITAMA_OPM, THEME_DEKU_PLUSULTRA};
+  ThemeType rotation[] = {
+    THEME_NARUTO_SAGE, THEME_GOKU_UI, THEME_TANJIRO_SUN,
+    THEME_GOJO_INFINITY, THEME_LEVI_STRONGEST, 
+    THEME_SAITAMA_OPM, THEME_DEKU_PLUSULTRA
+  };
   return rotation[day_of_week % 7];
 }
 
 void updateDailyCharacter() {
   WatchTime time = getCurrentTime();
-  // The daily rotation theme changes based on day of week
-  Serial.printf("[Themes] Daily character: %s\n", getThemeName(getDailyRotationTheme(time.weekday)));
+  Serial.printf("[Themes] Daily: %s\n", getThemeName(getDailyRotationTheme(time.weekday)));
 }
 
 // =============================================================================
-// WATCH FACES - ALL 10 CHARACTERS
+// WATCH FACE DISPATCHER
 // =============================================================================
 
 void drawWatchFace() {
@@ -326,46 +395,37 @@ void drawWatchFace() {
     case THEME_LEVI_STRONGEST: drawLeviWatchFace(); break;
     case THEME_SAITAMA_OPM:    drawSaitamaWatchFace(); break;
     case THEME_DEKU_PLUSULTRA: drawDekuWatchFace(); break;
+    case THEME_BOBOIBOY:       drawBoboiboyWatchFace(); break;
     default: drawLuffyWatchFace(); break;
   }
 }
 
+// =============================================================================
+// LUFFY GEAR 5 WATCH FACE - MODERN SUN GOD
+// =============================================================================
+
 void drawLuffyWatchFace() {
-  // Pure AMOLED black - pixels off = true black
+  // Pure AMOLED black
   gfx->fillScreen(0x0000);
   
   WatchTime time = getCurrentTime();
-  
-  // === AMBIENT GLOW EFFECT - Subtle radial gradient from center ===
   int centerX = LCD_WIDTH / 2;
   int centerY = 160;
-  for (int r = 180; r > 0; r -= 3) {
-    uint8_t alpha = map(r, 0, 180, 35, 0);
-    gfx->drawCircle(centerX, centerY, r, RGB565(alpha, alpha/3, 0));
+  
+  // === AMBIENT SUN GLOW ===
+  for (int r = 150; r > 0; r -= 4) {
+    uint8_t alpha = map(r, 0, 150, 30, 0);
+    gfx->drawCircle(centerX, centerY - 20, r, RGB565(alpha, alpha/3, 0));
   }
   
-  // === CHARACTER SILHOUETTE RING ===
-  // Outer decorative ring
-  for (int i = 0; i < 360; i += 6) {
-    float angle = i * PI / 180.0;
-    int x1 = centerX + cos(angle) * 155;
-    int y1 = centerY + cos(angle) * 155 - 20;
-    int len = (i % 30 == 0) ? 12 : 6;
-    int x2 = centerX + cos(angle) * (155 - len);
-    int y2 = centerY + cos(angle) * (155 - len) - 20;
-    uint16_t tickColor = (i % 30 == 0) ? LUFFY_SUN_GOLD : RGB565(60, 45, 20);
-    gfx->drawLine(x1, y1, x2, y2, tickColor);
-  }
-  
-  // === PREMIUM TIME DISPLAY ===
+  // === TIME DISPLAY ===
   char hourStr[3], minStr[3];
   sprintf(hourStr, "%02d", time.hour);
   sprintf(minStr, "%02d", time.minute);
   
-  // Time position
-  int timeY = 115;
+  int timeY = 100;
   
-  // Outer glow layer (very subtle)
+  // Glow effect
   gfx->setTextSize(9);
   gfx->setTextColor(RGB565(40, 30, 5));
   gfx->setCursor(18, timeY);
@@ -373,73 +433,73 @@ void drawLuffyWatchFace() {
   gfx->setCursor(195, timeY);
   gfx->print(minStr);
   
-  // Main time - crisp white
-  gfx->setTextColor(RGB565(255, 255, 255));
+  // Main time
+  gfx->setTextColor(COLOR_WHITE);
   gfx->setCursor(20, timeY);
   gfx->print(hourStr);
   gfx->setCursor(197, timeY);
   gfx->print(minStr);
   
-  // Stylish colon - vertical dots with glow
+  // Animated colon
   int colonX = 175;
   int colonY = timeY + 35;
-  // Glow
-  gfx->fillCircle(colonX, colonY - 20, 8, RGB565(50, 35, 10));
-  gfx->fillCircle(colonX, colonY + 20, 8, RGB565(50, 35, 10));
-  // Dots
   uint16_t colonColor = (time.second % 2) ? LUFFY_SUN_GOLD : RGB565(200, 150, 50);
-  gfx->fillCircle(colonX, colonY - 20, 5, colonColor);
-  gfx->fillCircle(colonX, colonY + 20, 5, colonColor);
+  gfx->fillCircle(colonX, colonY - 20, 6, colonColor);
+  gfx->fillCircle(colonX, colonY + 20, 6, colonColor);
   
-  // Seconds arc around time
+  // Seconds arc
   float secAngle = (time.second / 60.0) * 2 * PI - PI/2;
   for (float a = -PI/2; a < secAngle; a += 0.05) {
-    int sx = centerX + cos(a) * 140;
-    int sy = centerY - 20 + sin(a) * 65;
+    int sx = centerX + cos(a) * 135;
+    int sy = centerY - 20 + sin(a) * 60;
     gfx->fillCircle(sx, sy, 2, LUFFY_ENERGY_ORANGE);
   }
   
-  // === DATE PILL ===
-  const char* days[] = {"SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"};
-  const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
+  // === DATE SECTION ===
+  const char* days[] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
+  const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", 
+                          "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
   
-  int dateY = 245;
-  // Pill background with border
-  gfx->fillRoundRect(70, dateY, 230, 32, 16, RGB565(20, 15, 8));
-  gfx->drawRoundRect(70, dateY, 230, 32, 16, RGB565(80, 60, 25));
+  int dateY = 235;
+  gfx->fillRoundRect(80, dateY, 210, 30, 15, RGB565(20, 15, 8));
+  gfx->drawRoundRect(80, dateY, 210, 30, 15, RGB565(80, 60, 25));
   
-  // Day name
   gfx->setTextSize(1);
   gfx->setTextColor(LUFFY_SUN_GOLD);
-  gfx->setCursor(85, dateY + 11);
+  gfx->setCursor(95, dateY + 10);
   gfx->print(days[time.weekday % 7]);
   
-  // Date number - larger
   gfx->setTextSize(2);
-  gfx->setTextColor(RGB565(255, 255, 255));
-  gfx->setCursor(210, dateY + 7);
+  gfx->setTextColor(COLOR_WHITE);
+  gfx->setCursor(180, dateY + 6);
   gfx->printf("%02d", time.day);
   
-  // Month
   gfx->setTextSize(1);
   gfx->setTextColor(RGB565(180, 140, 60));
-  gfx->setCursor(250, dateY + 11);
+  gfx->setCursor(220, dateY + 10);
   gfx->print(months[(time.month - 1) % 12]);
   
-  // === CHARACTER NAME - Subtle at top ===
+  // === CHARACTER TITLE ===
   gfx->setTextSize(1);
-  gfx->setTextColor(RGB565(100, 75, 30));
-  gfx->setCursor(centerX - 33, 25);
+  gfx->setTextColor(RGB565(100, 80, 30));
+  gfx->setCursor(centerX - 30, 25);
   gfx->print("GEAR 5");
   
-  // === STATS CARDS - Bottom section ===
-  int cardY = 310;
-  int cardH = 55;
+  // === STATS CARDS ===
+  drawLuffyStatsCards();
+  
+  // === ACTIVITY RING ===
+  drawLuffyActivityRings(centerX, 390);
+}
+
+void drawLuffyStatsCards() {
+  int cardY = 290;
+  int cardH = 52;
   int cardW = 105;
-  int cardGap = 10;
+  int cardGap = 8;
   int cardStartX = (LCD_WIDTH - (3 * cardW + 2 * cardGap)) / 2;
   
-  // Card 1 - Steps
+  // Steps card
   gfx->fillRoundRect(cardStartX, cardY, cardW, cardH, 12, RGB565(15, 20, 15));
   gfx->drawRoundRect(cardStartX, cardY, cardW, cardH, 12, RGB565(50, 80, 50));
   gfx->setTextSize(1);
@@ -451,26 +511,22 @@ void drawLuffyWatchFace() {
   gfx->setCursor(cardStartX + 10, cardY + 25);
   gfx->printf("%d", system_state.steps_today);
   
-  // Card 2 - Battery
+  // Battery card
   int card2X = cardStartX + cardW + cardGap;
   int battPct = system_state.battery_percentage;
-  uint16_t battAccent = battPct > 20 ? RGB565(50, 70, 90) : RGB565(90, 40, 40);
-  uint16_t battText = battPct > 20 ? RGB565(100, 180, 255) : RGB565(255, 100, 100);
+  uint16_t battColor = battPct > 20 ? RGB565(100, 180, 255) : RGB565(255, 100, 100);
   gfx->fillRoundRect(card2X, cardY, cardW, cardH, 12, RGB565(15, 18, 22));
-  gfx->drawRoundRect(card2X, cardY, cardW, cardH, 12, battAccent);
+  gfx->drawRoundRect(card2X, cardY, cardW, cardH, 12, RGB565(50, 70, 90));
   gfx->setTextSize(1);
   gfx->setTextColor(RGB565(80, 120, 160));
   gfx->setCursor(card2X + 10, cardY + 8);
   gfx->print("BATTERY");
   gfx->setTextSize(2);
-  gfx->setTextColor(battText);
+  gfx->setTextColor(battColor);
   gfx->setCursor(card2X + 10, cardY + 25);
   gfx->printf("%d%%", battPct);
-  // Mini battery bar
-  gfx->fillRoundRect(card2X + 65, cardY + 30, 30, 10, 3, RGB565(30, 30, 35));
-  gfx->fillRoundRect(card2X + 65, cardY + 30, map(battPct, 0, 100, 0, 30), 10, 3, battText);
   
-  // Card 3 - Level/Gems
+  // Gems card
   int card3X = card2X + cardW + cardGap;
   gfx->fillRoundRect(card3X, cardY, cardW, cardH, 12, RGB565(22, 18, 10));
   gfx->drawRoundRect(card3X, cardY, cardW, cardH, 12, RGB565(80, 65, 30));
@@ -482,293 +538,203 @@ void drawLuffyWatchFace() {
   gfx->setTextColor(LUFFY_SUN_GOLD);
   gfx->setCursor(card3X + 10, cardY + 25);
   gfx->printf("%d", system_state.player_gems);
-  
-  // === PROGRESS RING - Activity ===
-  int ringX = centerX;
-  int ringY = 395;
-  int ringR = 25;
-  
-  // Background ring
-  for (int i = 0; i < 360; i += 3) {
-    float a = i * PI / 180.0 - PI/2;
-    int px = ringX + cos(a) * ringR;
-    int py = ringY + sin(a) * ringR;
-    gfx->drawPixel(px, py, RGB565(40, 40, 45));
-  }
-  
-  // Progress ring
-  float progress = min(1.0f, (float)system_state.steps_today / max(1, system_state.step_goal));
-  int progressDeg = progress * 360;
-  for (int i = 0; i < progressDeg; i += 3) {
-    float a = i * PI / 180.0 - PI/2;
-    int px = ringX + cos(a) * ringR;
-    int py = ringY + sin(a) * ringR;
-    gfx->fillCircle(px, py, 3, LUFFY_SUN_GOLD);
-  }
-  
-  // Center text
-  gfx->setTextSize(1);
-  gfx->setTextColor(RGB565(150, 150, 150));
-  int pctVal = (int)(progress * 100);
-  gfx->setCursor(ringX - 12, ringY - 4);
-  gfx->printf("%d%%", pctVal);
-  
-  // Level badge - bottom right
-  gfx->fillRoundRect(LCD_WIDTH - 55, LCD_HEIGHT - 30, 45, 22, 8, LUFFY_SUN_GOLD);
-  gfx->setTextSize(1);
-  gfx->setTextColor(RGB565(0, 0, 0));
-  gfx->setCursor(LCD_WIDTH - 48, LCD_HEIGHT - 24);
-  gfx->printf("Lv%d", system_state.player_level);
 }
 
+// =============================================================================
+// JINWOO SHADOW MONARCH WATCH FACE - DARK POWER
+// =============================================================================
+
 void drawJinwooWatchFace() {
-  // Pure AMOLED black
   gfx->fillScreen(0x0000);
   
   WatchTime time = getCurrentTime();
   int centerX = LCD_WIDTH / 2;
   int centerY = 160;
   
-  // === SHADOW PARTICLES - Rising effect ===
-  static uint32_t lastParticleUpdate = 0;
-  static int particleY[20];
-  if (millis() - lastParticleUpdate > 50) {
-    for (int i = 0; i < 20; i++) {
-      particleY[i] = (particleY[i] - 2 + LCD_HEIGHT) % LCD_HEIGHT;
-    }
-    lastParticleUpdate = millis();
-  }
-  for (int i = 0; i < 20; i++) {
-    int px = 30 + (i * 17) % (LCD_WIDTH - 60);
-    int py = particleY[i];
-    int size = 1 + (i % 3);
-    uint8_t bright = 20 + (py * 30) / LCD_HEIGHT;
-    gfx->fillCircle(px, py, size, RGB565(bright, bright/3, bright + 20));
+  // === SHADOW PARTICLES ===
+  static uint8_t particleY[15];
+  static bool initialized = false;
+  if (!initialized) {
+    for (int i = 0; i < 15; i++) particleY[i] = random(0, LCD_HEIGHT);
+    initialized = true;
   }
   
-  // === MONARCH SYMBOL - Subtle hexagon pattern ===
+  for (int i = 0; i < 15; i++) {
+    particleY[i] = (particleY[i] - 1 + LCD_HEIGHT) % LCD_HEIGHT;
+    int px = 25 + (i * 23) % (LCD_WIDTH - 50);
+    int size = 1 + (i % 3);
+    uint8_t bright = 15 + (particleY[i] * 25) / LCD_HEIGHT;
+    gfx->fillCircle(px, particleY[i], size, RGB565(bright, bright/3, bright + 15));
+  }
+  
+  // === MONARCH HEXAGON ===
   for (int ring = 0; ring < 3; ring++) {
-    int r = 120 + ring * 25;
+    int r = 100 + ring * 20;
     for (int i = 0; i < 6; i++) {
       float a1 = (i * 60) * PI / 180.0;
       float a2 = ((i + 1) * 60) * PI / 180.0;
       int x1 = centerX + cos(a1) * r;
-      int y1 = centerY - 20 + sin(a1) * (r * 0.5);
+      int y1 = centerY - 20 + sin(a1) * (r * 0.4);
       int x2 = centerX + cos(a2) * r;
-      int y2 = centerY - 20 + sin(a2) * (r * 0.5);
-      gfx->drawLine(x1, y1, x2, y2, RGB565(30 - ring*8, 15 - ring*4, 50 - ring*12));
+      int y2 = centerY - 20 + sin(a2) * (r * 0.4);
+      gfx->drawLine(x1, y1, x2, y2, RGB565(25 - ring*7, 12 - ring*3, 45 - ring*10));
     }
   }
   
-  // === TIME DISPLAY - Glowing purple ===
+  // === TIME ===
   char hourStr[3], minStr[3];
   sprintf(hourStr, "%02d", time.hour);
   sprintf(minStr, "%02d", time.minute);
   
-  int timeY = 110;
+  int timeY = 100;
   
-  // Purple glow layers
+  // Purple glow
   gfx->setTextSize(9);
-  gfx->setTextColor(RGB565(25, 10, 45));
-  gfx->setCursor(15, timeY - 3);
+  gfx->setTextColor(RGB565(30, 15, 50));
+  gfx->setCursor(18, timeY);
   gfx->print(hourStr);
-  gfx->setCursor(192, timeY - 3);
+  gfx->setCursor(195, timeY);
   gfx->print(minStr);
   
-  gfx->setTextColor(RGB565(50, 25, 80));
-  gfx->setCursor(17, timeY - 1);
-  gfx->print(hourStr);
-  gfx->setCursor(194, timeY - 1);
-  gfx->print(minStr);
-  
-  // Main time - bright purple-white
+  // Main time
   gfx->setTextColor(RGB565(230, 220, 255));
   gfx->setCursor(20, timeY);
   gfx->print(hourStr);
   gfx->setCursor(197, timeY);
   gfx->print(minStr);
   
-  // Colon - pulsing glow
+  // Pulsing colon
   int colonX = 175;
   int colonY = timeY + 35;
   float pulse = 0.5 + 0.5 * sin(millis() / 300.0);
   uint8_t pulseVal = 100 + pulse * 155;
+  gfx->fillCircle(colonX, colonY - 20, 6, RGB565(pulseVal/2, pulseVal/3, pulseVal));
+  gfx->fillCircle(colonX, colonY + 20, 6, RGB565(pulseVal/2, pulseVal/3, pulseVal));
   
-  // Glow
-  gfx->fillCircle(colonX, colonY - 20, 10, RGB565(30, 15, 50));
-  gfx->fillCircle(colonX, colonY + 20, 10, RGB565(30, 15, 50));
-  // Core
-  gfx->fillCircle(colonX, colonY - 20, 5, RGB565(pulseVal/2, pulseVal/3, pulseVal));
-  gfx->fillCircle(colonX, colonY + 20, 5, RGB565(pulseVal/2, pulseVal/3, pulseVal));
-  
-  // === ARISE BADGE - Iconic ===
-  int ariseY = 248;
-  
-  // Glow effect behind badge
-  for (int i = 3; i >= 0; i--) {
-    gfx->fillRoundRect(centerX - 60 - i*2, ariseY - 5 - i, 120 + i*4, 38 + i*2, 10, 
+  // === ARISE BADGE ===
+  int ariseY = 240;
+  for (int i = 2; i >= 0; i--) {
+    gfx->fillRoundRect(centerX - 55 - i*2, ariseY - i, 110 + i*4, 30 + i, 8,
                        RGB565(20 + i*8, 10 + i*4, 40 + i*12));
   }
+  gfx->fillRoundRect(centerX - 55, ariseY, 110, 28, 8, RGB565(15, 8, 30));
+  gfx->drawRoundRect(centerX - 55, ariseY, 110, 28, 8, JINWOO_ARISE_GLOW);
   
-  // Badge
-  gfx->fillRoundRect(centerX - 60, ariseY, 120, 32, 8, RGB565(15, 8, 30));
-  gfx->drawRoundRect(centerX - 60, ariseY, 120, 32, 8, JINWOO_ARISE_GLOW);
-  
-  // ARISE text with glow
   gfx->setTextSize(2);
-  gfx->setTextColor(RGB565(60, 40, 100));
-  gfx->setCursor(centerX - 37, ariseY + 7);
-  gfx->print("ARISE!");
   gfx->setTextColor(JINWOO_ARISE_GLOW);
-  gfx->setCursor(centerX - 36, ariseY + 8);
+  gfx->setCursor(centerX - 35, ariseY + 5);
   gfx->print("ARISE!");
   
-  // === DATE - Minimal ===
+  // === DATE ===
   const char* days[] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
   gfx->setTextSize(1);
   gfx->setTextColor(RGB565(100, 80, 140));
   char dateStr[15];
   sprintf(dateStr, "%s %02d.%02d", days[time.weekday % 7], time.day, time.month);
-  gfx->setCursor(centerX - strlen(dateStr) * 3, 295);
+  gfx->setCursor(centerX - 35, 280);
   gfx->print(dateStr);
   
-  // === SHADOW ARMY STATS ===
-  int statsY = 320;
+  // === SHADOW STATS ===
+  int statsY = 305;
   
-  // Shadows collected (left)
-  gfx->fillRoundRect(20, statsY, 100, 50, 10, RGB565(12, 8, 20));
-  gfx->drawRoundRect(20, statsY, 100, 50, 10, RGB565(50, 35, 80));
+  // Shadows
+  gfx->fillRoundRect(20, statsY, 100, 48, 10, RGB565(12, 8, 20));
+  gfx->drawRoundRect(20, statsY, 100, 48, 10, RGB565(50, 35, 80));
   gfx->setTextSize(1);
   gfx->setTextColor(RGB565(80, 60, 120));
   gfx->setCursor(30, statsY + 8);
   gfx->print("SHADOWS");
   gfx->setTextSize(2);
   gfx->setTextColor(JINWOO_MONARCH_PURPLE);
-  gfx->setCursor(30, statsY + 25);
+  gfx->setCursor(30, statsY + 24);
   gfx->printf("%d", system_state.gacha_cards_collected);
   
-  // Power level (center) 
-  gfx->fillRoundRect(130, statsY, 110, 50, 10, RGB565(12, 8, 20));
-  gfx->drawRoundRect(130, statsY, 110, 50, 10, RGB565(50, 35, 80));
+  // Level
+  gfx->fillRoundRect(130, statsY, 110, 48, 10, RGB565(12, 8, 20));
+  gfx->drawRoundRect(130, statsY, 110, 48, 10, RGB565(50, 35, 80));
   gfx->setTextSize(1);
   gfx->setTextColor(RGB565(80, 60, 120));
-  gfx->setCursor(145, statsY + 8);
+  gfx->setCursor(155, statsY + 8);
   gfx->print("LEVEL");
   gfx->setTextSize(3);
   gfx->setTextColor(JINWOO_ARISE_GLOW);
-  gfx->setCursor(155, statsY + 22);
+  gfx->setCursor(160, statsY + 20);
   gfx->printf("%d", system_state.player_level);
   
-  // Mana/Gems (right)
-  gfx->fillRoundRect(250, statsY, 100, 50, 10, RGB565(12, 8, 20));
-  gfx->drawRoundRect(250, statsY, 100, 50, 10, RGB565(50, 35, 80));
+  // Mana
+  gfx->fillRoundRect(250, statsY, 100, 48, 10, RGB565(12, 8, 20));
+  gfx->drawRoundRect(250, statsY, 100, 48, 10, RGB565(50, 35, 80));
   gfx->setTextSize(1);
   gfx->setTextColor(RGB565(80, 60, 120));
   gfx->setCursor(265, statsY + 8);
   gfx->print("MANA");
   gfx->setTextSize(2);
   gfx->setTextColor(RGB565(150, 120, 220));
-  gfx->setCursor(260, statsY + 25);
+  gfx->setCursor(260, statsY + 24);
   gfx->printf("%d", system_state.player_gems);
   
-  // === BOTTOM BAR ===
-  int bottomY = 395;
-  
-  // Battery with shadow styling
-  int battPct = system_state.battery_percentage;
-  gfx->fillRoundRect(30, bottomY, 80, 25, 8, RGB565(15, 10, 25));
-  gfx->drawRoundRect(30, bottomY, 80, 25, 8, RGB565(60, 45, 90));
-  gfx->setTextSize(1);
-  gfx->setTextColor(battPct > 20 ? RGB565(120, 100, 180) : RGB565(200, 80, 80));
-  gfx->setCursor(45, bottomY + 8);
-  gfx->printf("BAT %d%%", battPct);
-  
-  // Steps
-  gfx->fillRoundRect(130, bottomY, 110, 25, 8, RGB565(15, 10, 25));
-  gfx->drawRoundRect(130, bottomY, 110, 25, 8, RGB565(60, 45, 90));
-  gfx->setTextColor(RGB565(100, 80, 150));
-  gfx->setCursor(145, bottomY + 8);
-  gfx->printf("STEPS %d", system_state.steps_today);
-  
-  // Seconds display
-  gfx->fillRoundRect(260, bottomY, 80, 25, 8, RGB565(15, 10, 25));
-  gfx->drawRoundRect(260, bottomY, 80, 25, 8, JINWOO_ARISE_GLOW);
-  gfx->setTextSize(2);
-  gfx->setTextColor(JINWOO_ARISE_GLOW);
-  gfx->setCursor(285, bottomY + 4);
-  gfx->printf("%02d", time.second);
+  // Activity rings
+  drawJinwooActivityRings(centerX, 395);
 }
 
+// =============================================================================
+// REMAINING CHARACTER WATCH FACES (Simplified for space)
+// =============================================================================
+
 void drawYugoWatchFace() {
-  gfx->fillScreen(COLOR_BLACK);
-  
-  // Portal effects
+  gfx->fillScreen(YUGO_SKY_BLUE_GREY);
   drawYugoPortals();
   
-  // Title
-  gfx->setTextColor(YUGO_PORTAL_CYAN);
-  gfx->setTextSize(2);
-  gfx->setCursor(70, 30);
-  gfx->print("PORTAL MASTER");
-  
-  // Time
   WatchTime time = getCurrentTime();
   char timeStr[16];
   sprintf(timeStr, "%02d:%02d", time.hour, time.minute);
+  
+  gfx->setTextColor(YUGO_PORTAL_CYAN);
+  gfx->setTextSize(2);
+  gfx->setCursor(80, 30);
+  gfx->print("PORTAL MASTER");
+  
   gfx->setTextSize(5);
   gfx->setTextColor(YUGO_WAKFU_ENERGY);
-  gfx->setCursor(70, 170);
+  gfx->setCursor(80, 170);
   gfx->print(timeStr);
   
-  // Seconds
   gfx->setTextSize(2);
   gfx->setTextColor(YUGO_HAT_GOLD);
   gfx->setCursor(260, 195);
   gfx->printf("%02d", time.second);
   
-  // Catchphrase
-  gfx->setTextColor(YUGO_PORTAL_GLOW);
-  gfx->setTextSize(1);
-  gfx->setCursor(100, 260);
-  gfx->print("Adventure awaits!");
-  
   drawYugoActivityRings(LCD_WIDTH/2, 340);
-  drawYugoWakfuParticles();
   drawBatteryIndicator();
   drawStepCounter();
 }
 
 void drawNarutoWatchFace() {
   gfx->fillScreen(NARUTO_SLATE_GREY);
-  
-  // Sage mode aura
   drawNarutoSageAura();
   
-  // Title
-  gfx->setTextColor(NARUTO_CHAKRA_ORANGE);
-  gfx->setTextSize(2);
-  gfx->setCursor(100, 30);
-  gfx->print("SAGE MODE");
-  
-  // Time
   WatchTime time = getCurrentTime();
   char timeStr[16];
   sprintf(timeStr, "%02d:%02d", time.hour, time.minute);
+  
+  gfx->setTextColor(NARUTO_CHAKRA_ORANGE);
+  gfx->setTextSize(2);
+  gfx->setCursor(110, 30);
+  gfx->print("SAGE MODE");
+  
   gfx->setTextSize(5);
   gfx->setTextColor(NARUTO_SAGE_GOLD);
-  gfx->setCursor(70, 170);
+  gfx->setCursor(80, 170);
   gfx->print(timeStr);
   
-  // Seconds
   gfx->setTextSize(2);
   gfx->setTextColor(NARUTO_KURAMA_FLAME);
   gfx->setCursor(260, 195);
   gfx->printf("%02d", time.second);
   
-  // Catchphrase
   gfx->setTextColor(NARUTO_CHAKRA_ORANGE);
   gfx->setTextSize(1);
-  gfx->setCursor(110, 260);
+  gfx->setCursor(120, 260);
   gfx->print("Believe it!");
   
   drawNarutoActivityRings(LCD_WIDTH/2, 340);
@@ -778,34 +744,23 @@ void drawNarutoWatchFace() {
 
 void drawGokuWatchFace() {
   gfx->fillScreen(COLOR_BLACK);
-  
-  // UI aura
   drawGokuUIAura();
   
-  // Title
-  gfx->setTextColor(GOKU_UI_SILVER);
-  gfx->setTextSize(2);
-  gfx->setCursor(60, 30);
-  gfx->print("ULTRA INSTINCT");
-  
-  // Time with silver glow
   WatchTime time = getCurrentTime();
   char timeStr[16];
   sprintf(timeStr, "%02d:%02d", time.hour, time.minute);
+  
+  gfx->setTextColor(GOKU_UI_SILVER);
+  gfx->setTextSize(2);
+  gfx->setCursor(70, 30);
+  gfx->print("ULTRA INSTINCT");
+  
   gfx->setTextSize(5);
   gfx->setTextColor(GOKU_DIVINE_SILVER);
-  gfx->setCursor(70, 170);
+  gfx->setCursor(80, 170);
   gfx->print(timeStr);
   
-  // Seconds
-  gfx->setTextSize(2);
-  gfx->setTextColor(GOKU_AURA_WHITE);
-  gfx->setCursor(260, 195);
-  gfx->printf("%02d", time.second);
-  
-  // Speed lines
   drawGokuSpeedLines();
-  
   drawGokuActivityRings(LCD_WIDTH/2, 340);
   drawBatteryIndicator();
   drawStepCounter();
@@ -813,35 +768,25 @@ void drawGokuWatchFace() {
 
 void drawTanjiroWatchFace() {
   gfx->fillScreen(TANJIRO_DARK_CHARCOAL);
-  
-  // Sun breathing flames
   drawTanjiroSunFlames();
   
-  // Title
-  gfx->setTextColor(TANJIRO_FIRE_ORANGE);
-  gfx->setTextSize(2);
-  gfx->setCursor(70, 30);
-  gfx->print("SUN BREATHING");
-  
-  // Time
   WatchTime time = getCurrentTime();
   char timeStr[16];
   sprintf(timeStr, "%02d:%02d", time.hour, time.minute);
+  
+  gfx->setTextColor(TANJIRO_FIRE_ORANGE);
+  gfx->setTextSize(2);
+  gfx->setCursor(80, 30);
+  gfx->print("SUN BREATHING");
+  
   gfx->setTextSize(5);
   gfx->setTextColor(TANJIRO_FLAME_GLOW);
-  gfx->setCursor(70, 170);
+  gfx->setCursor(80, 170);
   gfx->print(timeStr);
   
-  // Seconds
-  gfx->setTextSize(2);
-  gfx->setTextColor(TANJIRO_SUN_FIRE);
-  gfx->setCursor(260, 195);
-  gfx->printf("%02d", time.second);
-  
-  // Nichirin blade effect
   gfx->setTextColor(TANJIRO_WATER_BLUE);
   gfx->setTextSize(1);
-  gfx->setCursor(95, 260);
+  gfx->setCursor(100, 260);
   gfx->print("Hinokami Kagura");
   
   drawTanjiroActivityRings(LCD_WIDTH/2, 340);
@@ -851,32 +796,27 @@ void drawTanjiroWatchFace() {
 
 void drawGojoWatchFace() {
   gfx->fillScreen(COLOR_BLACK);
-  
-  // Infinity aura
   drawGojoInfinityAura();
   
-  // Title
-  gfx->setTextColor(GOJO_INFINITY_BLUE);
-  gfx->setTextSize(2);
-  gfx->setCursor(110, 30);
-  gfx->print("INFINITY");
-  
-  // Time
   WatchTime time = getCurrentTime();
   char timeStr[16];
   sprintf(timeStr, "%02d:%02d", time.hour, time.minute);
+  
+  gfx->setTextColor(GOJO_INFINITY_BLUE);
+  gfx->setTextSize(2);
+  gfx->setCursor(120, 30);
+  gfx->print("INFINITY");
+  
   gfx->setTextSize(5);
   gfx->setTextColor(GOJO_SIX_EYES_BLUE);
-  gfx->setCursor(70, 170);
+  gfx->setCursor(80, 170);
   gfx->print(timeStr);
   
-  // Six Eyes glow
   drawGojoSixEyesGlow();
   
-  // Catchphrase
   gfx->setTextColor(GOJO_LIGHT_BLUE_GLOW);
   gfx->setTextSize(1);
-  gfx->setCursor(50, 260);
+  gfx->setCursor(60, 260);
   gfx->print("I alone am the honored one");
   
   drawGojoActivityRings(LCD_WIDTH/2, 340);
@@ -887,32 +827,26 @@ void drawGojoWatchFace() {
 void drawLeviWatchFace() {
   gfx->fillScreen(LEVI_CHARCOAL_DARK);
   
-  // Clean minimal design
-  
-  // Title
-  gfx->setTextColor(LEVI_SURVEY_GREEN);
-  gfx->setTextSize(2);
-  gfx->setCursor(35, 30);
-  gfx->print("HUMANITY'S STRONGEST");
-  
-  // Time - clean and precise
   WatchTime time = getCurrentTime();
   char timeStr[16];
   sprintf(timeStr, "%02d:%02d", time.hour, time.minute);
+  
+  gfx->setTextColor(LEVI_SURVEY_GREEN);
+  gfx->setTextSize(2);
+  gfx->setCursor(45, 30);
+  gfx->print("HUMANITY'S STRONGEST");
+  
   gfx->setTextSize(5);
   gfx->setTextColor(LEVI_CLEAN_WHITE);
-  gfx->setCursor(70, 170);
+  gfx->setCursor(80, 170);
   gfx->print(timeStr);
   
-  // Seconds
   gfx->setTextSize(2);
   gfx->setTextColor(LEVI_SILVER_BLADE);
   gfx->setCursor(260, 195);
   gfx->printf("%02d", time.second);
   
-  // Blade effects
   drawLeviBladeShine();
-  
   drawLeviActivityRings(LCD_WIDTH/2, 340);
   drawBatteryIndicator();
   drawStepCounter();
@@ -921,24 +855,20 @@ void drawLeviWatchFace() {
 void drawSaitamaWatchFace() {
   gfx->fillScreen(COLOR_BLACK);
   
-  // Minimalist design - Saitama doesn't need fancy effects
-  
-  // Title
-  gfx->setTextColor(SAITAMA_HERO_YELLOW);
-  gfx->setTextSize(2);
-  gfx->setCursor(100, 30);
-  gfx->print("ONE PUNCH");
-  
-  // Time - BOLD
   WatchTime time = getCurrentTime();
   char timeStr[16];
   sprintf(timeStr, "%02d:%02d", time.hour, time.minute);
+  
+  gfx->setTextColor(SAITAMA_HERO_YELLOW);
+  gfx->setTextSize(2);
+  gfx->setCursor(110, 30);
+  gfx->print("ONE PUNCH");
+  
   gfx->setTextSize(5);
   gfx->setTextColor(SAITAMA_BALD_WHITE);
-  gfx->setCursor(70, 170);
+  gfx->setCursor(80, 170);
   gfx->print(timeStr);
   
-  // Simple "OK."
   gfx->setTextColor(SAITAMA_CAPE_RED);
   gfx->setTextSize(3);
   gfx->setCursor(160, 260);
@@ -951,35 +881,25 @@ void drawSaitamaWatchFace() {
 
 void drawDekuWatchFace() {
   gfx->fillScreen(DEKU_DARK_HERO);
-  
-  // OFA Lightning
   drawDekuOFALightning();
   
-  // Title
-  gfx->setTextColor(DEKU_HERO_GREEN);
-  gfx->setTextSize(2);
-  gfx->setCursor(100, 30);
-  gfx->print("PLUS ULTRA");
-  
-  // Time
   WatchTime time = getCurrentTime();
   char timeStr[16];
   sprintf(timeStr, "%02d:%02d", time.hour, time.minute);
+  
+  gfx->setTextColor(DEKU_HERO_GREEN);
+  gfx->setTextSize(2);
+  gfx->setCursor(110, 30);
+  gfx->print("PLUS ULTRA");
+  
   gfx->setTextSize(5);
   gfx->setTextColor(DEKU_FULL_COWL);
-  gfx->setCursor(70, 170);
+  gfx->setCursor(80, 170);
   gfx->print(timeStr);
   
-  // Seconds
-  gfx->setTextSize(2);
-  gfx->setTextColor(DEKU_OFA_LIGHTNING);
-  gfx->setCursor(260, 195);
-  gfx->printf("%02d", time.second);
-  
-  // Full Cowl indicator
   gfx->setTextColor(DEKU_ALLMIGHT_GOLD);
   gfx->setTextSize(1);
-  gfx->setCursor(115, 260);
+  gfx->setCursor(120, 260);
   gfx->print("Full Cowl: 45%");
   
   drawDekuActivityRings(LCD_WIDTH/2, 340);
@@ -998,7 +918,371 @@ void drawSleepWatchFace() {
   gfx->print(timeStr);
 }
 
-// Step counter display
+// =============================================================================
+// BOBOIBOY WATCH FACE - ELEMENTAL HERO
+// 7 Elements with Power Band UI
+// =============================================================================
+
+// Track current element for cycling animation
+static int boboiboy_current_element = 0;
+static unsigned long boboiboy_last_cycle = 0;
+
+void drawBoboiboyWatchFace() {
+  // Use dynamic background based on time
+  drawDynamicBackground(THEME_BOBOIBOY);
+  
+  WatchTime time = getCurrentTime();
+  int centerX = LCD_WIDTH / 2;
+  int centerY = 160;
+  
+  // Element colors array
+  uint16_t elementColors[] = {
+    BBB_LIGHTNING_YELLOW, BBB_WIND_BLUE, BBB_EARTH_BROWN,
+    BBB_FIRE_RED, BBB_WATER_CYAN, BBB_LEAF_GREEN, BBB_LIGHT_GOLD
+  };
+  const char* elementNames[] = {
+    "HALILINTAR", "TAUFAN", "GEMPA", "BLAZE", "ICE", "THORN", "SOLAR"
+  };
+  
+  // Use manually selected element (tap-to-switch) instead of auto-cycle
+  int currentElement = getCurrentBoboiboyElement();
+  uint16_t currentColor = elementColors[currentElement];
+  
+  // === POWER BAND RING ===
+  // Outer ring with element color
+  for (int r = 130; r > 115; r -= 3) {
+    gfx->drawCircle(centerX, centerY - 10, r, currentColor);
+  }
+  
+  // Inner glow effect
+  for (int r = 110; r > 95; r -= 5) {
+    uint8_t alpha = map(r, 95, 110, 10, 40);
+    gfx->drawCircle(centerX, centerY - 10, r, RGB565(alpha, alpha, alpha + 10));
+  }
+  
+  // === ELEMENT INDICATOR ===
+  // Draw 7 element dots around the ring
+  for (int i = 0; i < 7; i++) {
+    float angle = (i * 51.4 - 90) * PI / 180.0;  // 360/7 = ~51.4 degrees
+    int dotX = centerX + cos(angle) * 125;
+    int dotY = centerY - 10 + sin(angle) * 50;
+    
+    if (i == currentElement) {
+      // Active element - filled and larger
+      gfx->fillCircle(dotX, dotY, 8, elementColors[i]);
+      gfx->drawCircle(dotX, dotY, 10, COLOR_WHITE);
+    } else {
+      // Inactive - smaller outline
+      gfx->drawCircle(dotX, dotY, 5, elementColors[i]);
+    }
+  }
+  
+  // === TIME DISPLAY ===
+  char hourStr[3], minStr[3];
+  sprintf(hourStr, "%02d", time.hour);
+  sprintf(minStr, "%02d", time.minute);
+  
+  int timeY = 95;
+  
+  // Glow effect with current element color
+  gfx->setTextSize(8);
+  gfx->setTextColor(RGB565(30, 25, 20));
+  gfx->setCursor(28, timeY);
+  gfx->print(hourStr);
+  gfx->setCursor(190, timeY);
+  gfx->print(minStr);
+  
+  // Main time
+  gfx->setTextColor(COLOR_WHITE);
+  gfx->setCursor(30, timeY);
+  gfx->print(hourStr);
+  gfx->setCursor(192, timeY);
+  gfx->print(minStr);
+  
+  // Animated colon with element color
+  int colonX = 170;
+  int colonY = timeY + 30;
+  float pulse = 0.5 + 0.5 * sin(millis() / 250.0);
+  uint8_t colAlpha = 150 + pulse * 105;
+  gfx->fillCircle(colonX, colonY - 15, 6, currentColor);
+  gfx->fillCircle(colonX, colonY + 15, 6, currentColor);
+  
+  // Seconds arc
+  float secAngle = (time.second / 60.0) * 2 * PI - PI/2;
+  for (float a = -PI/2; a < secAngle; a += 0.05) {
+    int sx = centerX + cos(a) * 108;
+    int sy = centerY - 10 + sin(a) * 45;
+    gfx->fillCircle(sx, sy, 2, currentColor);
+  }
+  
+  // === ELEMENT NAME BADGE ===
+  int badgeY = 235;
+  gfx->fillRoundRect(centerX - 70, badgeY, 140, 28, 14, RGB565(20, 22, 28));
+  gfx->drawRoundRect(centerX - 70, badgeY, 140, 28, 14, currentColor);
+  
+  gfx->setTextColor(currentColor);
+  gfx->setTextSize(2);
+  int nameLen = strlen(elementNames[currentElement]) * 12;
+  gfx->setCursor(centerX - nameLen/2, badgeY + 5);
+  gfx->print(elementNames[currentElement]);
+  
+  // === DATE SECTION ===
+  const char* days[] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
+  int dateY = 275;
+  
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(150, 150, 160));
+  char dateStr[20];
+  sprintf(dateStr, "%s  %02d.%02d.%04d", days[time.weekday % 7], time.day, time.month, time.year);
+  gfx->setCursor(centerX - 55, dateY);
+  gfx->print(dateStr);
+  
+  // === STATS CARDS ===
+  int cardY = 300;
+  int cardH = 50;
+  int cardW = 105;
+  int cardGap = 8;
+  int cardStartX = (LCD_WIDTH - (3 * cardW + 2 * cardGap)) / 2;
+  
+  // Power card
+  gfx->fillRoundRect(cardStartX, cardY, cardW, cardH, 10, RGB565(20, 15, 10));
+  gfx->drawRoundRect(cardStartX, cardY, cardW, cardH, 10, BBB_BAND_ORANGE);
+  gfx->setTextSize(1);
+  gfx->setTextColor(BBB_BAND_ORANGE);
+  gfx->setCursor(cardStartX + 10, cardY + 8);
+  gfx->print("POWER");
+  gfx->setTextSize(2);
+  gfx->setTextColor(BBB_BAND_GLOW);
+  gfx->setCursor(cardStartX + 10, cardY + 25);
+  gfx->printf("%d%%", 100);
+  
+  // Steps card
+  int card2X = cardStartX + cardW + cardGap;
+  gfx->fillRoundRect(card2X, cardY, cardW, cardH, 10, RGB565(15, 20, 15));
+  gfx->drawRoundRect(card2X, cardY, cardW, cardH, 10, BBB_LEAF_GREEN);
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(100, 160, 100));
+  gfx->setCursor(card2X + 10, cardY + 8);
+  gfx->print("STEPS");
+  gfx->setTextSize(2);
+  gfx->setTextColor(RGB565(150, 230, 150));
+  gfx->setCursor(card2X + 10, cardY + 25);
+  gfx->printf("%d", system_state.steps_today);
+  
+  // Battery card
+  int card3X = card2X + cardW + cardGap;
+  int battPct = system_state.battery_percentage;
+  uint16_t battColor = battPct > 20 ? BBB_WIND_BLUE : BBB_FIRE_RED;
+  gfx->fillRoundRect(card3X, cardY, cardW, cardH, 10, RGB565(15, 18, 22));
+  gfx->drawRoundRect(card3X, cardY, cardW, cardH, 10, battColor);
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(80, 120, 160));
+  gfx->setCursor(card3X + 10, cardY + 8);
+  gfx->print("BATTERY");
+  gfx->setTextSize(2);
+  gfx->setTextColor(battColor);
+  gfx->setCursor(card3X + 10, cardY + 25);
+  gfx->printf("%d%%", battPct);
+  
+  // === ACTIVITY RINGS ===
+  drawBoboiboyActivityRings(centerX, 395);
+  
+  // === OCHOBOT ASSISTANT ===
+  // Draw Ochobot in corner
+  if (ochobot_pos.visible) {
+    drawOchobot(LCD_WIDTH - 45, 70, OCHOBOT_IDLE, 0.8);
+  }
+  
+  // === TAP HINT ===
+  gfx->setTextColor(RGB565(80, 85, 95));
+  gfx->setTextSize(1);
+  gfx->setCursor(centerX - 65, 425);
+  gfx->print("Tap center to switch!");
+}
+
+// =============================================================================
+// CHARACTER EFFECTS
+// =============================================================================
+
+void drawYugoPortals() {
+  gfx->drawCircle(60, 100, 30, YUGO_PORTAL_CYAN);
+  gfx->drawCircle(60, 100, 25, YUGO_WAKFU_ENERGY);
+  gfx->drawCircle(LCD_WIDTH - 60, 100, 30, YUGO_PORTAL_CYAN);
+  gfx->drawCircle(LCD_WIDTH - 60, 100, 25, YUGO_WAKFU_ENERGY);
+}
+
+void drawNarutoSageAura() {
+  int cx = LCD_WIDTH / 2;
+  int cy = LCD_HEIGHT / 2 - 50;
+  for (int r = 60; r < 80; r += 5) {
+    gfx->drawCircle(cx, cy, r, NARUTO_CHAKRA_ORANGE);
+  }
+}
+
+void drawGokuUIAura() {
+  int cx = LCD_WIDTH / 2;
+  int cy = 130;
+  for (int r = 50; r < 70; r += 3) {
+    gfx->drawCircle(cx, cy, r, GOKU_SILVER_GLOW);
+  }
+}
+
+void drawGokuSpeedLines() {
+  for (int i = 0; i < 10; i++) {
+    int x = random(0, LCD_WIDTH);
+    int y1 = random(50, 150);
+    gfx->drawLine(x, y1, x + random(-5, 5), y1 + random(20, 40), GOKU_SPEED_LINES);
+  }
+}
+
+void drawTanjiroSunFlames() {
+  for (int i = 0; i < 7; i++) {
+    int x = 50 + i * 45;
+    int y = 80;
+    gfx->fillTriangle(x, y, x - 10, y + 25, x + 10, y + 25, TANJIRO_FLAME_GLOW);
+  }
+}
+
+void drawGojoInfinityAura() {
+  int cx = LCD_WIDTH / 2;
+  int cy = 130;
+  for (int r = 40; r < 65; r += 4) {
+    gfx->drawCircle(cx, cy, r, GOJO_INFINITY_BLUE);
+  }
+}
+
+void drawGojoSixEyesGlow() {
+  gfx->fillCircle(LCD_WIDTH / 2 - 20, 55, 8, GOJO_SIX_EYES_BLUE);
+  gfx->fillCircle(LCD_WIDTH / 2 + 20, 55, 8, GOJO_SIX_EYES_BLUE);
+}
+
+void drawLeviBladeShine() {
+  gfx->drawLine(30, 80, 50, 140, LEVI_SILVER_BLADE);
+  gfx->drawLine(LCD_WIDTH - 30, 80, LCD_WIDTH - 50, 140, LEVI_SILVER_BLADE);
+}
+
+void drawDekuOFALightning() {
+  for (int i = 0; i < 5; i++) {
+    int x1 = random(30, LCD_WIDTH - 30);
+    int y1 = random(50, 100);
+    gfx->drawLine(x1, y1, x1 + random(-20, 20), y1 + random(20, 40), DEKU_OFA_LIGHTNING);
+  }
+}
+
+// =============================================================================
+// ACTIVITY RINGS
+// =============================================================================
+
+void drawActivityRing(int centerX, int centerY, int radius, float progress, uint16_t color, int thickness) {
+  progress = constrain(progress, 0.0f, 1.0f);
+  
+  // Background ring
+  for (int i = 0; i < 360; i += 3) {
+    float a = i * PI / 180.0 - PI/2;
+    int px = centerX + cos(a) * radius;
+    int py = centerY + sin(a) * radius;
+    gfx->drawPixel(px, py, RGB565(40, 40, 45));
+  }
+  
+  // Progress arc
+  int progressDeg = progress * 360;
+  for (int i = 0; i < progressDeg; i += 3) {
+    float a = i * PI / 180.0 - PI/2;
+    int px = centerX + cos(a) * radius;
+    int py = centerY + sin(a) * radius;
+    gfx->fillCircle(px, py, thickness/2, color);
+  }
+}
+
+void drawLuffyActivityRings(int centerX, int centerY) {
+  float stepProgress = (float)system_state.steps_today / max(1, system_state.step_goal);
+  drawActivityRing(centerX, centerY, 35, stepProgress, LUFFY_SUN_GOLD, 6);
+  drawActivityRing(centerX, centerY, 25, 0.7, LUFFY_ENERGY_ORANGE, 5);
+  
+  // Center percentage
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(150, 150, 150));
+  int pct = min(100, (int)(stepProgress * 100));
+  gfx->setCursor(centerX - 10, centerY - 4);
+  gfx->printf("%d%%", pct);
+}
+
+void drawJinwooActivityRings(int centerX, int centerY) {
+  float stepProgress = (float)system_state.steps_today / max(1, system_state.step_goal);
+  drawActivityRing(centerX, centerY, 35, stepProgress, JINWOO_MONARCH_PURPLE, 6);
+  drawActivityRing(centerX, centerY, 25, 0.7, JINWOO_ARISE_GLOW, 5);
+}
+
+void drawYugoActivityRings(int centerX, int centerY) {
+  float stepProgress = (float)system_state.steps_today / max(1, system_state.step_goal);
+  drawActivityRing(centerX, centerY, 35, stepProgress, YUGO_PORTAL_CYAN, 6);
+  drawActivityRing(centerX, centerY, 25, 0.7, YUGO_HAT_GOLD, 5);
+}
+
+void drawNarutoActivityRings(int centerX, int centerY) {
+  float stepProgress = (float)system_state.steps_today / max(1, system_state.step_goal);
+  drawActivityRing(centerX, centerY, 35, stepProgress, NARUTO_CHAKRA_ORANGE, 6);
+  drawActivityRing(centerX, centerY, 25, 0.7, NARUTO_SAGE_GOLD, 5);
+}
+
+void drawGokuActivityRings(int centerX, int centerY) {
+  float stepProgress = (float)system_state.steps_today / max(1, system_state.step_goal);
+  drawActivityRing(centerX, centerY, 35, stepProgress, GOKU_UI_SILVER, 6);
+  drawActivityRing(centerX, centerY, 25, 0.7, GOKU_KI_BLAST_BLUE, 5);
+}
+
+void drawTanjiroActivityRings(int centerX, int centerY) {
+  float stepProgress = (float)system_state.steps_today / max(1, system_state.step_goal);
+  drawActivityRing(centerX, centerY, 35, stepProgress, TANJIRO_FIRE_ORANGE, 6);
+  drawActivityRing(centerX, centerY, 25, 0.7, TANJIRO_WATER_BLUE, 5);
+}
+
+void drawGojoActivityRings(int centerX, int centerY) {
+  float stepProgress = (float)system_state.steps_today / max(1, system_state.step_goal);
+  drawActivityRing(centerX, centerY, 35, stepProgress, GOJO_INFINITY_BLUE, 6);
+  drawActivityRing(centerX, centerY, 25, 0.7, GOJO_HOLLOW_PURPLE, 5);
+}
+
+void drawLeviActivityRings(int centerX, int centerY) {
+  float stepProgress = (float)system_state.steps_today / max(1, system_state.step_goal);
+  drawActivityRing(centerX, centerY, 35, stepProgress, LEVI_SURVEY_GREEN, 6);
+  drawActivityRing(centerX, centerY, 25, 0.7, LEVI_SILVER_BLADE, 5);
+}
+
+void drawSaitamaActivityRings(int centerX, int centerY) {
+  float stepProgress = (float)system_state.steps_today / max(1, system_state.step_goal);
+  drawActivityRing(centerX, centerY, 35, stepProgress, SAITAMA_HERO_YELLOW, 6);
+  drawActivityRing(centerX, centerY, 25, 0.7, SAITAMA_CAPE_RED, 5);
+}
+
+void drawDekuActivityRings(int centerX, int centerY) {
+  float stepProgress = (float)system_state.steps_today / max(1, system_state.step_goal);
+  drawActivityRing(centerX, centerY, 35, stepProgress, DEKU_HERO_GREEN, 6);
+  drawActivityRing(centerX, centerY, 25, 0.7, DEKU_OFA_LIGHTNING, 5);
+}
+
+void drawBoboiboyActivityRings(int centerX, int centerY) {
+  float stepProgress = (float)system_state.steps_today / max(1, system_state.step_goal);
+  
+  // Outer ring - Power Band Orange
+  drawActivityRing(centerX, centerY, 35, stepProgress, BBB_BAND_ORANGE, 6);
+  
+  // Inner ring - Cycles through element colors
+  uint16_t elementColors[] = {
+    BBB_LIGHTNING_YELLOW, BBB_WIND_BLUE, BBB_EARTH_BROWN,
+    BBB_FIRE_RED, BBB_WATER_CYAN, BBB_LEAF_GREEN, BBB_LIGHT_GOLD
+  };
+  int elemIdx = (millis() / 1500) % 7;
+  drawActivityRing(centerX, centerY, 25, 0.8, elementColors[elemIdx], 5);
+  
+  // Center - element icon (small colored dot)
+  gfx->fillCircle(centerX, centerY, 5, elementColors[elemIdx]);
+}
+
+// =============================================================================
+// UI UTILITIES
+// =============================================================================
+
 void drawStepCounter() {
   gfx->setTextColor(COLOR_WHITE);
   gfx->setTextSize(1);
@@ -1010,486 +1294,17 @@ void drawBatteryIndicator() {
   int x = LCD_WIDTH - 50, y = 10;
   gfx->drawRect(x, y, 40, 18, COLOR_WHITE);
   gfx->fillRect(x + 40, y + 4, 4, 10, COLOR_WHITE);
-  
   int fillWidth = (system_state.battery_percentage * 36) / 100;
   uint16_t color = system_state.battery_percentage > 20 ? COLOR_GREEN : COLOR_RED;
   if (system_state.is_charging) color = COLOR_YELLOW;
   gfx->fillRect(x + 2, y + 2, fillWidth, 14, color);
 }
 
-void drawCustomWallpaperWatchFace() {
-  drawMinimalTimeOverlay();
-}
-
-void drawWallpaperOverlayElements() {
-  drawMinimalTimeOverlay();
-  drawBatteryIndicator();
-}
-
-void drawMinimalTimeOverlay() {
-  WatchTime time = getCurrentTime();
-  char timeStr[16];
-  sprintf(timeStr, "%02d:%02d", time.hour, time.minute);
-  
-  // Semi-transparent background
-  gfx->fillRoundRect(60, 180, 250, 80, 15, RGB565(0, 0, 0));
-  
-  gfx->setTextSize(4);
-  gfx->setTextColor(COLOR_WHITE);
-  gfx->setCursor(90, 200);
-  gfx->print(timeStr);
-}
-
-// =============================================================================
-// CHARACTER EFFECTS
-// =============================================================================
-
-void drawCharacterRings(int centerX, int centerY) {
-  // Draw 12-16 glowing rings around the character area
-  uint16_t ringColor = current_theme->effect1;
-  for (int i = 0; i < 12; i++) {
-    float angle = (i * 30) * PI / 180;
-    int rx = centerX + cos(angle) * 80;
-    int ry = centerY + sin(angle) * 80;
-    int size = random(8, 16);
-    gfx->fillCircle(rx, ry, size, ringColor);
-  }
-}
-
-void drawPulsingGlow(int x, int y, int radius, uint16_t color) {
-  static uint8_t pulse = 0;
-  pulse = (pulse + 5) % 255;
-  uint8_t alpha = 128 + (sin(pulse * PI / 128) * 64);
-  gfx->drawCircle(x, y, radius, color);
-  gfx->drawCircle(x, y, radius - 2, color);
-}
-
-void drawLuffyGear5Effects() {
-  // Golden sun particles
-  for (int i = 0; i < 8; i++) {
-    int x = random(0, LCD_WIDTH);
-    int y = random(50, 150);
-    gfx->fillCircle(x, y, random(2, 5), LUFFY_SUN_GLOW);
-  }
-}
-
-void drawLuffySunRays() {
-  // Radial sun rays from center
-  int cx = LCD_WIDTH / 2;
-  int cy = 100;
-  for (int i = 0; i < 8; i++) {
-    float angle = i * 45 * PI / 180;
-    int x2 = cx + cos(angle) * 60;
-    int y2 = cy + sin(angle) * 60;
-    gfx->drawLine(cx, cy, x2, y2, LUFFY_SUN_GOLD);
-  }
-}
-
-void drawLuffyCloudWisps() {
-  for (int i = 0; i < 5; i++) {
-    int x = random(20, LCD_WIDTH - 20);
-    int y = random(80, 130);
-    gfx->fillEllipse(x, y, random(10, 20), random(5, 10), LUFFY_CLOUD_WHITE);
-  }
-}
-
-void drawLuffyRubberStretch() {
-  // Stretchy effect lines
-}
-
-void drawJinwooShadows() {
-  // Shadow soldiers rising
-  for (int i = 0; i < 5; i++) {
-    int x = 40 + i * 70;
-    int y = LCD_HEIGHT - 80;
-    gfx->fillEllipse(x, y, 15, 25, JINWOO_VOID_BLACK);
-    gfx->fillCircle(x, y - 20, 8, JINWOO_MONARCH_PURPLE);
-    // Glowing eyes
-    gfx->fillCircle(x - 3, y - 22, 2, JINWOO_ARISE_GLOW);
-    gfx->fillCircle(x + 3, y - 22, 2, JINWOO_ARISE_GLOW);
-  }
-}
-
-void drawJinwooAriseEffect() {
-  gfx->setTextColor(JINWOO_ARISE_GLOW);
-  gfx->setTextSize(2);
-  gfx->setCursor(140, LCD_HEIGHT - 100);
-  gfx->print("ARISE!");
-}
-
-void drawJinwooVoidRifts() {
-  // Dimensional tears
-  for (int i = 0; i < 3; i++) {
-    int x = random(50, LCD_WIDTH - 50);
-    int y = random(60, 140);
-    gfx->drawLine(x, y, x + random(-10, 10), y + random(10, 30), JINWOO_MIST_PURPLE);
-  }
-}
-
-void drawJinwooWeaponTrails() {
-  // Dagger slash effects
-}
-
-void drawYugoPortals() {
-  // Left portal
-  gfx->drawCircle(60, 100, 30, YUGO_PORTAL_CYAN);
-  gfx->drawCircle(60, 100, 25, YUGO_WAKFU_ENERGY);
-  gfx->drawCircle(60, 100, 20, YUGO_PORTAL_GLOW);
-  
-  // Right portal
-  gfx->drawCircle(LCD_WIDTH - 60, 100, 30, YUGO_PORTAL_CYAN);
-  gfx->drawCircle(LCD_WIDTH - 60, 100, 25, YUGO_WAKFU_ENERGY);
-  gfx->drawCircle(LCD_WIDTH - 60, 100, 20, YUGO_PORTAL_GLOW);
-}
-
-void drawYugoWakfuParticles() {
-  for (int i = 0; i < 6; i++) {
-    int x = random(30, LCD_WIDTH - 30);
-    int y = random(50, 150);
-    gfx->fillCircle(x, y, 3, YUGO_ENERGY_BURST);
-  }
-}
-
-void drawYugoDimensionalRifts() {
-  // Space tears effect
-}
-
-void drawYugoEnergyOrbs() {
-  // Floating wakfu orbs
-}
-
-void drawNarutoSageAura() {
-  // Orange chakra aura
-  int cx = LCD_WIDTH / 2;
-  int cy = LCD_HEIGHT / 2 - 50;
-  for (int r = 60; r < 80; r += 5) {
-    gfx->drawCircle(cx, cy, r, NARUTO_CHAKRA_ORANGE);
-  }
-}
-
-void drawNarutoKuramaFlames() {
-  // Nine-tails flame effect
-  for (int i = 0; i < 9; i++) {
-    int x = 30 + i * 35;
-    int y = LCD_HEIGHT - 50;
-    gfx->fillTriangle(x, y, x - 8, y + 20, x + 8, y + 20, NARUTO_KURAMA_FLAME);
-  }
-}
-
-void drawNarutoRasengan() {
-  // Spinning rasengan effect
-  gfx->fillCircle(LCD_WIDTH / 2, LCD_HEIGHT - 100, 20, NARUTO_RASENGAN_BLUE);
-  gfx->drawCircle(LCD_WIDTH / 2, LCD_HEIGHT - 100, 25, COLOR_WHITE);
-}
-
-void drawNarutoShadowClones() {
-  // Multiple faint clone silhouettes
-}
-
-void drawGokuUIAura() {
-  // Silver UI aura
-  int cx = LCD_WIDTH / 2;
-  int cy = 130;
-  for (int r = 50; r < 70; r += 3) {
-    gfx->drawCircle(cx, cy, r, GOKU_SILVER_GLOW);
-  }
-}
-
-void drawGokuKiBlasts() {
-  // Ki blast particles
-}
-
-void drawGokuSpeedLines() {
-  // Motion blur lines
-  for (int i = 0; i < 10; i++) {
-    int x = random(0, LCD_WIDTH);
-    int y1 = random(50, 150);
-    int y2 = y1 + random(20, 40);
-    gfx->drawLine(x, y1, x + random(-5, 5), y2, GOKU_SPEED_LINES);
-  }
-}
-
-void drawGokuDivineGlow() {
-  // Divine silver glow effect
-}
-
-void drawTanjiroSunFlames() {
-  // Sun breathing flames
-  for (int i = 0; i < 7; i++) {
-    int x = 50 + i * 45;
-    int y = 80;
-    gfx->fillTriangle(x, y, x - 10, y + 25, x + 10, y + 25, TANJIRO_FLAME_GLOW);
-  }
-}
-
-void drawTanjiroWaterTechniques() {
-  // Water effects (alternate breathing)
-}
-
-void drawTanjiroHinokamiKagura() {
-  // Golden sun dance
-}
-
-void drawTanjiroNichirinBlade() {
-  // Blade shine effect
-  gfx->drawLine(LCD_WIDTH - 30, 60, LCD_WIDTH - 50, 140, TANJIRO_STEEL_GREY);
-  gfx->drawLine(LCD_WIDTH - 29, 60, LCD_WIDTH - 49, 140, TANJIRO_SPIRIT_WHITE);
-}
-
-void drawGojoInfinityAura() {
-  // Blue infinity aura
-  int cx = LCD_WIDTH / 2;
-  int cy = 130;
-  for (int r = 40; r < 65; r += 4) {
-    gfx->drawCircle(cx, cy, r, GOJO_INFINITY_BLUE);
-  }
-}
-
-void drawGojoSixEyesGlow() {
-  // Six eyes blue glow at top
-  gfx->fillCircle(LCD_WIDTH / 2 - 20, 55, 8, GOJO_SIX_EYES_BLUE);
-  gfx->fillCircle(LCD_WIDTH / 2 + 20, 55, 8, GOJO_SIX_EYES_BLUE);
-}
-
-void drawGojoHollowPurple() {
-  // Purple/red convergence effect
-}
-
-void drawGojoDomainExpansion() {
-  // Unlimited void visual
-}
-
-void drawLeviBladeShine() {
-  // Dual blade reflections
-  gfx->drawLine(30, 80, 50, 140, LEVI_SILVER_BLADE);
-  gfx->drawLine(LCD_WIDTH - 30, 80, LCD_WIDTH - 50, 140, LEVI_SILVER_BLADE);
-}
-
-void drawLeviODMGearMotion() {
-  // Wire/gear motion trails
-}
-
-void drawLeviSpeedBlur() {
-  // Fast movement lines
-}
-
-void drawLeviCleanAesthetic() {
-  // Everything is spotless
-}
-
-void drawSaitamaPunchImpact() {
-  // Punch shockwave
-  gfx->drawCircle(LCD_WIDTH / 2, 120, 40, SAITAMA_GOLDEN_PUNCH);
-  gfx->drawCircle(LCD_WIDTH / 2, 120, 50, SAITAMA_IMPACT_ORANGE);
-}
-
-void drawSaitamaCapeFlow() {
-  // Flowing red cape
-}
-
-void drawSaitamaDotEyes() {
-  // Simple dot eyes
-  gfx->fillCircle(LCD_WIDTH / 2 - 15, 100, 3, SAITAMA_DOT_EYES);
-  gfx->fillCircle(LCD_WIDTH / 2 + 15, 100, 3, SAITAMA_DOT_EYES);
-}
-
-void drawSaitamaPowerEffect() {
-  // Overwhelming casual power
-}
-
-void drawDekuOFALightning() {
-  // Green lightning crackles
-  for (int i = 0; i < 5; i++) {
-    int x1 = random(30, LCD_WIDTH - 30);
-    int y1 = random(50, 100);
-    int x2 = x1 + random(-20, 20);
-    int y2 = y1 + random(20, 40);
-    gfx->drawLine(x1, y1, x2, y2, DEKU_OFA_LIGHTNING);
-  }
-}
-
-void drawDekuFullCowlAura() {
-  // Green energy aura
-  int cx = LCD_WIDTH / 2;
-  int cy = 130;
-  for (int r = 45; r < 60; r += 5) {
-    gfx->drawCircle(cx, cy, r, DEKU_FULL_COWL);
-  }
-}
-
-void drawDekuAirForce() {
-  // Air pressure lines
-}
-
-void drawDekuPowerStrainMarks() {
-  // Red strain veins
-}
-
-// =============================================================================
-// ACTIVITY RINGS
-// =============================================================================
-
-void drawLuffyActivityRings(int centerX, int centerY) {
-  float stepProgress = (float)system_state.steps_today / system_state.step_goal;
-  drawActivityRing(centerX, centerY, 50, stepProgress, LUFFY_SUN_GOLD, 8);
-  drawActivityRing(centerX, centerY, 38, 0.7, LUFFY_ENERGY_ORANGE, 6);
-  drawActivityRing(centerX, centerY, 28, 0.5, LUFFY_STRAW_RED, 5);
-}
-
-void drawJinwooActivityRings(int centerX, int centerY) {
-  float stepProgress = (float)system_state.steps_today / system_state.step_goal;
-  drawActivityRing(centerX, centerY, 50, stepProgress, JINWOO_MONARCH_PURPLE, 8);
-  drawActivityRing(centerX, centerY, 38, 0.7, JINWOO_POWER_VIOLET, 6);
-  drawActivityRing(centerX, centerY, 28, 0.5, JINWOO_ARISE_GLOW, 5);
-}
-
-void drawYugoActivityRings(int centerX, int centerY) {
-  float stepProgress = (float)system_state.steps_today / system_state.step_goal;
-  drawActivityRing(centerX, centerY, 50, stepProgress, YUGO_PORTAL_CYAN, 8);
-  drawActivityRing(centerX, centerY, 38, 0.7, YUGO_HAT_GOLD, 6);
-  drawActivityRing(centerX, centerY, 28, 0.5, YUGO_WAKFU_ENERGY, 5);
-}
-
-void drawNarutoActivityRings(int centerX, int centerY) {
-  float stepProgress = (float)system_state.steps_today / system_state.step_goal;
-  drawActivityRing(centerX, centerY, 50, stepProgress, NARUTO_CHAKRA_ORANGE, 8);
-  drawActivityRing(centerX, centerY, 38, 0.7, NARUTO_KURAMA_RED, 6);
-  drawActivityRing(centerX, centerY, 28, 0.5, NARUTO_SAGE_GOLD, 5);
-}
-
-void drawGokuActivityRings(int centerX, int centerY) {
-  float stepProgress = (float)system_state.steps_today / system_state.step_goal;
-  drawActivityRing(centerX, centerY, 50, stepProgress, GOKU_UI_SILVER, 8);
-  drawActivityRing(centerX, centerY, 38, 0.7, GOKU_KI_BLAST_BLUE, 6);
-  drawActivityRing(centerX, centerY, 28, 0.5, GOKU_AURA_WHITE, 5);
-}
-
-void drawTanjiroActivityRings(int centerX, int centerY) {
-  float stepProgress = (float)system_state.steps_today / system_state.step_goal;
-  drawActivityRing(centerX, centerY, 50, stepProgress, TANJIRO_FIRE_ORANGE, 8);
-  drawActivityRing(centerX, centerY, 38, 0.7, TANJIRO_WATER_BLUE, 6);
-  drawActivityRing(centerX, centerY, 28, 0.5, TANJIRO_FLAME_GLOW, 5);
-}
-
-void drawGojoActivityRings(int centerX, int centerY) {
-  float stepProgress = (float)system_state.steps_today / system_state.step_goal;
-  drawActivityRing(centerX, centerY, 50, stepProgress, GOJO_INFINITY_BLUE, 8);
-  drawActivityRing(centerX, centerY, 38, 0.7, GOJO_HOLLOW_PURPLE, 6);
-  drawActivityRing(centerX, centerY, 28, 0.5, GOJO_SIX_EYES_BLUE, 5);
-}
-
-void drawLeviActivityRings(int centerX, int centerY) {
-  float stepProgress = (float)system_state.steps_today / system_state.step_goal;
-  drawActivityRing(centerX, centerY, 50, stepProgress, LEVI_SURVEY_GREEN, 8);
-  drawActivityRing(centerX, centerY, 38, 0.7, LEVI_SILVER_BLADE, 6);
-  drawActivityRing(centerX, centerY, 28, 0.5, LEVI_MILITARY_GREY, 5);
-}
-
-void drawSaitamaActivityRings(int centerX, int centerY) {
-  float stepProgress = (float)system_state.steps_today / system_state.step_goal;
-  drawActivityRing(centerX, centerY, 50, stepProgress, SAITAMA_HERO_YELLOW, 8);
-  drawActivityRing(centerX, centerY, 38, 0.7, SAITAMA_CAPE_RED, 6);
-  drawActivityRing(centerX, centerY, 28, 0.5, SAITAMA_GOLDEN_PUNCH, 5);
-}
-
-void drawDekuActivityRings(int centerX, int centerY) {
-  float stepProgress = (float)system_state.steps_today / system_state.step_goal;
-  drawActivityRing(centerX, centerY, 50, stepProgress, DEKU_HERO_GREEN, 8);
-  drawActivityRing(centerX, centerY, 38, 0.7, DEKU_OFA_LIGHTNING, 6);
-  drawActivityRing(centerX, centerY, 28, 0.5, DEKU_ALLMIGHT_GOLD, 5);
-}
-
-// =============================================================================
-// ANIMATIONS
-// =============================================================================
-
-void playLuffyAnimation() {
-  for (int i = 0; i < 5; i++) {
-    gfx->fillCircle(LCD_WIDTH/2, LCD_HEIGHT/2, 50 + i*20, LUFFY_SUN_GOLD);
-    delay(50);
-  }
-}
-
-void playJinwooAnimation() {
-  for (int i = 0; i < 10; i++) {
-    int x = random(50, LCD_WIDTH - 50);
-    int y = random(100, LCD_HEIGHT - 100);
-    gfx->fillCircle(x, y, 20, JINWOO_MONARCH_PURPLE);
-    delay(30);
-  }
-}
-
-void playYugoAnimation() {
-  for (int r = 10; r < 80; r += 5) {
-    gfx->drawCircle(LCD_WIDTH/2, LCD_HEIGHT/2, r, YUGO_PORTAL_CYAN);
-    delay(30);
-  }
-}
-
-void playNarutoAnimation() {
-  for (int i = 0; i < 5; i++) {
-    gfx->fillCircle(LCD_WIDTH/2, LCD_HEIGHT/2, 30, NARUTO_RASENGAN_BLUE);
-    delay(100);
-    gfx->fillCircle(LCD_WIDTH/2, LCD_HEIGHT/2, 30, COLOR_BLACK);
-    delay(50);
-  }
-}
-
-void playGokuAnimation() {
-  // UI transformation flash
-  gfx->fillScreen(GOKU_AURA_WHITE);
-  delay(100);
-  gfx->fillScreen(COLOR_BLACK);
-}
-
-void playTanjiroAnimation() {
-  // Sun breathing flame sweep
-  for (int x = 0; x < LCD_WIDTH; x += 30) {
-    gfx->fillTriangle(x, 100, x - 15, 150, x + 15, 150, TANJIRO_FLAME_GLOW);
-    delay(50);
-  }
-}
-
-void playGojoAnimation() {
-  // Infinity sphere expansion
-  for (int r = 10; r < 100; r += 10) {
-    gfx->drawCircle(LCD_WIDTH/2, LCD_HEIGHT/2, r, GOJO_INFINITY_BLUE);
-    delay(40);
-  }
-}
-
-void playLeviAnimation() {
-  // Fast blade slash
-  gfx->drawLine(0, LCD_HEIGHT/2, LCD_WIDTH, LCD_HEIGHT/2, LEVI_SILVER_BLADE);
-  delay(50);
-}
-
-void playSaitamaAnimation() {
-  // One punch - simple
-  gfx->fillCircle(LCD_WIDTH/2, LCD_HEIGHT/2, 80, SAITAMA_GOLDEN_PUNCH);
-  delay(100);
-}
-
-void playDekuAnimation() {
-  // Full Cowl lightning
-  for (int i = 0; i < 10; i++) {
-    int x = random(0, LCD_WIDTH);
-    int y = random(0, LCD_HEIGHT);
-    gfx->drawLine(x, y, x + random(-30, 30), y + random(-30, 30), DEKU_OFA_LIGHTNING);
-  }
-}
-
-// =============================================================================
-// UI ELEMENTS - GLASS MORPHISM
-// =============================================================================
-
 void drawThemeButton(int x, int y, int w, int h, const char* text, bool pressed) {
   uint8_t radius = current_theme->corner_radius;
   uint16_t bg = pressed ? current_theme->accent : current_theme->primary;
-  
   gfx->fillRoundRect(x, y, w, h, radius, bg);
   gfx->drawRoundRect(x, y, w, h, radius, current_theme->text);
-  
   gfx->setTextColor(COLOR_WHITE);
   gfx->setTextSize(2);
   int textW = strlen(text) * 12;
@@ -1501,74 +1316,17 @@ void drawGameButton(int x, int y, int w, int h, const char* text, bool pressed) 
   drawThemeButton(x, y, w, h, text, pressed);
 }
 
-void drawThemeProgressBar(int x, int y, int w, int h, float progress, const char* label) {
-  progress = constrain(progress, 0.0f, 1.0f);
-  
-  // Background with glass effect
-  gfx->fillRoundRect(x, y, w, h, h/2, RGB565(40, 40, 40));
-  
-  // Progress fill with theme gradient
-  int fillW = (int)(w * progress);
-  if (fillW > 0) {
-    gfx->fillRoundRect(x, y, fillW, h, h/2, current_theme->primary);
-  }
-  
-  // Glow effect
-  if (current_theme->glow_intensity > 100) {
-    gfx->drawRoundRect(x - 1, y - 1, w + 2, h + 2, h/2, current_theme->effect1);
-  }
-  
-  // Label
-  if (label && strlen(label) > 0) {
-    gfx->setTextColor(COLOR_WHITE);
-    gfx->setTextSize(1);
-    gfx->setCursor(x, y - 14);
-    gfx->print(label);
-  }
-}
-
-void drawThemeNotification(const char* title, const char* message) {
-  int w = 300, h = 100;
-  int x = (LCD_WIDTH - w) / 2;
-  int y = 50;
-  
-  drawGlassPanel(x, y, w, h);
-  
-  gfx->setTextColor(current_theme->primary);
-  gfx->setTextSize(2);
-  gfx->setCursor(x + 15, y + 15);
-  gfx->print(title);
-  
-  gfx->setTextColor(COLOR_WHITE);
-  gfx->setTextSize(1);
-  gfx->setCursor(x + 15, y + 50);
-  gfx->print(message);
-}
-
-// Glass Morphism Components
 void drawGlassPanel(int x, int y, int w, int h, uint8_t opacity) {
-  // Background with transparency effect (simulated)
   uint16_t glassBg = RGB565(30 + opacity, 30 + opacity, 40 + opacity);
   gfx->fillRoundRect(x, y, w, h, current_theme->corner_radius, glassBg);
-  
-  // Border with transparency
-  gfx->drawRoundRect(x, y, w, h, current_theme->corner_radius, 
-                     RGB565(255, 255, 255));
-  
-  // Inner glow
-  gfx->drawRoundRect(x + 1, y + 1, w - 2, h - 2, current_theme->corner_radius - 1,
-                     RGB565(100, 100, 120));
+  gfx->drawRoundRect(x, y, w, h, current_theme->corner_radius, RGB565(80, 80, 90));
 }
 
 void drawGlassButton(int x, int y, int w, int h, const char* text, bool pressed) {
   drawGlassPanel(x, y, w, h, pressed ? 50 : 25);
-  
-  // Themed glow on hover
   if (pressed) {
-    gfx->drawRoundRect(x - 2, y - 2, w + 4, h + 4, current_theme->corner_radius + 2,
-                       current_theme->primary);
+    gfx->drawRoundRect(x - 2, y - 2, w + 4, h + 4, current_theme->corner_radius + 2, current_theme->primary);
   }
-  
   gfx->setTextColor(COLOR_WHITE);
   gfx->setTextSize(2);
   int textW = strlen(text) * 12;
@@ -1576,36 +1334,19 @@ void drawGlassButton(int x, int y, int w, int h, const char* text, bool pressed)
   gfx->print(text);
 }
 
-void drawGlassCard(int x, int y, int w, int h) {
-  drawGlassPanel(x, y, w, h, 20);
-}
-
 void drawGlassStatBar(int x, int y, int w, int h, float progress, uint16_t color, const char* label) {
-  // Glass background
   gfx->fillRoundRect(x, y, w, h, h/2, RGB565(40, 40, 50));
-  
-  // Progress fill
   int fillW = (int)(w * constrain(progress, 0.0f, 1.0f));
   if (fillW > 0) {
     gfx->fillRoundRect(x, y, fillW, h, h/2, color);
   }
-  
-  // Glow effect
-  gfx->drawRoundRect(x, y, w, h, h/2, RGB565(100, 100, 120));
-  
-  // Label
+  gfx->drawRoundRect(x, y, w, h, h/2, RGB565(80, 80, 90));
   if (label) {
     gfx->setTextColor(COLOR_WHITE);
     gfx->setTextSize(1);
     gfx->setCursor(x + 5, y + h/2 - 4);
     gfx->print(label);
   }
-  
-  // Percentage
-  char pct[8];
-  sprintf(pct, "%d%%", (int)(progress * 100));
-  gfx->setCursor(x + w - 35, y + h/2 - 4);
-  gfx->print(pct);
 }
 
 // =============================================================================
@@ -1615,146 +1356,201 @@ void drawGlassStatBar(int x, int y, int w, int h, float progress, uint16_t color
 void drawCharacterStatsScreen() {
   gfx->fillScreen(COLOR_BLACK);
   
-  CharacterProfile* profile = getCharacterProfile(system_state.current_theme);
+  CharacterProfile* profile = getCurrentCharacterProfile();
+  ThemeColors* theme = getCurrentTheme();
   
   // Header
-  gfx->setTextColor(current_theme->primary);
+  gfx->setTextColor(theme->primary);
   gfx->setTextSize(2);
-  gfx->setCursor(50, 20);
+  gfx->setCursor(60, 20);
   gfx->print("CHARACTER STATS");
   
-  // Glass portrait container
-  drawGlassPanel(60, 60, 240, 100);
+  // Glass card for character info
+  drawGlassPanel(50, 55, 270, 95);
   
-  // Character name and title
-  gfx->setTextColor(current_theme->primary);
+  gfx->setTextColor(theme->primary);
   gfx->setTextSize(2);
-  gfx->setCursor(75, 75);
+  gfx->setCursor(65, 70);
   gfx->print(profile->name);
   
   gfx->setTextColor(COLOR_WHITE);
   gfx->setTextSize(1);
-  gfx->setCursor(75, 100);
+  gfx->setCursor(65, 95);
   gfx->print(profile->title);
   
   gfx->setTextColor(COLOR_GRAY);
-  gfx->setCursor(75, 120);
+  gfx->setCursor(65, 115);
   gfx->print(profile->series);
   
-  // Level display with stars
-  gfx->setTextColor(current_theme->accent);
+  gfx->setTextColor(theme->accent);
   gfx->setTextSize(2);
-  gfx->setCursor(75, 140);
+  gfx->setCursor(65, 135);
   gfx->printf("Lv.%d", system_state.player_level);
   
   // Stat bars
-  int barY = 180;
-  int barW = 280;
-  int barH = 24;
-  int spacing = 45;
+  int barY = 165;
+  int barW = 270;
+  int barH = 22;
+  int spacing = 40;
   
-  drawGlassStatBar(40, barY, barW, barH, profile->stats.stat1_value / 100.0f, 
-                   current_theme->primary, profile->stats.stat1_name);
-  
-  drawGlassStatBar(40, barY + spacing, barW, barH, profile->stats.stat2_value / 100.0f,
-                   current_theme->accent, profile->stats.stat2_name);
-  
-  drawGlassStatBar(40, barY + spacing * 2, barW, barH, profile->stats.stat3_value / 100.0f,
-                   current_theme->effect1, profile->stats.stat3_name);
-  
-  drawGlassStatBar(40, barY + spacing * 3, barW, barH, profile->stats.stat4_value / 100.0f,
-                   current_theme->effect2, profile->stats.stat4_name);
+  drawGlassStatBar(50, barY, barW, barH, profile->stats.stat1_value / 100.0f, theme->primary, profile->stats.stat1_name);
+  drawGlassStatBar(50, barY + spacing, barW, barH, profile->stats.stat2_value / 100.0f, theme->accent, profile->stats.stat2_name);
+  drawGlassStatBar(50, barY + spacing * 2, barW, barH, profile->stats.stat3_value / 100.0f, theme->effect1, profile->stats.stat3_name);
+  drawGlassStatBar(50, barY + spacing * 3, barW, barH, profile->stats.stat4_value / 100.0f, theme->effect2, profile->stats.stat4_name);
   
   // Catchphrase
-  gfx->setTextColor(current_theme->primary);
+  gfx->setTextColor(theme->primary);
   gfx->setTextSize(1);
-  int catchphraseY = barY + spacing * 4 + 20;
-  gfx->setCursor(40, catchphraseY);
+  gfx->setCursor(50, barY + spacing * 4 + 15);
   gfx->print(profile->catchphrase);
   
   // Back button
   drawGlassButton(140, 410, 80, 35, "Back", false);
 }
 
-void drawStatBar(int x, int y, int w, int h, int value, int maxValue, uint16_t color, const char* label) {
-  float progress = (float)value / maxValue;
-  drawGlassStatBar(x, y, w, h, progress, color, label);
-}
-
-void drawAnimatedStatBar(int x, int y, int w, int h, float targetProgress, uint16_t color) {
-  // Animation happens over time - this is a placeholder for animated fill
-  static float currentProgress = 0;
-  if (currentProgress < targetProgress) {
-    currentProgress += 0.02;
-  }
-  drawGlassStatBar(x, y, w, h, currentProgress, color, nullptr);
-}
-
-// =============================================================================
-// THEME SELECTOR
-// =============================================================================
-
 void drawThemeSelector() {
   gfx->fillScreen(COLOR_BLACK);
   
   gfx->setTextColor(COLOR_WHITE);
   gfx->setTextSize(2);
-  gfx->setCursor(80, 20);
+  gfx->setCursor(70, 15);
   gfx->print("SELECT THEME");
   
-  // Draw theme cards in a scrollable list
-  const char* names[] = {"Luffy", "Jin-Woo", "Yugo", "Naruto", "Goku",
-                         "Tanjiro", "Gojo", "Levi", "Saitama", "Deku"};
-  ThemeColors* themes[] = {&luffy_gear5_theme, &sung_jinwoo_theme, &yugo_wakfu_theme,
-                           &naruto_sage_theme, &goku_ui_theme, &tanjiro_sun_theme,
-                           &gojo_infinity_theme, &levi_strongest_theme, &saitama_opm_theme,
-                           &deku_plusultra_theme};
+  // Page indicator
+  static int themePage = 0;
+  int totalPages = 2;
   
-  for (int i = 0; i < 6; i++) {  // Show 6 at a time
-    int x = (i % 2) * 175 + 15;
-    int y = (i / 2) * 110 + 60;
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(150, 150, 160));
+  gfx->setCursor(LCD_WIDTH - 35, 20);
+  gfx->printf("%d/%d", themePage + 1, totalPages);
+  
+  if (themePage == 0) {
+    // Page 1: First 6 themes
+    const char* names[] = {"Luffy", "Jin-Woo", "Yugo", "Naruto", "Goku", "Tanjiro"};
+    ThemeColors* themes[] = {&luffy_gear5_theme, &sung_jinwoo_theme, &yugo_wakfu_theme,
+                             &naruto_sage_theme, &goku_ui_theme, &tanjiro_sun_theme};
     
-    gfx->fillRoundRect(x, y, 160, 100, 15, themes[i]->primary);
-    gfx->drawRoundRect(x, y, 160, 100, 15, COLOR_WHITE);
-    
-    // Highlight current theme
-    if ((ThemeType)i == system_state.current_theme) {
-      gfx->drawRoundRect(x - 2, y - 2, 164, 104, 17, COLOR_WHITE);
-      gfx->drawRoundRect(x - 3, y - 3, 166, 106, 18, COLOR_WHITE);
+    for (int i = 0; i < 6; i++) {
+      int x = (i % 2) * 175 + 15;
+      int y = (i / 2) * 100 + 45;
+      
+      gfx->fillRoundRect(x, y, 155, 90, 15, themes[i]->primary);
+      gfx->drawRoundRect(x, y, 155, 90, 15, RGB565(80, 80, 90));
+      
+      if ((ThemeType)i == system_state.current_theme) {
+        gfx->drawRoundRect(x - 2, y - 2, 159, 94, 17, COLOR_WHITE);
+        gfx->drawRoundRect(x - 3, y - 3, 161, 96, 18, getCurrentTheme()->accent);
+      }
+      
+      gfx->setTextColor(COLOR_WHITE);
+      gfx->setTextSize(2);
+      gfx->setCursor(x + 30, y + 32);
+      gfx->print(names[i]);
     }
+  } else {
+    // Page 2: Last 5 themes (Gojo, Levi, Saitama, Deku, BoBoiBoy)
+    const char* names[] = {"Gojo", "Levi", "Saitama", "Deku", "BoBoiBoy"};
+    ThemeColors* themes[] = {&gojo_infinity_theme, &levi_strongest_theme, 
+                             &saitama_opm_theme, &deku_plusultra_theme, &boboiboy_elemental_theme};
+    ThemeType types[] = {THEME_GOJO_INFINITY, THEME_LEVI_STRONGEST, 
+                         THEME_SAITAMA_OPM, THEME_DEKU_PLUSULTRA, THEME_BOBOIBOY};
     
-    gfx->setTextColor(COLOR_WHITE);
-    gfx->setTextSize(2);
-    gfx->setCursor(x + 20, y + 40);
-    gfx->print(names[i]);
+    for (int i = 0; i < 5; i++) {
+      int col = i % 2;
+      int row = i / 2;
+      int x = col * 175 + 15;
+      int y = row * 100 + 45;
+      
+      // Special layout for 5th item (BoBoiBoy) - centered
+      if (i == 4) {
+        x = (LCD_WIDTH - 155) / 2;
+        y = 2 * 100 + 45;
+      }
+      
+      gfx->fillRoundRect(x, y, 155, 90, 15, themes[i]->primary);
+      gfx->drawRoundRect(x, y, 155, 90, 15, RGB565(80, 80, 90));
+      
+      if (types[i] == system_state.current_theme) {
+        gfx->drawRoundRect(x - 2, y - 2, 159, 94, 17, COLOR_WHITE);
+        gfx->drawRoundRect(x - 3, y - 3, 161, 96, 18, getCurrentTheme()->accent);
+      }
+      
+      gfx->setTextColor(COLOR_WHITE);
+      gfx->setTextSize(2);
+      int textLen = strlen(names[i]) * 12;
+      gfx->setCursor(x + (155 - textLen) / 2, y + 32);
+      gfx->print(names[i]);
+    }
   }
   
   // Navigation hint
   gfx->setTextSize(1);
-  gfx->setCursor(100, 400);
-  gfx->print("Swipe for more themes");
+  gfx->setTextColor(RGB565(100, 105, 120));
+  gfx->setCursor(90, 365);
+  gfx->print("Swipe up/down for more");
   
-  drawGlassButton(140, 420, 80, 30, "Back", false);
+  drawGlassButton(140, 400, 80, 30, "Back", false);
 }
 
+// Theme selector page state
+static int themePageState = 0;
+
 void handleThemeSelectorTouch(TouchGesture& gesture) {
+  if (gesture.event == TOUCH_SWIPE_UP) {
+    if (themePageState < 1) themePageState++;
+    drawThemeSelector();
+    return;
+  }
+  if (gesture.event == TOUCH_SWIPE_DOWN) {
+    if (themePageState > 0) themePageState--;
+    drawThemeSelector();
+    return;
+  }
+  
   if (gesture.event != TOUCH_TAP) return;
   
   int x = gesture.x, y = gesture.y;
   
-  // Check theme cards
-  for (int i = 0; i < 6; i++) {
-    int tx = (i % 2) * 175 + 15;
-    int ty = (i / 2) * 110 + 60;
-    
-    if (x >= tx && x < tx + 160 && y >= ty && y < ty + 100) {
-      setTheme((ThemeType)i);
-      return;
-    }
+  // Back button
+  if (y >= 400 && x >= 140 && x < 220) {
+    themePageState = 0;
+    system_state.current_screen = SCREEN_SETTINGS;
+    return;
   }
   
-  // Back button
-  if (y >= 420 && x >= 140 && x < 220) {
-    system_state.current_screen = SCREEN_SETTINGS;
+  // Theme selection
+  if (themePageState == 0) {
+    // Page 1: themes 0-5
+    for (int i = 0; i < 6; i++) {
+      int tx = (i % 2) * 175 + 15;
+      int ty = (i / 2) * 100 + 45;
+      if (x >= tx && x < tx + 155 && y >= ty && y < ty + 90) {
+        setTheme((ThemeType)i);
+        drawThemeSelector();
+        return;
+      }
+    }
+  } else {
+    // Page 2: themes 6-10
+    ThemeType types[] = {THEME_GOJO_INFINITY, THEME_LEVI_STRONGEST, 
+                         THEME_SAITAMA_OPM, THEME_DEKU_PLUSULTRA, THEME_BOBOIBOY};
+    for (int i = 0; i < 5; i++) {
+      int col = i % 2;
+      int row = i / 2;
+      int tx = col * 175 + 15;
+      int ty = row * 100 + 45;
+      
+      if (i == 4) {
+        tx = (LCD_WIDTH - 155) / 2;
+        ty = 2 * 100 + 45;
+      }
+      
+      if (x >= tx && x < tx + 155 && y >= ty && y < ty + 90) {
+        setTheme(types[i]);
+        drawThemeSelector();
+        return;
+      }
+    }
   }
 }
