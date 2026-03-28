@@ -308,10 +308,7 @@ void drawLuffyPunchGame() {
   gfx->print("Hold to stretch, release at target!");
   
   // Back button
-  gfx->fillRoundRect(10, 415, 60, 25, 8, RGB565(40, 35, 25));
-  gfx->setTextColor(COLOR_WHITE);
-  gfx->setCursor(22, 422);
-  gfx->print("Back");
+  drawSwipeIndicator();
 }
 
 void updateLuffyPunchGame() {
@@ -435,10 +432,7 @@ void drawGojoDodgeGame() {
   gfx->print("Swipe to dodge!");
   
   // Back button
-  gfx->fillRoundRect(10, 415, 60, 25, 8, GOJO_DOMAIN_PURPLE);
-  gfx->setTextColor(COLOR_WHITE);
-  gfx->setCursor(22, 422);
-  gfx->print("Back");
+  drawSwipeIndicator();
 }
 
 void updateGojoDodgeGame() {
@@ -581,10 +575,7 @@ void drawLeviSlashGame() {
   gfx->print("Swipe across nape to kill!");
   
   // Back button
-  gfx->fillRoundRect(10, 415, 60, 25, 8, LEVI_SURVEY_GREEN);
-  gfx->setTextColor(COLOR_WHITE);
-  gfx->setCursor(22, 422);
-  gfx->print("Back");
+  drawSwipeIndicator();
 }
 
 void updateLeviSlashGame() {
@@ -791,10 +782,7 @@ void drawElementBattle() {
   gfx->print("TAP: Attack  SWIPE: Switch Element");
   
   // Back button
-  gfx->fillRoundRect(10, 415, 60, 25, 8, RGB565(40, 42, 50));
-  gfx->setTextColor(COLOR_WHITE);
-  gfx->setCursor(22, 422);
-  gfx->print("Back");
+  drawSwipeIndicator();
   
   // Win/Lose screen
   if (element_battle.battle_phase == 2) {
@@ -858,7 +846,7 @@ void handleElementBattleTouch(TouchGesture& gesture) {
   if (gesture.event == TOUCH_TAP) {
     // Attack!
     if (element_battle.player_power >= 30) {
-      playerAttack();
+      elementPlayerAttack();
     }
   }
   else if (gesture.event == TOUCH_SWIPE_LEFT || gesture.event == TOUCH_SWIPE_RIGHT) {
@@ -872,7 +860,7 @@ void handleElementBattleTouch(TouchGesture& gesture) {
   }
 }
 
-void playerAttack() {
+void elementPlayerAttack() {
   element_battle.is_attacking = true;
   
   int advantage = getElementAdvantage(element_battle.player_element, element_battle.enemy_element);

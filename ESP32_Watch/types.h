@@ -1,5 +1,5 @@
 /*
- * types.h - Central Type Definitions
+ * types.h - Central Type Definitions (FIXED)
  * All shared structs, enums, and constants for the ESP32 Watch
  * 
  * MUST BE INCLUDED BEFORE ALL OTHER PROJECT HEADERS
@@ -24,6 +24,14 @@
 
 // Training
 #define MAX_TRAINING_TIME     60000
+#define TRAINING_XP_PER_GAME_MIN  10
+#define TRAINING_XP_PER_GAME_MAX  50
+#define TRAINING_PERFECT_BONUS    25
+
+// Reflex timing thresholds (in milliseconds)
+#define REFLEX_PERFECT_MS     150
+#define REFLEX_GREAT_MS       250
+#define REFLEX_GOOD_MS        400
 
 // RPG
 #define MAX_ACTIVE_QUESTS     5
@@ -98,6 +106,7 @@ enum TrainingType {
   TRAINING_REFLEX = 0,
   TRAINING_TARGET,
   TRAINING_SPEED_TAP,
+  TRAINING_SPEED = TRAINING_SPEED_TAP,  // Alias for backward compatibility
   TRAINING_MEMORY
 };
 
@@ -214,13 +223,16 @@ struct GachaCard {
   int duplicate_count;
 };
 
-// Training score
+// Training score - FIXED: Added missing members
 struct TrainingScore {
+  TrainingType type;       // FIXED: Added training type
   int score;
   int hits;
   int misses;
   int streak;
   int best_streak;
+  int best_time_ms;        // FIXED: Added best time tracking
+  int combo_count;         // FIXED: Added combo counter
   unsigned long time_ms;
   bool perfect;
   int xp_earned;
@@ -338,11 +350,13 @@ struct WeatherData {
   bool valid;
 };
 
-// News article
+// News article - FIXED: Added missing summary member
 struct NewsArticle {
   String title;
+  String summary;          // FIXED: Added summary field
   String source;
   String url;
+  String time_ago;         // FIXED: Added time_ago field for display
   unsigned long timestamp;
 };
 

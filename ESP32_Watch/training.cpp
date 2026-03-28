@@ -1,5 +1,5 @@
 /*
- * training.cpp - Training Mini-Games Implementation
+ * training.cpp - Training Mini-Games Implementation (FIXED)
  * Complete training dojo with XP rewards
  */
 
@@ -8,6 +8,7 @@
 #include "display.h"
 #include "themes.h"
 #include "rpg.h"
+#include "navigation.h"
 
 extern Arduino_SH8601 *gfx;
 extern SystemState system_state;
@@ -75,10 +76,10 @@ void startTrainingGame(TrainingType type) {
   current_training_score.combo_count = 0;
   
   switch(type) {
-    case TRAINING_REFLEX:  initReflexTest(); break;
-    case TRAINING_TARGET:  initTargetShoot(); break;
-    case TRAINING_SPEED:   initSpeedTap(); break;
-    case TRAINING_MEMORY:  initTrainingMemory(); break;
+    case TRAINING_REFLEX:    initReflexTest(); break;
+    case TRAINING_TARGET:    initTargetShoot(); break;
+    case TRAINING_SPEED_TAP: initSpeedTap(); break;   // FIXED: Use TRAINING_SPEED_TAP
+    case TRAINING_MEMORY:    initTrainingMemory(); break;
   }
   
   system_state.current_screen = SCREEN_TRAINING;
@@ -88,10 +89,10 @@ void updateTrainingGame() {
   if (!training_active) return;
   
   switch(current_training_type) {
-    case TRAINING_REFLEX:  updateReflexTest(); break;
-    case TRAINING_TARGET:  updateTargetShoot(); break;
-    case TRAINING_SPEED:   updateSpeedTap(); break;
-    case TRAINING_MEMORY:  updateTrainingMemory(); break;
+    case TRAINING_REFLEX:    updateReflexTest(); break;
+    case TRAINING_TARGET:    updateTargetShoot(); break;
+    case TRAINING_SPEED_TAP: updateSpeedTap(); break;   // FIXED: Use TRAINING_SPEED_TAP
+    case TRAINING_MEMORY:    updateTrainingMemory(); break;
   }
 }
 
@@ -636,7 +637,7 @@ void drawTrainingMenu() {
     gfx->print(descs[i]);
   }
   
-  drawGlassButton(140, 410, 80, 35, "Back", false);
+  drawSwipeIndicator();
 }
 
 void drawTrainingResults(TrainingScore& score) {

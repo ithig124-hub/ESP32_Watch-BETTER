@@ -83,6 +83,7 @@ void drawAppIcon(int x, int y, int w, int h, const char* name, uint16_t color, b
 
 // Draw back button (standardized)
 void drawBackButton(int x, int y);
+void drawSwipeIndicator();
 
 // =============================================================================
 // TRANSITION ANIMATIONS

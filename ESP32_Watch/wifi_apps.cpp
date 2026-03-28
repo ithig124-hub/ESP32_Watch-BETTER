@@ -1,5 +1,5 @@
 /*
- * wifi_apps.cpp - WiFi & Internet Implementation
+ * wifi_apps.cpp - WiFi & Internet Implementation (FIXED)
  */
 
 #include "wifi_apps.h"
@@ -7,6 +7,7 @@
 #include "display.h"
 #include "themes.h"
 #include "hardware.h"
+#include "navigation.h"
 
 extern Arduino_SH8601 *gfx;
 extern SystemState system_state;
@@ -203,79 +204,16 @@ void showNetworkStatusScreen() {
     gfx->printf("MAC: %s", getMacAddress().c_str());
   }
   
-  drawThemeButton(140, 420, 80, 30, "Back", false);
+  drawSwipeIndicator();
 }
 
 void handleWiFiSetupTouch(TouchGesture& gesture) {
-  if (gesture.event == TOUCH_TAP && gesture.y >= 420) {
-    system_state.current_screen = SCREEN_SETTINGS;
-  }
+  // Swipe up to exit handled by main gesture handler
+  // Taps handled by handleNetworkListTouch
 }
 
 // Alias function for handleWiFiSetupTouch
 void handleWifiManagerTouch(TouchGesture& gesture) {
-  handleWiFiSetupTouch(gesture);
-}
-
-void drawNetworkListScreen() {
-  gfx->fillScreen(COLOR_BLACK);
-  
-  gfx->setTextColor(getCurrentTheme()->primary);
-  gfx->setTextSize(2);
-  gfx->setCursor(80, 20);
-  gfx->print("WIFI NETWORKS");
-  
-  if (wifi_state == WIFI_SCANNING) {
-    gfx->setTextColor(COLOR_WHITE);
-    gfx->setTextSize(1);
-    gfx->setCursor(120, 200);
-    gfx->print("Scanning...");
-  } else {
-    network_count = getAvailableNetworks(available_networks, 20);
-    
-    for (int i = 0; i < min(network_count, 6); i++) {
-      int y = 70 + i * 50;
-      gfx->fillRoundRect(20, y, 320, 45, 8, RGB565(40, 40, 40));
-      gfx->setTextColor(COLOR_WHITE);
-      gfx->setTextSize(1);
-      gfx->setCursor(30, y + 10);
-      gfx->print(available_networks[i].ssid);
-      gfx->setCursor(30, y + 28);
-      gfx->printf("%d dBm %s", available_networks[i].rssi, 
-                 available_networks[i].encrypted ? "(Secure)" : "(Open)");
-    }
-  }
-  
-  drawThemeButton(100, 400, 80, 35, "Scan", false);
-  drawThemeButton(200, 400, 80, 35, "Back", false);
-}
-
-void drawPasswordEntryScreen() {
-  gfx->fillScreen(COLOR_BLACK);
-  
-  gfx->setTextColor(getCurrentTheme()->primary);
-  gfx->setTextSize(2);
-  gfx->setCursor(60, 20);
-  gfx->print("ENTER PASSWORD");
-  
-  gfx->setTextColor(COLOR_WHITE);
-  gfx->setTextSize(1);
-  gfx->setCursor(20, 70);
-  gfx->printf("Network: %s", available_networks[selected_network].ssid.c_str());
-  
-  // Password field
-  gfx->fillRoundRect(20, 100, 320, 40, 10, RGB565(50, 50, 50));
-  gfx->setTextColor(COLOR_WHITE);
-  gfx->setCursor(30, 115);
-  String masked = "";
-  for (int i = 0; i < password_input.length(); i++) masked += "*";
-  gfx->print(masked.length() > 0 ? masked : "Tap to enter");
-  
-  drawThemeButton(100, 400, 100, 40, "Connect", false);
-  drawThemeButton(220, 400, 80, 40, "Cancel", false);
-}
-
-void handleNetworkListTouch(TouchGesture& gesture) {
   if (gesture.event != TOUCH_TAP) return;
   
   int x = gesture.x, y = gesture.y;
@@ -285,7 +223,6 @@ void handleNetworkListTouch(TouchGesture& gesture) {
     int ny = 70 + i * 50;
     if (y >= ny && y < ny + 45) {
       selected_network = i;
-      // For simplicity, try connecting with empty password for open networks
       if (!available_networks[i].encrypted) {
         connectWiFi(available_networks[i].ssid, "");
       }
@@ -293,27 +230,116 @@ void handleNetworkListTouch(TouchGesture& gesture) {
     }
   }
   
-  // Scan button
-  if (y >= 400 && y < 435 && x < 180) {
+  // Scan button at bottom
+  if (y >= 380 && y < 420) {
     startWiFiScan();
-  }
-  // Back button
-  if (y >= 400 && y < 435 && x >= 200) {
-    system_state.current_screen = SCREEN_SETTINGS;
+    drawNetworkListScreen();
   }
 }
 
+void drawNetworkListScreen() {
+  gfx->fillScreen(RGB565(8, 8, 12));
+  
+  ThemeColors* theme = getCurrentTheme();
+  
+  // Header
+  gfx->fillRoundRect(0, 0, LCD_WIDTH, 50, 0, RGB565(16, 18, 24));
+  gfx->drawFastHLine(0, 50, LCD_WIDTH, RGB565(80, 180, 255));
+  gfx->setTextColor(RGB565(80, 180, 255));
+  gfx->setTextSize(2);
+  gfx->setCursor(LCD_WIDTH/2 - 24, 16);
+  gfx->print("WiFi");
+  
+  if (wifi_state == WIFI_SCANNING) {
+    gfx->setTextColor(RGB565(120, 120, 130));
+    gfx->setTextSize(1);
+    gfx->setCursor(LCD_WIDTH/2 - 30, 200);
+    gfx->print("Scanning...");
+  } else {
+    network_count = getAvailableNetworks(available_networks, 20);
+    
+    for (int i = 0; i < min(network_count, 6); i++) {
+      int y = 62 + i * 55;
+      gfx->fillRoundRect(20, y, LCD_WIDTH - 40, 48, 14, RGB565(22, 24, 32));
+      gfx->drawRoundRect(20, y, LCD_WIDTH - 40, 48, 14, RGB565(42, 44, 55));
+      gfx->setTextColor(COLOR_WHITE);
+      gfx->setTextSize(1);
+      gfx->setCursor(35, y + 10);
+      gfx->print(available_networks[i].ssid);
+      gfx->setTextColor(RGB565(100, 100, 110));
+      gfx->setCursor(35, y + 28);
+      gfx->printf("%d dBm %s", available_networks[i].rssi, 
+                 available_networks[i].encrypted ? "Secured" : "Open");
+    }
+    
+    if (network_count == 0) {
+      gfx->setTextColor(RGB565(100, 100, 110));
+      gfx->setTextSize(1);
+      gfx->setCursor(LCD_WIDTH/2 - 50, 200);
+      gfx->print("No networks found");
+    }
+  }
+  
+  // Scan button
+  gfx->fillRoundRect(LCD_WIDTH/2 - 50, 385, 100, 38, 19, theme->primary);
+  gfx->setTextColor(COLOR_WHITE);
+  gfx->setTextSize(2);
+  gfx->setCursor(LCD_WIDTH/2 - 24, 396);
+  gfx->print("Scan");
+  
+  drawSwipeIndicator();
+}
+
+void drawPasswordEntryScreen() {
+  gfx->fillScreen(RGB565(8, 8, 12));
+  
+  ThemeColors* theme = getCurrentTheme();
+  
+  // Header
+  gfx->fillRoundRect(0, 0, LCD_WIDTH, 50, 0, RGB565(16, 18, 24));
+  gfx->drawFastHLine(0, 50, LCD_WIDTH, theme->primary);
+  gfx->setTextColor(theme->primary);
+  gfx->setTextSize(2);
+  gfx->setCursor(LCD_WIDTH/2 - 48, 16);
+  gfx->print("Password");
+  
+  gfx->setTextColor(RGB565(160, 160, 170));
+  gfx->setTextSize(1);
+  gfx->setCursor(30, 70);
+  gfx->printf("Network: %s", available_networks[selected_network].ssid.c_str());
+  
+  // Password field
+  gfx->fillRoundRect(20, 100, LCD_WIDTH - 40, 45, 14, RGB565(22, 24, 32));
+  gfx->drawRoundRect(20, 100, LCD_WIDTH - 40, 45, 14, RGB565(50, 52, 65));
+  gfx->setTextColor(COLOR_WHITE);
+  gfx->setTextSize(1);
+  gfx->setCursor(35, 118);
+  String masked = "";
+  for (int i = 0; i < password_input.length(); i++) masked += "*";
+  gfx->print(masked.length() > 0 ? masked : "Tap to enter");
+  
+  // Connect button
+  gfx->fillRoundRect(LCD_WIDTH/2 - 55, 380, 110, 40, 20, theme->primary);
+  gfx->setTextColor(COLOR_WHITE);
+  gfx->setTextSize(2);
+  gfx->setCursor(LCD_WIDTH/2 - 36, 391);
+  gfx->print("Connect");
+  
+  drawSwipeIndicator();
+}
+
+void handleNetworkListTouch(TouchGesture& gesture) {
+  // Handled by handleWifiManagerTouch now
+}
+
 void handlePasswordEntryTouch(TouchGesture& gesture) {
-  if (gesture.event == TOUCH_TAP && gesture.y >= 400) {
-    if (gesture.x < 200) {
+  if (gesture.event != TOUCH_TAP) return;
+  if (gesture.y >= 380 && gesture.y < 420) {
+    if (gesture.x < LCD_WIDTH/2) {
       // Connect
       if (selected_network >= 0) {
         connectWiFi(available_networks[selected_network].ssid, password_input);
       }
-    } else {
-      // Cancel
-      selected_network = -1;
-      password_input = "";
     }
   }
 }
@@ -330,57 +356,90 @@ void initWeatherApp() {
 }
 
 void drawWeatherApp() {
-  gfx->fillScreen(COLOR_BLACK);
+  gfx->fillScreen(RGB565(8, 8, 12));
   
-  gfx->setTextColor(getCurrentTheme()->primary);
+  ThemeColors* theme = getCurrentTheme();
+  
+  // Header
+  gfx->fillRoundRect(0, 0, LCD_WIDTH, 50, 0, RGB565(16, 18, 24));
+  gfx->drawFastHLine(0, 50, LCD_WIDTH, RGB565(80, 180, 255));
+  gfx->setTextColor(RGB565(80, 180, 255));
   gfx->setTextSize(2);
-  gfx->setCursor(110, 20);
-  gfx->print("WEATHER");
+  gfx->setCursor(LCD_WIDTH/2 - 42, 16);
+  gfx->print("Weather");
   
   if (!cached_weather.valid) {
-    gfx->setTextColor(COLOR_WHITE);
+    gfx->fillRoundRect(30, 150, LCD_WIDTH - 60, 70, 16, RGB565(22, 24, 32));
+    gfx->drawRoundRect(30, 150, LCD_WIDTH - 60, 70, 16, RGB565(42, 44, 55));
+    gfx->setTextColor(RGB565(120, 120, 130));
     gfx->setTextSize(1);
-    gfx->setCursor(80, 200);
+    gfx->setCursor(LCD_WIDTH/2 - 50, 180);
     gfx->print(isWiFiConnected() ? "Loading..." : "WiFi not connected");
   } else {
     // Location
-    gfx->setTextColor(COLOR_WHITE);
-    gfx->setTextSize(2);
-    gfx->setCursor(100, 70);
+    gfx->setTextColor(RGB565(160, 160, 170));
+    gfx->setTextSize(1);
+    gfx->setCursor(LCD_WIDTH/2 - 30, 65);
     gfx->print(cached_weather.location);
     
-    // Temperature
-    gfx->setTextSize(5);
-    gfx->setCursor(80, 140);
+    // Temperature card
+    gfx->fillRoundRect(30, 85, LCD_WIDTH - 60, 120, 20, RGB565(18, 20, 28));
+    gfx->drawRoundRect(30, 85, LCD_WIDTH - 60, 120, 20, RGB565(42, 44, 55));
+    gfx->setTextColor(COLOR_WHITE);
+    gfx->setTextSize(7);
+    gfx->setCursor(65, 100);
     gfx->printf("%.0f", cached_weather.temperature);
     gfx->setTextSize(2);
-    gfx->print("C");
+    gfx->setTextColor(theme->accent);
+    gfx->print(" C");
     
     // Description
+    gfx->setTextColor(RGB565(180, 180, 190));
     gfx->setTextSize(2);
-    gfx->setCursor(100, 230);
+    int descLen = cached_weather.description.length() * 12;
+    gfx->setCursor((LCD_WIDTH - descLen) / 2, 225);
     gfx->print(cached_weather.description);
     
-    // Details
+    // Details cards
+    gfx->fillRoundRect(20, 265, (LCD_WIDTH-50)/2, 55, 14, RGB565(22, 24, 32));
+    gfx->drawRoundRect(20, 265, (LCD_WIDTH-50)/2, 55, 14, RGB565(42, 44, 55));
     gfx->setTextSize(1);
-    gfx->setCursor(40, 280);
-    gfx->printf("Humidity: %.0f%%", cached_weather.humidity);
-    gfx->setCursor(200, 280);
-    gfx->printf("Wind: %.1f m/s", cached_weather.wind_speed);
+    gfx->setTextColor(RGB565(100, 100, 110));
+    gfx->setCursor(32, 275);
+    gfx->print("Humidity");
+    gfx->setTextColor(COLOR_WHITE);
+    gfx->setTextSize(2);
+    gfx->setCursor(32, 295);
+    gfx->printf("%.0f%%", cached_weather.humidity);
+    
+    gfx->fillRoundRect(LCD_WIDTH/2 + 5, 265, (LCD_WIDTH-50)/2, 55, 14, RGB565(22, 24, 32));
+    gfx->drawRoundRect(LCD_WIDTH/2 + 5, 265, (LCD_WIDTH-50)/2, 55, 14, RGB565(42, 44, 55));
+    gfx->setTextSize(1);
+    gfx->setTextColor(RGB565(100, 100, 110));
+    gfx->setCursor(LCD_WIDTH/2 + 17, 275);
+    gfx->print("Wind");
+    gfx->setTextColor(COLOR_WHITE);
+    gfx->setTextSize(2);
+    gfx->setCursor(LCD_WIDTH/2 + 17, 295);
+    gfx->printf("%.1f", cached_weather.wind_speed);
   }
   
-  drawThemeButton(60, 360, 100, 40, "Refresh", false);
-  drawThemeButton(200, 360, 100, 40, "Back", false);
+  // Refresh button
+  gfx->fillRoundRect(LCD_WIDTH/2 - 50, 340, 100, 40, 20, theme->primary);
+  gfx->setTextColor(COLOR_WHITE);
+  gfx->setTextSize(2);
+  gfx->setCursor(LCD_WIDTH/2 - 36, 351);
+  gfx->print("Refresh");
+  
+  drawSwipeIndicator();
 }
 
 void handleWeatherTouch(TouchGesture& gesture) {
   if (gesture.event != TOUCH_TAP) return;
   
-  int x = gesture.x, y = gesture.y;
-  
-  if (y >= 360 && y < 400) {
-    if (x < 160) refreshWeatherData();
-    else system_state.current_screen = SCREEN_APP_GRID;
+  if (gesture.y >= 340 && gesture.y < 380) {
+    refreshWeatherData();
+    drawWeatherApp();
   }
 }
 
@@ -443,7 +502,10 @@ void drawNewsApp() {
     gfx->print(article.source);
     
     gfx->setCursor(20, 150);
-    gfx->print(article.summary.substring(0, 150));
+    // FIXED: Use summary field correctly
+    String summaryText = article.summary;
+    if (summaryText.length() > 150) summaryText = summaryText.substring(0, 150);
+    gfx->print(summaryText);
     
     // Navigation
     gfx->setCursor(150, 320);
@@ -451,7 +513,7 @@ void drawNewsApp() {
   }
   
   drawThemeButton(30, 360, 80, 40, "Prev", false);
-  drawThemeButton(140, 360, 80, 40, "Back", false);
+  drawSwipeIndicator();
   drawThemeButton(250, 360, 80, 40, "Next", false);
 }
 
@@ -476,10 +538,29 @@ void refreshNewsData() {
 }
 
 int fetchNewsHeadlines(NewsArticle* articles, int max_count) {
-  // Demo news
-  articles[0] = {"Tech Innovation Summit 2025", "Major announcements expected at annual tech conference", "Tech News", "", "2h ago"};
-  articles[1] = {"Climate Action Progress", "Global leaders discuss environmental initiatives", "World News", "", "4h ago"};
-  articles[2] = {"Sports Championship Finals", "Exciting match scheduled for this weekend", "Sports", "", "6h ago"};
+  // FIXED: Initialize NewsArticle structs properly using member assignment
+  // NewsArticle has: title, summary, source, url, time_ago, timestamp
+  
+  articles[0].title = "Tech Innovation Summit 2025";
+  articles[0].summary = "Major announcements expected at annual tech conference";
+  articles[0].source = "Tech News";
+  articles[0].url = "";
+  articles[0].time_ago = "2h ago";
+  articles[0].timestamp = 0;
+  
+  articles[1].title = "Climate Action Progress";
+  articles[1].summary = "Global leaders discuss environmental initiatives";
+  articles[1].source = "World News";
+  articles[1].url = "";
+  articles[1].time_ago = "4h ago";
+  articles[1].timestamp = 0;
+  
+  articles[2].title = "Sports Championship Finals";
+  articles[2].summary = "Exciting match scheduled for this weekend";
+  articles[2].source = "Sports";
+  articles[2].url = "";
+  articles[2].time_ago = "6h ago";
+  articles[2].timestamp = 0;
   
   Serial.println("[News] Fetched news (demo)");
   return 3;

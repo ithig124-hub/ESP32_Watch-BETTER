@@ -1,5 +1,5 @@
 /*
- * touch.cpp - Touch Input Management (FIXED v2)
+ * touch.cpp - Touch Input Management (FIXED v3)
  * FT3168 returns coordinates in SCREEN PIXELS directly (0-368, 0-448)
  * NOT in 0-4095 range!
  */
@@ -181,7 +181,7 @@ TouchGesture handleTouchInput() {
     int dy = touch_y - touchStartY;
     
     if (abs(dx) > 3 || abs(dy) > 3) {
-      gesture.event = TOUCH_MOVE;
+      gesture.event = TOUCH_MOVE;  // FIXED: TOUCH_MOVE is now defined in config.h
       gesture.x = touch_x;
       gesture.y = touch_y;
       gesture.start_x = touchStartX;

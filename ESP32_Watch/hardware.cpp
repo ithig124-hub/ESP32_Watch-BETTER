@@ -9,7 +9,7 @@
 #define XPOWERS_CHIP_AXP2101
 #include "XPowersLib.h"
 
-extern XPowersAXP2101 PMU;
+XPowersAXP2101 PMU;
 extern SystemState system_state;
 
 // Power state
@@ -41,6 +41,38 @@ void initializeHardware() {
   // Initialize I2C
   Wire.begin(IIC_SDA, IIC_SCL);
   Wire.setClock(400000);  // 400kHz fast mode
+  
+  // Initialize I/O Expander (XCA9554) - MUST be done FIRST to power peripherals
+  // The Waveshare board uses an I/O expander to control power rails
+  Serial.println("[HW] Initializing I/O Expander (XCA9554)...");
+  Wire.beginTransmission(EXPANDER_ADDR);
+  if (Wire.endTransmission() == 0) {
+    Serial.println("[HW] XCA9554 found at 0x20");
+    
+    // Set pins 0, 1, 2 as outputs (config register 0x03, 0 = output)
+    Wire.beginTransmission(EXPANDER_ADDR);
+    Wire.write(0x03);  // Configuration register
+    Wire.write(0xF8);  // Pins 0,1,2 as output, rest input
+    Wire.endTransmission();
+    
+    // Pull all LOW first (reset peripherals)
+    Wire.beginTransmission(EXPANDER_ADDR);
+    Wire.write(0x01);  // Output register
+    Wire.write(0x00);  // All low
+    Wire.endTransmission();
+    delay(20);
+    
+    // Pull HIGH to power on peripherals (display, touch, PMU)
+    Wire.beginTransmission(EXPANDER_ADDR);
+    Wire.write(0x01);  // Output register
+    Wire.write(0x07);  // Pins 0,1,2 high
+    Wire.endTransmission();
+    delay(50);  // Give peripherals time to power up
+    
+    Serial.println("[HW] I/O Expander configured - peripherals powered on");
+  } else {
+    Serial.println("[HW] XCA9554 not found - peripherals may not power on");
+  }
   
   // Initialize power management
   if (initializePower()) {

@@ -18,6 +18,7 @@
 #include "hardware.h"
 #include "dynamic_bg.h"
 #include "ochobot.h"
+#include "navigation.h"
 
 extern Arduino_SH8601 *gfx;
 extern SystemState system_state;
@@ -398,6 +399,83 @@ void drawWatchFace() {
     case THEME_BOBOIBOY:       drawBoboiboyWatchFace(); break;
     default: drawLuffyWatchFace(); break;
   }
+}
+
+// =============================================================================
+// PARTIAL WATCHFACE UPDATE - NO FLICKER
+// Only redraws the time text and seconds indicator
+// =============================================================================
+
+void updateWatchFaceTime() {
+  static int prev_hour = -1;
+  static int prev_minute = -1;
+  static int prev_second = -1;
+  
+  WatchTime time = getCurrentTime();
+  
+  // Nothing changed
+  if (time.hour == prev_hour && time.minute == prev_minute && time.second == prev_second) {
+    return;
+  }
+  
+  ThemeColors* theme = getCurrentTheme();
+  int centerX = LCD_WIDTH / 2;
+  
+  // --- Clear and redraw TIME area only (no fillScreen!) ---
+  // Time is drawn roughly at Y=95 to Y=175 across all themes
+  int timeY = 95;
+  int timeH = 85;
+  gfx->fillRect(0, timeY, LCD_WIDTH, timeH, 0x0000);
+  
+  // Draw time - modern clean style
+  char hourStr[3], minStr[3];
+  sprintf(hourStr, "%02d", time.hour);
+  sprintf(minStr, "%02d", time.minute);
+  
+  // Hour text
+  gfx->setTextSize(9);
+  gfx->setTextColor(COLOR_WHITE);
+  gfx->setCursor(20, timeY + 5);
+  gfx->print(hourStr);
+  
+  // Colon - animate blink
+  int colonX = centerX - 9;
+  int colonY = timeY + 40;
+  uint16_t colonColor = (time.second % 2) ? theme->primary : theme->accent;
+  gfx->fillCircle(colonX, colonY - 18, 5, colonColor);
+  gfx->fillCircle(colonX, colonY + 18, 5, colonColor);
+  
+  // Minute text
+  gfx->setTextSize(9);
+  gfx->setTextColor(COLOR_WHITE);
+  gfx->setCursor(197, timeY + 5);
+  gfx->print(minStr);
+  
+  // --- Seconds indicator arc (clear old, draw new) ---
+  // Clear the arc area (thin strip around the center)
+  int arcY = 55;
+  gfx->fillRect(0, arcY, LCD_WIDTH, 35, 0x0000);
+  
+  // Draw seconds progress arc as dots
+  float secAngle = (time.second / 60.0) * 2 * PI - PI/2;
+  for (float a = -PI/2; a < secAngle; a += 0.08) {
+    int sx = centerX + cos(a) * 150;
+    int sy = arcY + 17 + sin(a) * 15;
+    if (sx >= 0 && sx < LCD_WIDTH && sy >= arcY && sy < arcY + 35) {
+      gfx->fillCircle(sx, sy, 2, theme->accent);
+    }
+  }
+  
+  // Seconds text (small, right side)
+  gfx->setTextSize(2);
+  gfx->setTextColor(theme->primary);
+  gfx->fillRect(LCD_WIDTH - 45, timeY + timeH - 25, 45, 25, 0x0000);
+  gfx->setCursor(LCD_WIDTH - 40, timeY + timeH - 20);
+  gfx->printf(":%02d", time.second);
+  
+  prev_hour = time.hour;
+  prev_minute = time.minute;
+  prev_second = time.second;
 }
 
 // =============================================================================
@@ -1301,11 +1379,11 @@ void drawBatteryIndicator() {
 }
 
 void drawThemeButton(int x, int y, int w, int h, const char* text, bool pressed) {
-  uint8_t radius = current_theme->corner_radius;
-  uint16_t bg = pressed ? current_theme->accent : current_theme->primary;
-  gfx->fillRoundRect(x, y, w, h, radius, bg);
-  gfx->drawRoundRect(x, y, w, h, radius, current_theme->text);
-  gfx->setTextColor(COLOR_WHITE);
+  uint16_t bg = pressed ? RGB565(40, 42, 55) : RGB565(28, 30, 40);
+  uint16_t border = pressed ? current_theme->primary : RGB565(55, 58, 72);
+  gfx->fillRoundRect(x, y, w, h, min(h/2, 18), bg);
+  gfx->drawRoundRect(x, y, w, h, min(h/2, 18), border);
+  gfx->setTextColor(pressed ? current_theme->primary : RGB565(200, 200, 210));
   gfx->setTextSize(2);
   int textW = strlen(text) * 12;
   gfx->setCursor(x + (w - textW)/2, y + (h - 16)/2);
@@ -1404,52 +1482,61 @@ void drawCharacterStatsScreen() {
   gfx->setCursor(50, barY + spacing * 4 + 15);
   gfx->print(profile->catchphrase);
   
-  // Back button
-  drawGlassButton(140, 410, 80, 35, "Back", false);
+  // Swipe indicator
+  drawSwipeIndicator();
 }
 
+// Theme selector page state (shared between draw and touch handler)
+static int themePageState = 0;
+
 void drawThemeSelector() {
-  gfx->fillScreen(COLOR_BLACK);
+  gfx->fillScreen(RGB565(8, 8, 12));
   
+  ThemeColors* theme = getCurrentTheme();
+  
+  // Header
+  gfx->fillRoundRect(0, 0, LCD_WIDTH, 42, 0, RGB565(16, 18, 24));
+  gfx->drawFastHLine(0, 42, LCD_WIDTH, theme->primary);
   gfx->setTextColor(COLOR_WHITE);
   gfx->setTextSize(2);
-  gfx->setCursor(70, 15);
-  gfx->print("SELECT THEME");
+  gfx->setCursor(LCD_WIDTH/2 - 48, 12);
+  gfx->print("Themes");
   
-  // Page indicator
-  static int themePage = 0;
-  int totalPages = 2;
+  // Page dots in header
+  int dotY = 26;
+  gfx->fillCircle(LCD_WIDTH - 28, dotY, 4, themePageState == 0 ? theme->primary : RGB565(50, 52, 65));
+  gfx->fillCircle(LCD_WIDTH - 14, dotY, 4, themePageState == 1 ? theme->primary : RGB565(50, 52, 65));
   
-  gfx->setTextSize(1);
-  gfx->setTextColor(RGB565(150, 150, 160));
-  gfx->setCursor(LCD_WIDTH - 35, 20);
-  gfx->printf("%d/%d", themePage + 1, totalPages);
-  
-  if (themePage == 0) {
+  if (themePageState == 0) {
     // Page 1: First 6 themes
     const char* names[] = {"Luffy", "Jin-Woo", "Yugo", "Naruto", "Goku", "Tanjiro"};
     ThemeColors* themes[] = {&luffy_gear5_theme, &sung_jinwoo_theme, &yugo_wakfu_theme,
                              &naruto_sage_theme, &goku_ui_theme, &tanjiro_sun_theme};
     
     for (int i = 0; i < 6; i++) {
-      int x = (i % 2) * 175 + 15;
-      int y = (i / 2) * 100 + 45;
+      int x = (i % 2) * 170 + 15;
+      int y = (i / 2) * 105 + 52;
       
-      gfx->fillRoundRect(x, y, 155, 90, 15, themes[i]->primary);
-      gfx->drawRoundRect(x, y, 155, 90, 15, RGB565(80, 80, 90));
+      // Card with theme color
+      gfx->fillRoundRect(x, y, 155, 90, 18, RGB565(22, 24, 32));
+      gfx->fillRoundRect(x + 4, y + 4, 147, 30, 14, themes[i]->primary);
       
+      // Selection ring
       if ((ThemeType)i == system_state.current_theme) {
-        gfx->drawRoundRect(x - 2, y - 2, 159, 94, 17, COLOR_WHITE);
-        gfx->drawRoundRect(x - 3, y - 3, 161, 96, 18, getCurrentTheme()->accent);
+        gfx->drawRoundRect(x - 2, y - 2, 159, 94, 20, theme->accent);
+        gfx->drawRoundRect(x - 1, y - 1, 157, 92, 19, COLOR_WHITE);
+      } else {
+        gfx->drawRoundRect(x, y, 155, 90, 18, RGB565(50, 52, 65));
       }
       
       gfx->setTextColor(COLOR_WHITE);
       gfx->setTextSize(2);
-      gfx->setCursor(x + 30, y + 32);
+      int textLen = strlen(names[i]) * 12;
+      gfx->setCursor(x + (155 - textLen) / 2, y + 52);
       gfx->print(names[i]);
     }
   } else {
-    // Page 2: Last 5 themes (Gojo, Levi, Saitama, Deku, BoBoiBoy)
+    // Page 2: Last 5 themes
     const char* names[] = {"Gojo", "Levi", "Saitama", "Deku", "BoBoiBoy"};
     ThemeColors* themes[] = {&gojo_infinity_theme, &levi_strongest_theme, 
                              &saitama_opm_theme, &deku_plusultra_theme, &boboiboy_elemental_theme};
@@ -1459,52 +1546,55 @@ void drawThemeSelector() {
     for (int i = 0; i < 5; i++) {
       int col = i % 2;
       int row = i / 2;
-      int x = col * 175 + 15;
-      int y = row * 100 + 45;
+      int x = col * 170 + 15;
+      int y = row * 105 + 52;
       
-      // Special layout for 5th item (BoBoiBoy) - centered
       if (i == 4) {
         x = (LCD_WIDTH - 155) / 2;
-        y = 2 * 100 + 45;
+        y = 2 * 105 + 52;
       }
       
-      gfx->fillRoundRect(x, y, 155, 90, 15, themes[i]->primary);
-      gfx->drawRoundRect(x, y, 155, 90, 15, RGB565(80, 80, 90));
+      gfx->fillRoundRect(x, y, 155, 90, 18, RGB565(22, 24, 32));
+      gfx->fillRoundRect(x + 4, y + 4, 147, 30, 14, themes[i]->primary);
       
       if (types[i] == system_state.current_theme) {
-        gfx->drawRoundRect(x - 2, y - 2, 159, 94, 17, COLOR_WHITE);
-        gfx->drawRoundRect(x - 3, y - 3, 161, 96, 18, getCurrentTheme()->accent);
+        gfx->drawRoundRect(x - 2, y - 2, 159, 94, 20, theme->accent);
+        gfx->drawRoundRect(x - 1, y - 1, 157, 92, 19, COLOR_WHITE);
+      } else {
+        gfx->drawRoundRect(x, y, 155, 90, 18, RGB565(50, 52, 65));
       }
       
       gfx->setTextColor(COLOR_WHITE);
       gfx->setTextSize(2);
       int textLen = strlen(names[i]) * 12;
-      gfx->setCursor(x + (155 - textLen) / 2, y + 32);
+      gfx->setCursor(x + (155 - textLen) / 2, y + 52);
       gfx->print(names[i]);
     }
   }
   
-  // Navigation hint
+  // Swipe hint
   gfx->setTextSize(1);
-  gfx->setTextColor(RGB565(100, 105, 120));
-  gfx->setCursor(90, 365);
-  gfx->print("Swipe up/down for more");
+  gfx->setTextColor(RGB565(65, 68, 80));
+  gfx->setCursor(LCD_WIDTH/2 - 48, LCD_HEIGHT - 28);
+  gfx->print("< Swipe L/R >");
   
-  drawGlassButton(140, 400, 80, 30, "Back", false);
+  drawSwipeIndicator();
 }
 
-// Theme selector page state
-static int themePageState = 0;
-
 void handleThemeSelectorTouch(TouchGesture& gesture) {
-  if (gesture.event == TOUCH_SWIPE_UP) {
-    if (themePageState < 1) themePageState++;
-    drawThemeSelector();
+  // Swipe LEFT/RIGHT to switch pages
+  if (gesture.event == TOUCH_SWIPE_LEFT) {
+    if (themePageState < 1) {
+      themePageState++;
+      drawThemeSelector();
+    }
     return;
   }
-  if (gesture.event == TOUCH_SWIPE_DOWN) {
-    if (themePageState > 0) themePageState--;
-    drawThemeSelector();
+  if (gesture.event == TOUCH_SWIPE_RIGHT) {
+    if (themePageState > 0) {
+      themePageState--;
+      drawThemeSelector();
+    }
     return;
   }
   
@@ -1512,19 +1602,11 @@ void handleThemeSelectorTouch(TouchGesture& gesture) {
   
   int x = gesture.x, y = gesture.y;
   
-  // Back button
-  if (y >= 400 && x >= 140 && x < 220) {
-    themePageState = 0;
-    system_state.current_screen = SCREEN_SETTINGS;
-    return;
-  }
-  
-  // Theme selection
+  // Theme selection - tap on theme cards
   if (themePageState == 0) {
-    // Page 1: themes 0-5
     for (int i = 0; i < 6; i++) {
-      int tx = (i % 2) * 175 + 15;
-      int ty = (i / 2) * 100 + 45;
+      int tx = (i % 2) * 170 + 15;
+      int ty = (i / 2) * 105 + 52;
       if (x >= tx && x < tx + 155 && y >= ty && y < ty + 90) {
         setTheme((ThemeType)i);
         drawThemeSelector();
@@ -1532,18 +1614,17 @@ void handleThemeSelectorTouch(TouchGesture& gesture) {
       }
     }
   } else {
-    // Page 2: themes 6-10
     ThemeType types[] = {THEME_GOJO_INFINITY, THEME_LEVI_STRONGEST, 
                          THEME_SAITAMA_OPM, THEME_DEKU_PLUSULTRA, THEME_BOBOIBOY};
     for (int i = 0; i < 5; i++) {
       int col = i % 2;
       int row = i / 2;
-      int tx = col * 175 + 15;
-      int ty = row * 100 + 45;
+      int tx = col * 170 + 15;
+      int ty = row * 105 + 52;
       
       if (i == 4) {
         tx = (LCD_WIDTH - 155) / 2;
-        ty = 2 * 100 + 45;
+        ty = 2 * 105 + 52;
       }
       
       if (x >= tx && x < tx + 155 && y >= ty && y < ty + 90) {

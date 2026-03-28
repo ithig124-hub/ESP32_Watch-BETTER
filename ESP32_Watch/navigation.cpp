@@ -239,34 +239,23 @@ void drawCurrentScreen() {
 
 void drawNavigationIndicators() {
   int centerX = LCD_WIDTH / 2;
-  int y = LCD_HEIGHT - 12;
-  int dotRadius = 4;
-  int spacing = 18;
+  int y = LCD_HEIGHT - 14;
+  int dotRadius = 3;
+  int spacing = 16;
   
-  // Draw 3 dots for main screens
+  // Clear indicator area
+  gfx->fillRect(centerX - 35, y - 20, 70, 30, 0x0000);
+  
+  // Draw 3 dots for main screens - modern pill style
   for (int i = 0; i < MAIN_SCREEN_COUNT; i++) {
     int x = centerX + (i - 1) * spacing;
     
     if (i == (int)navState.currentMain) {
-      // Current - filled with theme color
-      gfx->fillCircle(x, y, dotRadius, getCurrentTheme()->primary);
-      gfx->drawCircle(x, y, dotRadius + 1, getCurrentTheme()->accent);
+      // Current - elongated pill
+      gfx->fillRoundRect(x - 6, y - 2, 12, 5, 2, getCurrentTheme()->primary);
     } else {
-      // Other - outline only
-      gfx->drawCircle(x, y, dotRadius, RGB565(80, 80, 90));
-    }
-  }
-  
-  // Sub-page indicator for App Grid
-  if (navState.currentMain == MAIN_APP_GRID_1) {
-    int subY = y - 14;
-    for (int i = 0; i < APP_GRID_PAGES; i++) {
-      int x = centerX + (i == 0 ? -6 : 6);
-      if (i == navState.appGridPage) {
-        gfx->fillCircle(x, subY, 3, getCurrentTheme()->accent);
-      } else {
-        gfx->drawCircle(x, subY, 3, RGB565(60, 60, 70));
-      }
+      // Other - small dot
+      gfx->fillCircle(x, y, dotRadius, RGB565(50, 52, 60));
     }
   }
 }
@@ -299,59 +288,62 @@ uint16_t getAppColor(const char* appName) {
 }
 
 void drawAppIcon(int x, int y, int w, int h, const char* name, uint16_t color, bool selected) {
-  // Glass morphism background
-  gfx->fillRoundRect(x + 2, y + 2, w, h, 16, RGB565(10, 10, 15));  // Shadow
-  gfx->fillRoundRect(x, y, w, h, 16, RGB565(30, 32, 40));          // Base
+  // Modern Apple Watch style icon
+  // Shadow
+  gfx->fillRoundRect(x + 2, y + 2, w, h, 20, RGB565(5, 5, 8));
   
-  // Colored accent strip at top
-  gfx->fillRoundRect(x, y, w, 22, 16, color);
-  gfx->fillRect(x + 4, y + 14, w - 8, 8, color);
+  // Main icon background - gradient effect
+  gfx->fillRoundRect(x, y, w, h, 20, RGB565(28, 30, 38));
   
-  // Selection highlight
+  // Colored icon circle at center-top
+  int iconCX = x + w / 2;
+  int iconCY = y + 28;
+  int iconR = 18;
+  gfx->fillCircle(iconCX, iconCY, iconR + 1, RGB565(15, 15, 20));
+  gfx->fillCircle(iconCX, iconCY, iconR, color);
+  
+  // Inner highlight on icon circle
+  gfx->drawCircle(iconCX, iconCY - 2, iconR - 4, RGB565(255, 255, 255));
+  
+  // Selection ring
   if (selected) {
-    gfx->drawRoundRect(x - 2, y - 2, w + 4, h + 4, 18, getCurrentTheme()->primary);
-    gfx->drawRoundRect(x - 1, y - 1, w + 2, h + 2, 17, getCurrentTheme()->accent);
+    gfx->drawRoundRect(x - 2, y - 2, w + 4, h + 4, 22, getCurrentTheme()->primary);
+    gfx->drawRoundRect(x - 1, y - 1, w + 2, h + 2, 21, getCurrentTheme()->accent);
   }
   
-  // Glass border
-  gfx->drawRoundRect(x, y, w, h, 16, RGB565(60, 65, 80));
+  // Subtle border
+  gfx->drawRoundRect(x, y, w, h, 20, RGB565(50, 52, 65));
   
-  // App name - centered
-  gfx->setTextColor(COLOR_WHITE);
+  // App name - centered below icon
+  gfx->setTextColor(RGB565(210, 210, 220));
   gfx->setTextSize(1);
   int textLen = strlen(name) * 6;
   int textX = x + (w - textLen) / 2;
-  gfx->setCursor(textX, y + h/2 + 8);
+  gfx->setCursor(textX, y + h - 22);
   gfx->print(name);
 }
 
 void drawAppGrid1() {
-  // Gradient background
-  for (int y = 0; y < LCD_HEIGHT; y++) {
-    uint8_t shade = map(y, 0, LCD_HEIGHT, 12, 22);
-    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(shade, shade, shade + 5));
-  }
+  // Dark AMOLED background
+  gfx->fillScreen(RGB565(8, 8, 12));
   
   ThemeColors* theme = getCurrentTheme();
   
-  // Header with glass effect
-  gfx->fillRect(0, 0, LCD_WIDTH, 50, RGB565(20, 22, 28));
-  gfx->drawFastHLine(0, 50, LCD_WIDTH, theme->primary);
+  // Modern header bar
+  gfx->fillRoundRect(0, 0, LCD_WIDTH, 48, 0, RGB565(16, 18, 24));
+  gfx->drawFastHLine(0, 48, LCD_WIDTH, RGB565(40, 42, 55));
   
   // Title
   gfx->setTextSize(2);
   gfx->setTextColor(COLOR_WHITE);
-  gfx->setCursor(LCD_WIDTH/2 - 24, 15);
-  gfx->print("APPS");
+  gfx->setCursor(LCD_WIDTH/2 - 24, 14);
+  gfx->print("Apps");
   
-  // Page indicator in header
-  gfx->setTextSize(1);
-  gfx->setTextColor(theme->accent);
-  gfx->setCursor(LCD_WIDTH - 40, 20);
-  gfx->print("1/2");
+  // Page indicator dot
+  gfx->fillCircle(LCD_WIDTH - 25, 24, 4, theme->primary);
+  gfx->drawCircle(LCD_WIDTH - 12, 24, 4, RGB565(60, 60, 70));
   
-  // App icons - IMPROVED layout with bigger touch targets
-  // In BoBoiBoy mode, replace QUESTS with ELEMENTS
+  // App icons - modern grid
   const char* apps1_normal[] = {"GACHA", "TRAINING", "BOSS", "GAMES", "QUESTS", "MUSIC", "WEATHER", "WIFI", "SETTINGS"};
   const char* apps1_boboiboy[] = {"GACHA", "TRAINING", "BOSS", "GAMES", "ELEMENTS", "MUSIC", "WEATHER", "WIFI", "SETTINGS"};
   
@@ -361,7 +353,7 @@ void drawAppGrid1() {
   int iconW = 100;
   int iconH = 90;
   int startX = (LCD_WIDTH - (cols * iconW + (cols-1) * 12)) / 2;
-  int startY = 60;
+  int startY = 58;
   int spacingX = iconW + 12;
   int spacingY = iconH + 12;
   
@@ -374,37 +366,34 @@ void drawAppGrid1() {
     drawAppIcon(x, y, iconW, iconH, apps1[i], getAppColor(apps1[i]), false);
   }
   
-  // Bottom hint
-  gfx->setTextColor(RGB565(100, 105, 120));
+  // Swipe hint
+  gfx->setTextColor(RGB565(70, 72, 85));
   gfx->setTextSize(1);
-  gfx->setCursor(LCD_WIDTH/2 - 55, LCD_HEIGHT - 35);
-  gfx->print("Swipe up for more");
+  gfx->setCursor(LCD_WIDTH/2 - 30, LCD_HEIGHT - 28);
+  gfx->print("Swipe more");
+  
+  drawSwipeIndicator();
 }
 
 void drawAppGrid2() {
-  // Gradient background
-  for (int y = 0; y < LCD_HEIGHT; y++) {
-    uint8_t shade = map(y, 0, LCD_HEIGHT, 12, 22);
-    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(shade, shade, shade + 5));
-  }
+  // Dark AMOLED background
+  gfx->fillScreen(RGB565(8, 8, 12));
   
   ThemeColors* theme = getCurrentTheme();
   
-  // Header
-  gfx->fillRect(0, 0, LCD_WIDTH, 50, RGB565(20, 22, 28));
-  gfx->drawFastHLine(0, 50, LCD_WIDTH, theme->accent);
+  // Modern header bar
+  gfx->fillRoundRect(0, 0, LCD_WIDTH, 48, 0, RGB565(16, 18, 24));
+  gfx->drawFastHLine(0, 48, LCD_WIDTH, RGB565(40, 42, 55));
   
   // Title
   gfx->setTextSize(2);
   gfx->setTextColor(COLOR_WHITE);
-  gfx->setCursor(LCD_WIDTH/2 - 24, 15);
-  gfx->print("MORE");
+  gfx->setCursor(LCD_WIDTH/2 - 24, 14);
+  gfx->print("More");
   
-  // Page indicator
-  gfx->setTextSize(1);
-  gfx->setTextColor(theme->accent);
-  gfx->setCursor(LCD_WIDTH - 40, 20);
-  gfx->print("2/2");
+  // Page indicator dot
+  gfx->drawCircle(LCD_WIDTH - 25, 24, 4, RGB565(60, 60, 70));
+  gfx->fillCircle(LCD_WIDTH - 12, 24, 4, theme->accent);
   
   // App icons
   const char* apps2[] = {"THEMES", "COLLECT", "FILES", "CALC", "TORCH", "OTA", "BACKUP", "FUSION", "ABOUT"};
@@ -413,7 +402,7 @@ void drawAppGrid2() {
   int iconW = 100;
   int iconH = 90;
   int startX = (LCD_WIDTH - (cols * iconW + (cols-1) * 12)) / 2;
-  int startY = 60;
+  int startY = 58;
   int spacingX = iconW + 12;
   int spacingY = iconH + 12;
   
@@ -426,11 +415,13 @@ void drawAppGrid2() {
     drawAppIcon(x, y, iconW, iconH, apps2[i], getAppColor(apps2[i]), false);
   }
   
-  // Bottom hint
-  gfx->setTextColor(RGB565(100, 105, 120));
+  // Swipe hint
+  gfx->setTextColor(RGB565(70, 72, 85));
   gfx->setTextSize(1);
-  gfx->setCursor(LCD_WIDTH/2 - 60, LCD_HEIGHT - 35);
-  gfx->print("Swipe down for page 1");
+  gfx->setCursor(LCD_WIDTH/2 - 30, LCD_HEIGHT - 28);
+  gfx->print("Swipe more");
+  
+  drawSwipeIndicator();
 }
 
 // =============================================================================
@@ -474,24 +465,12 @@ void handleCurrentScreenTouch(TouchGesture& gesture) {
 void handleAppGridTap(int x, int y) {
   Serial.printf("[NAV] handleAppGridTap: x=%d, y=%d, page=%d\n", x, y, navState.appGridPage);
   
-  // IMPROVED: Better touch coordinate handling
-  int screenX = x;
-  int screenY = y;
-  
-  // Touch coordinates might need scaling on some hardware
-  if (x < 40 && y < 50 && x > 0 && y > 0) {
-    // Small coordinates detected - apply scaling
-    screenX = map(x, 0, 40, 0, LCD_WIDTH);
-    screenY = map(y, 0, 50, 0, LCD_HEIGHT);
-    Serial.printf("[NAV] Scaled: (%d,%d) -> (%d,%d)\n", x, y, screenX, screenY);
-  }
-  
-  // IMPROVED: App grid hit detection with correct layout
+  // App grid hit detection - direct pixel coordinates (FT3168 reports pixel coords)
   int cols = 3;
   int iconW = 100;
   int iconH = 90;
   int startX = (LCD_WIDTH - (cols * iconW + (cols-1) * 12)) / 2;
-  int startY = 60;
+  int startY = 58;
   int spacingX = iconW + 12;
   int spacingY = iconH + 12;
   
@@ -502,8 +481,8 @@ void handleAppGridTap(int x, int y) {
     int appY = startY + row * spacingY;
     
     // Check if tap is within app icon bounds
-    if (screenX >= appX && screenX < appX + iconW && 
-        screenY >= appY && screenY < appY + iconH) {
+    if (x >= appX && x < appX + iconW && 
+        y >= appY && y < appY + iconH) {
       
       // In BoBoiBoy mode, replace QUESTS with ELEMENTS
       const char* apps1_normal[] = {"GACHA", "TRAINING", "BOSS", "GAMES", "QUESTS", "MUSIC", "WEATHER", "WIFI", "SETTINGS"};
@@ -613,18 +592,104 @@ void openApp(const char* appName) {
       gfx->setTextSize(1);
       gfx->setCursor(70, 240);
       gfx->print("Switch to BoBoiBoy theme");
-      drawBackButton(140, 400);
+      drawSwipeIndicator();
     }
   }
+  else if (strcmp(appName, "OTA") == 0) {
+    system_state.current_screen = SCREEN_SETTINGS;
+    gfx->fillScreen(COLOR_BLACK);
+    
+    ThemeColors* theme = getCurrentTheme();
+    
+    // Header
+    gfx->fillRoundRect(0, 0, LCD_WIDTH, 55, 0, RGB565(20, 22, 28));
+    gfx->drawFastHLine(0, 55, LCD_WIDTH, theme->primary);
+    gfx->setTextColor(theme->primary);
+    gfx->setTextSize(2);
+    gfx->setCursor(LCD_WIDTH/2 - 60, 18);
+    gfx->print("OTA UPDATE");
+    
+    // Status card
+    gfx->fillRoundRect(24, 80, LCD_WIDTH - 48, 100, 16, RGB565(25, 27, 35));
+    gfx->drawRoundRect(24, 80, LCD_WIDTH - 48, 100, 16, RGB565(60, 65, 80));
+    gfx->setTextColor(COLOR_WHITE);
+    gfx->setTextSize(2);
+    gfx->setCursor(50, 100);
+    gfx->print("Firmware v2.0");
+    gfx->setTextSize(1);
+    gfx->setTextColor(RGB565(100, 200, 100));
+    gfx->setCursor(50, 130);
+    gfx->print("Up to date");
+    gfx->setTextColor(RGB565(120, 120, 130));
+    gfx->setCursor(50, 155);
+    gfx->print("Connect WiFi to check updates");
+    
+    // Check button
+    gfx->fillRoundRect(LCD_WIDTH/2 - 80, 210, 160, 50, 25, theme->primary);
+    gfx->setTextColor(COLOR_WHITE);
+    gfx->setTextSize(2);
+    gfx->setCursor(LCD_WIDTH/2 - 55, 225);
+    gfx->print("Check Now");
+    
+    drawSwipeIndicator();
+  }
+  else if (strcmp(appName, "BACKUP") == 0) {
+    system_state.current_screen = SCREEN_SETTINGS;
+    gfx->fillScreen(COLOR_BLACK);
+    
+    ThemeColors* theme = getCurrentTheme();
+    
+    // Header
+    gfx->fillRoundRect(0, 0, LCD_WIDTH, 55, 0, RGB565(20, 22, 28));
+    gfx->drawFastHLine(0, 55, LCD_WIDTH, theme->accent);
+    gfx->setTextColor(theme->accent);
+    gfx->setTextSize(2);
+    gfx->setCursor(LCD_WIDTH/2 - 48, 18);
+    gfx->print("BACKUP");
+    
+    // Backup option
+    gfx->fillRoundRect(24, 80, LCD_WIDTH - 48, 70, 16, RGB565(25, 27, 35));
+    gfx->drawRoundRect(24, 80, LCD_WIDTH - 48, 70, 16, RGB565(60, 65, 80));
+    gfx->setTextColor(COLOR_WHITE);
+    gfx->setTextSize(2);
+    gfx->setCursor(50, 95);
+    gfx->print("Save to SD");
+    gfx->setTextSize(1);
+    gfx->setTextColor(RGB565(120, 120, 130));
+    gfx->setCursor(50, 125);
+    gfx->print("Game progress, settings, themes");
+    
+    // Restore option
+    gfx->fillRoundRect(24, 170, LCD_WIDTH - 48, 70, 16, RGB565(25, 27, 35));
+    gfx->drawRoundRect(24, 170, LCD_WIDTH - 48, 70, 16, RGB565(60, 65, 80));
+    gfx->setTextColor(COLOR_WHITE);
+    gfx->setTextSize(2);
+    gfx->setCursor(50, 185);
+    gfx->print("Restore");
+    gfx->setTextSize(1);
+    gfx->setTextColor(RGB565(120, 120, 130));
+    gfx->setCursor(50, 215);
+    gfx->print("Load backup from SD card");
+    
+    // Status
+    gfx->setTextSize(1);
+    gfx->setTextColor(RGB565(80, 80, 90));
+    gfx->setCursor(50, 270);
+    gfx->printf("SD Card: %s", system_state.filesystem_available ? "Ready" : "Not found");
+    
+    drawSwipeIndicator();
+  }
   else if (strcmp(appName, "ABOUT") == 0) {
-    // Show about screen
+    system_state.current_screen = SCREEN_SETTINGS;
+    // drawAboutScreen() is defined in ui.cpp
     drawAboutScreen();
   }
   else {
     // Unknown app - show message and return
     Serial.printf("[NAV] Unknown app: %s\n", appName);
-    navState.navigationLocked = false;
-    gfx->fillScreen(COLOR_BLACK);
+    system_state.current_screen = SCREEN_SETTINGS;
+    navState.navigationLocked = true;
+    gfx->fillScreen(RGB565(8, 8, 12));
     gfx->setTextColor(getCurrentTheme()->primary);
     gfx->setTextSize(2);
     gfx->setCursor(100, 200);
@@ -632,7 +697,7 @@ void openApp(const char* appName) {
     gfx->setTextSize(1);
     gfx->setCursor(110, 240);
     gfx->print(appName);
-    drawBackButton(140, 400);
+    drawSwipeIndicator();
   }
 }
 
@@ -645,159 +710,22 @@ void returnToAppGrid() {
 }
 
 void drawBackButton(int x, int y) {
-  ThemeColors* theme = getCurrentTheme();
-  
-  // Glass button
-  gfx->fillRoundRect(x, y, 80, 35, 12, RGB565(30, 32, 40));
-  gfx->drawRoundRect(x, y, 80, 35, 12, theme->primary);
-  
-  gfx->setTextColor(COLOR_WHITE);
-  gfx->setTextSize(2);
-  gfx->setCursor(x + 15, y + 8);
-  gfx->print("Back");
+  // Apple Watch style swipe indicator - replaces old back button
+  drawSwipeIndicator();
 }
 
-void drawAboutScreen() {
-  gfx->fillScreen(COLOR_BLACK);
-  
-  ThemeColors* theme = getCurrentTheme();
-  
-  // Title
-  gfx->setTextColor(theme->primary);
-  gfx->setTextSize(2);
-  gfx->setCursor(100, 30);
-  gfx->print("ABOUT");
-  
-  // Info
-  gfx->setTextColor(COLOR_WHITE);
-  gfx->setTextSize(1);
-  
-  gfx->setCursor(50, 100);
-  gfx->print("ESP32 Anime Gaming Watch");
-  
-  gfx->setCursor(50, 130);
-  gfx->print("Version: 2.0 IMPROVED");
-  
-  gfx->setCursor(50, 160);
-  gfx->print("Features:");
-  gfx->setCursor(60, 180);
-  gfx->print("- 10 Anime Character Themes");
-  gfx->setCursor(60, 200);
-  gfx->print("- Gacha Collection System");
-  gfx->setCursor(60, 220);
-  gfx->print("- Training Mini-Games");
-  gfx->setCursor(60, 240);
-  gfx->print("- Boss Rush Mode");
-  gfx->setCursor(60, 260);
-  gfx->print("- Multiple Games");
-  gfx->setCursor(60, 280);
-  gfx->print("- Weather & WiFi");
-  gfx->setCursor(60, 300);
-  gfx->print("- Music Player");
-  
-  gfx->setTextColor(theme->accent);
-  gfx->setCursor(50, 340);
-  gfx->print("Hardware: ESP32-S3 AMOLED 1.8\"");
-  
-  drawBackButton(140, 400);
+// Modern swipe-up-to-close indicator (Apple Watch home bar style)
+void drawSwipeIndicator() {
+  int barW = 50;
+  int barH = 4;
+  int barX = (LCD_WIDTH - barW) / 2;
+  int barY = LCD_HEIGHT - 12;
+  gfx->fillRoundRect(barX, barY, barW, barH, 2, RGB565(65, 68, 80));
 }
 
-// =============================================================================
-// TOUCH INPUT PROCESSING - IMPROVED
-// =============================================================================
+// drawAboutScreen() is defined in ui.cpp - removed from here to avoid duplicate
 
-TouchGesture handleTouchInput() {
-  TouchGesture gesture = {TOUCH_NONE, 0, 0, 0, 0, 0, 0, 0, millis(), false};
-  
-  // Read touch from FT3168
-  extern bool readTouch(int16_t &x, int16_t &y);
-  extern volatile bool touch_interrupt;
-  
-  int16_t tx, ty;
-  bool touched = false;
-  
-  if (touch_interrupt) {
-    touched = readTouch(tx, ty);
-    if (!touched) {
-      touch_interrupt = false;
-    }
-  }
-  
-  if (touched) {
-    // Touch is active
-    if (!touchState.isPressed) {
-      // New touch started
-      touchState.isPressed = true;
-      touchState.startX = tx;
-      touchState.startY = ty;
-      touchState.lastX = tx;
-      touchState.lastY = ty;
-      touchState.pressTime = millis();
-      
-      gesture.event = TOUCH_PRESS;
-      gesture.x = tx;
-      gesture.y = ty;
-      gesture.start_x = tx;
-      gesture.start_y = ty;
-      gesture.is_valid = true;
-      
-      Serial.printf("[TOUCH] Press at (%d, %d)\n", tx, ty);
-    } else {
-      // Touch continuing - update position
-      touchState.lastX = tx;
-      touchState.lastY = ty;
-    }
-  } else {
-    // No touch detected
-    if (touchState.isPressed) {
-      // Touch just released
-      uint32_t duration = millis() - touchState.pressTime;
-      int dx = touchState.lastX - touchState.startX;
-      int dy = touchState.lastY - touchState.startY;
-      
-      gesture.x = touchState.lastX;
-      gesture.y = touchState.lastY;
-      gesture.start_x = touchState.startX;
-      gesture.start_y = touchState.startY;
-      gesture.dx = dx;
-      gesture.dy = dy;
-      gesture.duration = duration;
-      gesture.is_valid = true;
-      
-      // Classify gesture
-      int absDx = abs(dx);
-      int absDy = abs(dy);
-      
-      if (duration < TAP_MAX_DURATION_MS && absDx < TAP_MAX_MOVEMENT && absDy < TAP_MAX_MOVEMENT) {
-        // TAP
-        gesture.event = TOUCH_TAP;
-        Serial.printf("[TOUCH] TAP at (%d, %d)\n", gesture.x, gesture.y);
-      }
-      else if (duration < SWIPE_MAX_DURATION_MS) {
-        // Check for swipe
-        if (absDx > absDy && absDx > SWIPE_THRESHOLD_MIN) {
-          gesture.event = (dx < 0) ? TOUCH_SWIPE_LEFT : TOUCH_SWIPE_RIGHT;
-          Serial.printf("[TOUCH] SWIPE %s (dx=%d)\n", dx < 0 ? "LEFT" : "RIGHT", dx);
-        }
-        else if (absDy > absDx && absDy > SWIPE_THRESHOLD_MIN) {
-          gesture.event = (dy < 0) ? TOUCH_SWIPE_UP : TOUCH_SWIPE_DOWN;
-          Serial.printf("[TOUCH] SWIPE %s (dy=%d)\n", dy < 0 ? "UP" : "DOWN", dy);
-        }
-        else {
-          gesture.event = TOUCH_RELEASE;
-        }
-      }
-      else {
-        gesture.event = TOUCH_RELEASE;
-      }
-      
-      // Reset touch state
-      touchState.isPressed = false;
-    }
-  }
-  
-  return gesture;
-}
+// handleTouchInput() is defined in touch.cpp - removed from here to avoid duplicate
 
 // Helper functions
 void drawStatBar(int x, int y, const char* name, int value, uint16_t color) {

@@ -143,20 +143,7 @@ void drawProgressRing(int centerX, int centerY, int radius, float progress, uint
   }
 }
 
-void drawActivityRing(int centerX, int centerY, int radius, float progress, uint16_t color, int thickness) {
-  // Draw background ring
-  for (float angle = 0; angle < 360; angle += 2) {
-    float rad = angle * PI / 180;
-    for (int t = 0; t < thickness; t++) {
-      int r = radius - t;
-      int x = centerX + cos(rad) * r;
-      int y = centerY + sin(rad) * r;
-      gfx->drawPixel(x, y, 0x2104);  // Dark gray
-    }
-  }
-  // Draw progress
-  drawProgressRing(centerX, centerY, radius, progress, color, thickness);
-}
+// drawActivityRing() is defined in themes.cpp to avoid duplicate definition
 
 void fadeIn(int duration) {
   for (int i = 0; i <= 255; i += 5) {

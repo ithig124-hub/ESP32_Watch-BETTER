@@ -9,6 +9,9 @@
 #include "themes.h"
 #include "hardware.h"
 #include "filesystem.h"
+#include "navigation.h"
+#include "wifi_apps.h"
+#include "ui.h"
 
 extern Arduino_SH8601 *gfx;
 extern SystemState system_state;
@@ -123,33 +126,63 @@ void initMusicApp() {
 }
 
 void drawMusicApp() {
-  gfx->fillScreen(COLOR_BLACK);
+  gfx->fillScreen(RGB565(8, 8, 12));
   
-  gfx->setTextColor(getCurrentTheme()->primary);
+  ThemeColors* theme = getCurrentTheme();
+  
+  // Header
+  gfx->fillRoundRect(0, 0, LCD_WIDTH, 50, 0, RGB565(16, 18, 24));
+  gfx->drawFastHLine(0, 50, LCD_WIDTH, theme->primary);
+  gfx->setTextColor(theme->primary);
   gfx->setTextSize(2);
-  gfx->setCursor(120, 20);
-  gfx->print("MUSIC");
+  gfx->setCursor(LCD_WIDTH/2 - 30, 16);
+  gfx->print("Music");
   
-  // Album art placeholder
-  gfx->fillRoundRect(100, 80, 160, 160, 20, getCurrentTheme()->shadow);
+  // Album art placeholder - rounded card
+  int artX = LCD_WIDTH/2 - 75;
+  gfx->fillRoundRect(artX, 70, 150, 150, 20, RGB565(22, 24, 32));
+  gfx->drawRoundRect(artX, 70, 150, 150, 20, RGB565(50, 52, 65));
+  gfx->fillCircle(LCD_WIDTH/2, 145, 30, theme->primary);
+  gfx->fillCircle(LCD_WIDTH/2, 145, 10, RGB565(22, 24, 32));
   
   // Track info
   gfx->setTextColor(COLOR_WHITE);
   gfx->setTextSize(2);
-  gfx->setCursor(80, 270);
+  int tw = 7 * 12;
+  gfx->setCursor(LCD_WIDTH/2 - tw/2, 240);
   gfx->printf("Track %d", current_track + 1);
   
   gfx->setTextSize(1);
-  gfx->setCursor(100, 300);
+  gfx->setTextColor(is_playing ? RGB565(100, 200, 100) : RGB565(120, 120, 130));
+  gfx->setCursor(LCD_WIDTH/2 - 18, 268);
   gfx->print(is_playing ? "Playing" : "Paused");
   
-  // Controls
-  drawThemeButton(30, 350, 80, 50, "Prev", false);
-  drawThemeButton(140, 350, 80, 50, is_playing ? "Pause" : "Play", false);
-  drawThemeButton(250, 350, 80, 50, "Next", false);
+  // Progress bar
+  gfx->fillRoundRect(40, 290, LCD_WIDTH - 80, 4, 2, RGB565(40, 42, 55));
+  gfx->fillRoundRect(40, 290, (LCD_WIDTH - 80) / 3, 4, 2, theme->primary);
   
-  // Back button
-  drawThemeButton(140, 420, 80, 30, "Back", false);
+  // Controls - pill buttons
+  int btnY = 320;
+  gfx->fillRoundRect(40, btnY, 75, 45, 22, RGB565(25, 27, 35));
+  gfx->drawRoundRect(40, btnY, 75, 45, 22, RGB565(50, 52, 65));
+  gfx->setTextColor(COLOR_WHITE);
+  gfx->setTextSize(2);
+  gfx->setCursor(58, btnY + 13);
+  gfx->print("<<");
+  
+  gfx->fillRoundRect(LCD_WIDTH/2 - 40, btnY, 80, 45, 22, theme->primary);
+  gfx->setTextColor(COLOR_WHITE);
+  gfx->setTextSize(2);
+  gfx->setCursor(LCD_WIDTH/2 - 18, btnY + 13);
+  gfx->print(is_playing ? "||" : " >");
+  
+  gfx->fillRoundRect(LCD_WIDTH - 115, btnY, 75, 45, 22, RGB565(25, 27, 35));
+  gfx->drawRoundRect(LCD_WIDTH - 115, btnY, 75, 45, 22, RGB565(50, 52, 65));
+  gfx->setTextColor(COLOR_WHITE);
+  gfx->setCursor(LCD_WIDTH - 97, btnY + 13);
+  gfx->print(">>");
+  
+  drawSwipeIndicator();
 }
 
 void handleMusicTouch(TouchGesture& gesture) {
@@ -157,13 +190,12 @@ void handleMusicTouch(TouchGesture& gesture) {
   
   int x = gesture.x, y = gesture.y;
   
-  if (y >= 350 && y < 400) {
-    if (x < 110) previousTrack();
-    else if (x < 220) { is_playing ? pauseMusic() : playMusic(); }
-    else nextTrack();
+  // Control buttons at y=320, height=45
+  if (y >= 320 && y < 365) {
+    if (x < 130) { previousTrack(); drawMusicApp(); }
+    else if (x < 250) { is_playing ? pauseMusic() : playMusic(); drawMusicApp(); }
+    else { nextTrack(); drawMusicApp(); }
   }
-  
-  if (y >= 420) exitCurrentApp();
 }
 
 void playMusic() { is_playing = true; system_state.music_playing = true; }
@@ -183,24 +215,34 @@ void initNotesApp() {
 }
 
 void drawNotesApp() {
-  gfx->fillScreen(COLOR_BLACK);
+  gfx->fillScreen(RGB565(8, 8, 12));
   
-  gfx->setTextColor(getCurrentTheme()->primary);
+  ThemeColors* theme = getCurrentTheme();
+  
+  // Header
+  gfx->fillRoundRect(0, 0, LCD_WIDTH, 50, 0, RGB565(16, 18, 24));
+  gfx->drawFastHLine(0, 50, LCD_WIDTH, RGB565(255, 200, 60));
+  gfx->setTextColor(RGB565(255, 200, 60));
   gfx->setTextSize(2);
-  gfx->setCursor(130, 20);
-  gfx->print("NOTES");
+  gfx->setCursor(LCD_WIDTH/2 - 30, 16);
+  gfx->print("Notes");
   
   for (int i = 0; i < 5; i++) {
-    int y = 70 + i * 60;
-    uint16_t bg = (i == selected_note) ? getCurrentTheme()->shadow : RGB565(40, 40, 40);
-    gfx->fillRoundRect(20, y, 320, 50, 10, bg);
+    int y = 62 + i * 62;
+    uint16_t bg = (i == selected_note) ? RGB565(30, 35, 48) : RGB565(22, 24, 32);
+    gfx->fillRoundRect(20, y, LCD_WIDTH - 40, 52, 14, bg);
+    if (i == selected_note) {
+      gfx->drawRoundRect(20, y, LCD_WIDTH - 40, 52, 14, theme->accent);
+    } else {
+      gfx->drawRoundRect(20, y, LCD_WIDTH - 40, 52, 14, RGB565(42, 44, 55));
+    }
     gfx->setTextColor(COLOR_WHITE);
     gfx->setTextSize(1);
-    gfx->setCursor(30, y + 18);
+    gfx->setCursor(35, y + 20);
     gfx->print(notes[i]);
   }
   
-  drawThemeButton(140, 420, 80, 30, "Back", false);
+  drawSwipeIndicator();
 }
 
 void handleNotesTouch(TouchGesture& gesture) {
@@ -209,14 +251,13 @@ void handleNotesTouch(TouchGesture& gesture) {
   int y = gesture.y;
   
   for (int i = 0; i < 5; i++) {
-    int ny = 70 + i * 60;
-    if (y >= ny && y < ny + 50) {
+    int ny = 62 + i * 62;
+    if (y >= ny && y < ny + 52) {
       selected_note = i;
+      drawNotesApp();
       return;
     }
   }
-  
-  if (y >= 420) exitCurrentApp();
 }
 
 void saveNote() {}
@@ -231,29 +272,49 @@ void initFileBrowserApp() {
 }
 
 void drawFileBrowserApp() {
-  gfx->fillScreen(COLOR_BLACK);
+  gfx->fillScreen(RGB565(8, 8, 12));
   
-  gfx->setTextColor(getCurrentTheme()->primary);
+  ThemeColors* theme = getCurrentTheme();
+  
+  // Header
+  gfx->fillRoundRect(0, 0, LCD_WIDTH, 50, 0, RGB565(16, 18, 24));
+  gfx->drawFastHLine(0, 50, LCD_WIDTH, RGB565(80, 180, 255));
+  gfx->setTextColor(RGB565(80, 180, 255));
   gfx->setTextSize(2);
-  gfx->setCursor(120, 20);
-  gfx->print("FILES");
+  gfx->setCursor(LCD_WIDTH/2 - 30, 16);
+  gfx->print("Files");
+  
+  // SD card status card
+  gfx->fillRoundRect(20, 70, LCD_WIDTH - 40, 80, 16, RGB565(22, 24, 32));
+  gfx->drawRoundRect(20, 70, LCD_WIDTH - 40, 80, 16, RGB565(42, 44, 55));
   
   gfx->setTextColor(COLOR_WHITE);
+  gfx->setTextSize(2);
+  gfx->setCursor(38, 88);
+  gfx->print("SD Card");
+  
   gfx->setTextSize(1);
-  gfx->setCursor(20, 80);
-  gfx->print("SD Card Status: ");
-  gfx->print(system_state.filesystem_available ? "Available" : "Not Found");
+  gfx->setTextColor(system_state.filesystem_available ? RGB565(100, 200, 100) : RGB565(200, 80, 80));
+  gfx->setCursor(38, 118);
+  gfx->print(system_state.filesystem_available ? "Connected" : "Not Found");
   
-  gfx->setCursor(20, 110);
+  // File counts card
+  gfx->fillRoundRect(20, 170, LCD_WIDTH - 40, 80, 16, RGB565(22, 24, 32));
+  gfx->drawRoundRect(20, 170, LCD_WIDTH - 40, 80, 16, RGB565(42, 44, 55));
+  
+  gfx->setTextColor(RGB565(120, 120, 130));
+  gfx->setTextSize(1);
+  gfx->setCursor(38, 188);
   gfx->printf("MP3 Files: %d", system_state.total_mp3_files);
-  gfx->setCursor(20, 130);
+  gfx->setCursor(38, 210);
   gfx->printf("PDF Files: %d", system_state.total_pdf_files);
+  gfx->setCursor(38, 232);
+  gfx->print("Images: --");
   
-  drawThemeButton(140, 420, 80, 30, "Back", false);
+  drawSwipeIndicator();
 }
 
 void handleFileBrowserTouch(TouchGesture& gesture) {
-  if (gesture.event == TOUCH_TAP && gesture.y >= 420) exitCurrentApp();
 }
 
 // =============================================================================
@@ -276,11 +337,10 @@ void drawPDFReaderApp() {
   gfx->setCursor(50, 200);
   gfx->print("No PDF loaded");
   
-  drawThemeButton(140, 420, 80, 30, "Back", false);
+  drawSwipeIndicator();
 }
 
 void handlePDFReaderTouch(TouchGesture& gesture) {
-  if (gesture.event == TOUCH_TAP && gesture.y >= 420) exitCurrentApp();
 }
 
 // =============================================================================
@@ -292,25 +352,52 @@ void initSettingsApp() {
 }
 
 void drawSettingsApp() {
-  gfx->fillScreen(COLOR_BLACK);
+  gfx->fillScreen(RGB565(8, 8, 12));
   
-  gfx->setTextColor(getCurrentTheme()->primary);
+  ThemeColors* theme = getCurrentTheme();
+  
+  // Header
+  gfx->fillRoundRect(0, 0, LCD_WIDTH, 50, 0, RGB565(16, 18, 24));
+  gfx->drawFastHLine(0, 50, LCD_WIDTH, theme->primary);
+  gfx->setTextColor(COLOR_WHITE);
   gfx->setTextSize(2);
-  gfx->setCursor(110, 20);
-  gfx->print("SETTINGS");
+  gfx->setCursor(LCD_WIDTH/2 - 48, 16);
+  gfx->print("Settings");
   
-  // Settings options
+  // Settings cards
   const char* options[] = {"Brightness", "Theme", "WiFi", "About"};
+  const char* subtexts[] = {"Adjust display", "Change character", "Network setup", "Version info"};
+  uint16_t icons[] = {RGB565(255, 200, 60), theme->primary, RGB565(80, 180, 255), RGB565(150, 150, 160)};
+  
   for (int i = 0; i < 4; i++) {
-    int y = 80 + i * 70;
-    gfx->fillRoundRect(20, y, 320, 60, 10, RGB565(40, 40, 40));
+    int y = 65 + i * 78;
+    
+    // Card background
+    gfx->fillRoundRect(20, y, LCD_WIDTH - 40, 68, 16, RGB565(22, 24, 32));
+    gfx->drawRoundRect(20, y, LCD_WIDTH - 40, 68, 16, RGB565(42, 44, 55));
+    
+    // Icon circle
+    gfx->fillCircle(52, y + 34, 14, icons[i]);
+    
+    // Text
     gfx->setTextColor(COLOR_WHITE);
     gfx->setTextSize(2);
-    gfx->setCursor(30, y + 20);
+    gfx->setCursor(78, y + 15);
     gfx->print(options[i]);
+    
+    gfx->setTextSize(1);
+    gfx->setTextColor(RGB565(100, 102, 115));
+    gfx->setCursor(78, y + 42);
+    gfx->print(subtexts[i]);
+    
+    // Arrow indicator
+    gfx->setTextColor(RGB565(60, 62, 75));
+    gfx->setTextSize(2);
+    gfx->setCursor(LCD_WIDTH - 52, y + 22);
+    gfx->print(">");
   }
   
-  drawThemeButton(140, 420, 80, 30, "Back", false);
+  drawSwipeIndicator();
 }
 
 void handleSettingsTouch(TouchGesture& gesture) {
@@ -318,19 +405,28 @@ void handleSettingsTouch(TouchGesture& gesture) {
   
   int y = gesture.y;
   
-  if (y >= 80 && y < 140) {
-    // Brightness
+  // Cards at: y=65, y=143, y=221, y=299 (height 68, gap 78)
+  if (y >= 65 && y < 133) {
+    // Brightness - cycle
     system_state.brightness = (system_state.brightness + 50) % 256;
     setDisplayBrightness(system_state.brightness);
+    drawSettingsApp();
   }
-  else if (y >= 150 && y < 210) {
-    // Theme cycle
-    int theme = (int)system_state.current_theme;
-    theme = (theme + 1) % 3;
-    setTheme((ThemeType)theme);
+  else if (y >= 143 && y < 211) {
+    // Theme selector
+    system_state.current_screen = SCREEN_THEME_SELECTOR;
+    drawThemeSelector();
   }
-  
-  if (y >= 420) exitCurrentApp();
+  else if (y >= 221 && y < 289) {
+    // WiFi
+    system_state.current_screen = SCREEN_WIFI_MANAGER;
+    drawNetworkListScreen();
+  }
+  else if (y >= 299 && y < 367) {
+    // About
+    system_state.current_screen = SCREEN_SETTINGS;
+    drawAboutScreen();
+  }
 }
 
 // =============================================================================
@@ -356,41 +452,62 @@ void updateStopwatchApp() {
 }
 
 void drawStopwatchMode() {
-  gfx->fillScreen(COLOR_BLACK);
+  gfx->fillScreen(RGB565(8, 8, 12));
   
-  gfx->setTextColor(getCurrentTheme()->primary);
+  ThemeColors* theme = getCurrentTheme();
+  
+  // Header
+  gfx->fillRoundRect(0, 0, LCD_WIDTH, 50, 0, RGB565(16, 18, 24));
+  gfx->drawFastHLine(0, 50, LCD_WIDTH, theme->accent);
+  gfx->setTextColor(theme->accent);
   gfx->setTextSize(2);
-  gfx->setCursor(100, 20);
-  gfx->print("STOPWATCH");
+  gfx->setCursor(LCD_WIDTH/2 - 54, 16);
+  gfx->print("Stopwatch");
   
-  // Time display
+  // Time display card
   unsigned long t = getStopwatchTime();
   int mins = (t / 60000) % 60;
   int secs = (t / 1000) % 60;
   int ms = (t % 1000) / 10;
   
+  gfx->fillRoundRect(20, 70, LCD_WIDTH - 40, 80, 18, RGB565(18, 20, 28));
+  gfx->drawRoundRect(20, 70, LCD_WIDTH - 40, 80, 18, RGB565(42, 44, 55));
+  
   char timeStr[16];
   sprintf(timeStr, "%02d:%02d.%02d", mins, secs, ms);
   gfx->setTextSize(4);
   gfx->setTextColor(COLOR_WHITE);
-  gfx->setCursor(60, 150);
+  gfx->setCursor(55, 92);
   gfx->print(timeStr);
   
   // Lap times
   gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(120, 120, 130));
   for (int i = 0; i < min(lap_count, 5); i++) {
     int lapMins = (lap_times[i] / 60000) % 60;
     int lapSecs = (lap_times[i] / 1000) % 60;
-    gfx->setCursor(20, 250 + i * 20);
+    gfx->setCursor(30, 170 + i * 22);
     gfx->printf("Lap %d: %02d:%02d", i + 1, lapMins, lapSecs);
   }
   
-  // Controls
-  drawThemeButton(30, 360, 100, 45, "Start", false);
-  drawThemeButton(140, 360, 80, 45, "Lap", false);
-  drawThemeButton(230, 360, 100, 45, "Reset", false);
+  // Control buttons - pill shaped
+  int btnY = 330;
+  gfx->fillRoundRect(24, btnY, 95, 45, 22, RGB565(30, 80, 50));
+  gfx->setTextColor(COLOR_WHITE);
+  gfx->setTextSize(2);
+  gfx->setCursor(44, btnY + 13);
+  gfx->print("Start");
   
-  drawThemeButton(140, 420, 80, 30, "Back", false);
+  gfx->fillRoundRect(LCD_WIDTH/2 - 42, btnY, 84, 45, 22, RGB565(25, 27, 35));
+  gfx->drawRoundRect(LCD_WIDTH/2 - 42, btnY, 84, 45, 22, RGB565(50, 52, 65));
+  gfx->setCursor(LCD_WIDTH/2 - 18, btnY + 13);
+  gfx->print("Lap");
+  
+  gfx->fillRoundRect(LCD_WIDTH - 119, btnY, 95, 45, 22, RGB565(80, 30, 30));
+  gfx->setCursor(LCD_WIDTH - 99, btnY + 13);
+  gfx->print("Reset");
+  
+  drawSwipeIndicator();
 }
 
 void drawTimerMode() {
@@ -412,7 +529,7 @@ void drawTimerMode() {
   gfx->setCursor(80, 180);
   gfx->print(timeStr);
   
-  drawThemeButton(140, 420, 80, 30, "Back", false);
+  drawSwipeIndicator();
 }
 
 void handleStopwatchTouch(TouchGesture& gesture) {
@@ -420,22 +537,21 @@ void handleStopwatchTouch(TouchGesture& gesture) {
   
   int x = gesture.x, y = gesture.y;
   
-  if (y >= 360 && y < 405) {
+  // Buttons at y=330, height=45
+  if (y >= 330 && y < 375) {
+    static bool running = false;
     if (x < 130) {
-      static bool running = false;
       if (running) pauseStopwatch();
       else startStopwatch();
       running = !running;
     }
-    else if (x < 220) recordLapTime();
+    else if (x < 250) recordLapTime();
     else resetStopwatch();
+    drawStopwatchMode();
   }
-  
-  if (y >= 420) exitCurrentApp();
 }
 
 void handleTimerTouch(TouchGesture& gesture) {
-  if (gesture.event == TOUCH_TAP && gesture.y >= 420) exitCurrentApp();
 }
 
 void recordLapTime() {
@@ -482,7 +598,7 @@ void drawWallpaperSelector() {
     gfx->print(wallpapers[i]);
   }
   
-  drawThemeButton(140, 420, 80, 30, "Back", false);
+  drawSwipeIndicator();
 }
 
 void handleWallpaperTouch(TouchGesture& gesture) {
@@ -499,7 +615,6 @@ void handleWallpaperTouch(TouchGesture& gesture) {
     }
   }
   
-  if (y >= 420) exitCurrentApp();
 }
 
 void selectWallpaper(int index) {
@@ -518,29 +633,48 @@ void applyWallpaper(const String& path) {
 void initCalculatorApp() {}
 
 void drawCalculatorApp() {
-  gfx->fillScreen(COLOR_BLACK);
+  gfx->fillScreen(RGB565(8, 8, 12));
   
-  gfx->setTextColor(getCurrentTheme()->primary);
+  ThemeColors* theme = getCurrentTheme();
+  
+  // Header
+  gfx->fillRoundRect(0, 0, LCD_WIDTH, 46, 0, RGB565(16, 18, 24));
+  gfx->drawFastHLine(0, 46, LCD_WIDTH, RGB565(100, 100, 120));
+  gfx->setTextColor(RGB565(180, 180, 190));
   gfx->setTextSize(2);
-  gfx->setCursor(100, 10);
-  gfx->print("CALCULATOR");
+  gfx->setCursor(LCD_WIDTH/2 - 24, 14);
+  gfx->print("Calc");
   
-  // Display
-  gfx->fillRoundRect(20, 50, 320, 60, 10, RGB565(30, 30, 30));
+  // Display panel
+  gfx->fillRoundRect(16, 52, LCD_WIDTH - 32, 55, 14, RGB565(22, 24, 32));
+  gfx->drawRoundRect(16, 52, LCD_WIDTH - 32, 55, 14, RGB565(42, 44, 55));
   gfx->setTextColor(COLOR_WHITE);
   gfx->setTextSize(3);
-  gfx->setCursor(30, 70);
+  gfx->setCursor(28, 66);
   gfx->print(calc_display);
   
-  // Buttons
+  // Calculator buttons - modern rounded
   const char* buttons[] = {"7", "8", "9", "/", "4", "5", "6", "*", "1", "2", "3", "-", "C", "0", "=", "+"};
   for (int i = 0; i < 16; i++) {
-    int x = (i % 4) * 85 + 15;
-    int y = (i / 4) * 70 + 130;
-    drawThemeButton(x, y, 75, 60, buttons[i], false);
+    int bx = (i % 4) * 85 + 15;
+    int by = (i / 4) * 66 + 118;
+    int bw = 75;
+    int bh = 56;
+    
+    bool isOp = (i % 4 == 3) || buttons[i][0] == 'C' || buttons[i][0] == '=';
+    uint16_t bg = isOp ? RGB565(35, 30, 45) : RGB565(25, 27, 35);
+    uint16_t border = isOp ? theme->primary : RGB565(45, 47, 58);
+    
+    gfx->fillRoundRect(bx, by, bw, bh, 14, bg);
+    gfx->drawRoundRect(bx, by, bw, bh, 14, border);
+    
+    gfx->setTextColor(isOp ? theme->primary : COLOR_WHITE);
+    gfx->setTextSize(2);
+    gfx->setCursor(bx + bw/2 - 6, by + bh/2 - 8);
+    gfx->print(buttons[i]);
   }
   
-  drawThemeButton(140, 420, 80, 30, "Back", false);
+  drawSwipeIndicator();
 }
 
 void handleCalculatorTouch(TouchGesture& gesture) {
@@ -552,8 +686,8 @@ void handleCalculatorTouch(TouchGesture& gesture) {
   const char* buttons[] = {"7", "8", "9", "/", "4", "5", "6", "*", "1", "2", "3", "-", "C", "0", "=", "+"};
   for (int i = 0; i < 16; i++) {
     int bx = (i % 4) * 85 + 15;
-    int by = (i / 4) * 70 + 130;
-    if (x >= bx && x < bx + 75 && y >= by && y < by + 60) {
+    int by = (i / 4) * 66 + 118;
+    if (x >= bx && x < bx + 75 && y >= by && y < by + 56) {
       char btn = buttons[i][0];
       if (btn >= '0' && btn <= '9') {
         if (calc_display == "0") calc_display = String(btn);
@@ -586,11 +720,10 @@ void handleCalculatorTouch(TouchGesture& gesture) {
         calc_operator = btn;
         calc_display = "0";
       }
+      drawCalculatorApp();
       return;
     }
   }
-  
-  if (y >= 420) exitCurrentApp();
 }
 
 // =============================================================================
@@ -602,32 +735,56 @@ void initFlashlightApp() {}
 void drawFlashlightApp() {
   if (flashlight_on) {
     gfx->fillScreen(COLOR_WHITE);
-    gfx->setTextColor(COLOR_BLACK);
   } else {
-    gfx->fillScreen(COLOR_BLACK);
-    gfx->setTextColor(COLOR_WHITE);
+    gfx->fillScreen(RGB565(8, 8, 12));
   }
   
-  gfx->setTextSize(2);
-  gfx->setCursor(100, 20);
-  gfx->print("FLASHLIGHT");
+  int centerX = LCD_WIDTH / 2;
+  int centerY = 200;
   
-  // Big toggle button
   if (flashlight_on) {
-    gfx->fillCircle(LCD_WIDTH/2, 220, 80, COLOR_BLACK);
+    // ON state - white screen with dark UI
+    gfx->setTextColor(RGB565(40, 40, 50));
+    gfx->setTextSize(2);
+    gfx->setCursor(centerX - 48, 30);
+    gfx->print("Torch");
+    
+    // Big OFF button
+    gfx->fillCircle(centerX, centerY, 65, RGB565(40, 42, 55));
+    gfx->drawCircle(centerX, centerY, 66, RGB565(80, 82, 95));
     gfx->setTextColor(COLOR_WHITE);
+    gfx->setTextSize(3);
+    gfx->setCursor(centerX - 24, centerY - 10);
+    gfx->print("OFF");
+    
+    gfx->setTextColor(RGB565(100, 100, 110));
+    gfx->setTextSize(1);
+    gfx->setCursor(centerX - 32, 380);
+    gfx->print("Tap to toggle");
   } else {
-    gfx->fillCircle(LCD_WIDTH/2, 220, 80, COLOR_YELLOW);
-    gfx->setTextColor(COLOR_BLACK);
+    // OFF state - dark screen
+    gfx->setTextColor(RGB565(180, 180, 190));
+    gfx->setTextSize(2);
+    gfx->setCursor(centerX - 48, 30);
+    gfx->print("Torch");
+    
+    // Glow ring around button
+    for (int r = 70; r > 65; r--) {
+      gfx->drawCircle(centerX, centerY, r, RGB565(40, 35, 10));
+    }
+    
+    // Big ON button
+    gfx->fillCircle(centerX, centerY, 65, RGB565(255, 200, 60));
+    gfx->setTextColor(RGB565(30, 30, 30));
+    gfx->setTextSize(3);
+    gfx->setCursor(centerX - 18, centerY - 10);
+    gfx->print("ON");
+    
+    gfx->setTextColor(RGB565(70, 72, 85));
+    gfx->setTextSize(1);
+    gfx->setCursor(centerX - 32, 380);
+    gfx->print("Tap to toggle");
   }
-  gfx->setTextSize(3);
-  gfx->setCursor(150, 210);
-  gfx->print(flashlight_on ? "OFF" : "ON");
-  
-  gfx->setTextColor(flashlight_on ? COLOR_BLACK : COLOR_WHITE);
-  gfx->setTextSize(1);
-  gfx->setCursor(120, 420);
-  gfx->print("Tap anywhere to toggle");
 }
 
 void handleFlashlightTouch(TouchGesture& gesture) {
@@ -635,5 +792,6 @@ void handleFlashlightTouch(TouchGesture& gesture) {
     flashlight_on = !flashlight_on;
     if (flashlight_on) setDisplayBrightness(255);
     else setDisplayBrightness(system_state.brightness);
+    drawFlashlightApp();
   }
 }

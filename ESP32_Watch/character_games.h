@@ -105,7 +105,7 @@ void initElementBattle();
 void drawElementBattle();
 void updateElementBattle();
 void handleElementBattleTouch(TouchGesture& gesture);
-void playerAttack();
+void elementPlayerAttack();
 void enemyAttack();
 int getElementAdvantage(int attacker, int defender);
 

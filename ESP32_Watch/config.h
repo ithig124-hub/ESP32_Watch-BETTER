@@ -1,5 +1,5 @@
 /*
- * config.h - IMPROVED CONFIGURATION
+ * config.h - IMPROVED CONFIGURATION (FIXED)
  * Modern Anime Gaming Smartwatch - Enhanced Edition
  * 
  * Better touch handling, improved visuals, all apps accessible
@@ -12,29 +12,30 @@
 #include "types.h"  // Central type definitions - MUST be included first
 
 // =============================================================================
-// DISPLAY CONFIGURATION - ESP32-S3-Touch-AMOLED-1.8"
+// DISPLAY CONFIGURATION - ESP32-S3-Touch-AMOLED-1.8" (Waveshare Official Pins)
 // =============================================================================
 #define LCD_WIDTH           368
 #define LCD_HEIGHT          448
 
-// Display pins (QSPI)
-#define LCD_CS              6
-#define LCD_SCLK            47
-#define LCD_SDIO0           18
-#define LCD_SDIO1           7
-#define LCD_SDIO2           48
-#define LCD_SDIO3           5
+// Display pins (QSPI) - FROM WAVESHARE OFFICIAL pin_config.h
+#define LCD_SDIO0           4
+#define LCD_SDIO1           5
+#define LCD_SDIO2           6
+#define LCD_SDIO3           7
+#define LCD_SCLK            11
+#define LCD_CS              12
 
 // =============================================================================
-// I2C CONFIGURATION
+// I2C CONFIGURATION - FROM WAVESHARE OFFICIAL pin_config.h
 // =============================================================================
-#define IIC_SDA             10
-#define IIC_SCL             11
+#define IIC_SDA             15
+#define IIC_SCL             14
 
 // I2C Addresses
 #define FT3168_ADDR         0x38
 #define AXP2101_ADDR        0x34
 #define PCF85063_ADDR       0x51
+#define RTC_ADDR            0x51
 #define QMI8658_ADDR        0x6B
 #define ES8311_ADDR         0x18
 #define EXPANDER_ADDR       0x20
@@ -42,7 +43,7 @@
 // =============================================================================
 // TOUCH CONFIGURATION - IMPROVED SENSITIVITY
 // =============================================================================
-#define TP_INT              9
+#define TP_INT              21
 #define TP_RST              -1
 
 // IMPROVED Touch thresholds - better responsiveness
@@ -71,11 +72,6 @@
 // =============================================================================
 #define MIN_STEP_THRESHOLD        1.2    // Minimum acceleration delta for step
 #define STEP_TIME_WINDOW          250    // Minimum ms between steps
-
-// =============================================================================
-// I2C ADDRESS DEFINITIONS
-// =============================================================================
-#define RTC_ADDR                  0x51   // PCF85063 RTC address
 
 // =============================================================================
 // NAVIGATION CONFIGURATION - IMPROVED
@@ -325,7 +321,7 @@ enum BoBoiBoyElement {
   BBB_ELEMENT_COUNT = 7
 };
 
-// Screen Types - IMPROVED with all screens accessible
+// Screen Types - FIXED: Added missing screen types
 enum ScreenType {
   SCREEN_SPLASH = 0,
   SCREEN_WATCHFACE,
@@ -342,6 +338,9 @@ enum ScreenType {
   SCREEN_WALLPAPER_SELECTOR,
   SCREEN_WEATHER_APP,
   SCREEN_WIFI_MANAGER,
+  SCREEN_WIFI_SETUP,           // FIXED: Added missing screen type
+  SCREEN_NETWORK_STATUS,       // FIXED: Added missing screen type
+  SCREEN_NEWS_APP,             // FIXED: Added missing screen type
   SCREEN_GAMES,
   SCREEN_GACHA,
   SCREEN_COLLECTION,
@@ -375,7 +374,7 @@ enum MainScreen {
   MAIN_CHARACTER_STATS
 };
 
-// Touch Events - IMPROVED
+// Touch Events - FIXED: Added TOUCH_MOVE
 enum TouchEvent {
   TOUCH_NONE = 0,
   TOUCH_PRESS,
@@ -386,7 +385,8 @@ enum TouchEvent {
   TOUCH_SWIPE_RIGHT,
   TOUCH_SWIPE_UP,
   TOUCH_SWIPE_DOWN,
-  TOUCH_DRAG
+  TOUCH_DRAG,
+  TOUCH_MOVE              // FIXED: Added missing touch event
 };
 
 // =============================================================================

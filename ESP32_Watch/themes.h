@@ -49,6 +49,7 @@ bool isMainCharacter(ThemeType theme);
 // =============================================================================
 
 void drawWatchFace();
+void updateWatchFaceTime();  // Partial update - no flicker
 void drawLuffyWatchFace();
 void drawJinwooWatchFace();
 void drawYugoWatchFace();

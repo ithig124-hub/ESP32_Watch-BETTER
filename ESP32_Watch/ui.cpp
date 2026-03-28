@@ -1,5 +1,5 @@
 /*
- * ui.cpp - User Interface Implementation
+ * ui.cpp - User Interface Implementation (FIXED)
  * Screen management, navigation, and UI components
  */
 
@@ -80,16 +80,19 @@ void drawAppScreen() {
     case SCREEN_GAMES:
       drawGameMenu();
       break;
-    case SCREEN_WIFI_SETUP:
+    case SCREEN_WIFI_SETUP:         // FIXED: Now defined in config.h
       showWiFiSetupScreen();
       break;
-    case SCREEN_NETWORK_STATUS:
+    case SCREEN_WIFI_MANAGER:       // Handle both screen types
+      showWiFiSetupScreen();
+      break;
+    case SCREEN_NETWORK_STATUS:     // FIXED: Now defined in config.h
       showNetworkStatusScreen();
       break;
     case SCREEN_WEATHER_APP:
       drawWeatherApp();
       break;
-    case SCREEN_NEWS_APP:
+    case SCREEN_NEWS_APP:           // FIXED: Now defined in config.h
       drawNewsApp();
       break;
     case SCREEN_WALLPAPER_SELECTOR:
@@ -111,59 +114,106 @@ void drawAppScreen() {
 }
 
 void drawSplashScreen() {
-  gfx->fillScreen(COLOR_BLACK);
-  gfx->setTextColor(getCurrentTheme()->primary);
+  gfx->fillScreen(0x0000);  // Pure AMOLED black
+  
+  int centerX = LCD_WIDTH / 2;
+  int centerY = LCD_HEIGHT / 2;
+  
+  // Subtle accent ring
+  for (int r = 80; r > 70; r--) {
+    gfx->drawCircle(centerX, centerY - 30, r, RGB565(20, 20, 30));
+  }
+  
+  // Title
+  gfx->setTextColor(COLOR_WHITE);
   gfx->setTextSize(3);
-  gfx->setCursor(80, 180);
-  gfx->print("ESP32");
-  gfx->setCursor(80, 230);
+  gfx->setCursor(centerX - 78, centerY - 55);
+  gfx->print("ANIME");
+  
+  gfx->setTextColor(RGB565(255, 200, 60));
+  gfx->setCursor(centerX - 78, centerY - 20);
   gfx->print("WATCH");
+  
+  // Subtitle
+  gfx->setTextColor(RGB565(100, 105, 120));
+  gfx->setTextSize(1);
+  gfx->setCursor(centerX - 52, centerY + 20);
+  gfx->print("Improved Edition");
+  
+  // Loading bar
+  int barX = centerX - 70;
+  int barY = centerY + 55;
+  int barW = 140;
+  int barH = 6;
+  gfx->drawRoundRect(barX, barY, barW, barH, 3, RGB565(40, 42, 55));
+  
+  for (int i = 0; i <= barW - 4; i += 3) {
+    gfx->fillRoundRect(barX + 2, barY + 1, i, barH - 2, 2, RGB565(100, 200, 150));
+    delay(12);
+  }
+  
+  // Feature list
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(80, 82, 95));
+  gfx->setCursor(centerX - 55, centerY + 80);
+  gfx->print("11 Character Themes");
+  gfx->setCursor(centerX - 50, centerY + 98);
+  gfx->print("Gacha + Mini-Games");
 }
 
 void drawAboutScreen() {
-  gfx->fillScreen(COLOR_BLACK);
+  gfx->fillScreen(RGB565(8, 8, 12));
   
-  // Title
-  gfx->setTextColor(getCurrentTheme()->primary);
+  ThemeColors* theme = getCurrentTheme();
+  
+  // Header
+  gfx->fillRoundRect(0, 0, LCD_WIDTH, 55, 0, RGB565(16, 18, 24));
+  gfx->drawFastHLine(0, 55, LCD_WIDTH, theme->primary);
+  gfx->setTextColor(theme->primary);
   gfx->setTextSize(2);
-  gfx->setCursor(120, 30);
-  gfx->print("ABOUT");
+  gfx->setCursor(LCD_WIDTH/2 - 30, 18);
+  gfx->print("About");
   
-  // Info
+  // Info card
+  gfx->fillRoundRect(20, 70, LCD_WIDTH - 40, 130, 16, RGB565(22, 24, 32));
+  gfx->drawRoundRect(20, 70, LCD_WIDTH - 40, 130, 16, RGB565(50, 52, 65));
+  
   gfx->setTextColor(COLOR_WHITE);
+  gfx->setTextSize(2);
+  gfx->setCursor(38, 88);
+  gfx->print("Anime Watch");
+  
   gfx->setTextSize(1);
+  gfx->setTextColor(theme->accent);
+  gfx->setCursor(38, 118);
+  gfx->print("Version 2.0 Improved");
   
-  gfx->setCursor(30, 80);
-  gfx->print("ESP32 Anime Gaming Smartwatch");
-  
-  gfx->setCursor(30, 110);
-  gfx->print("Version: 2.0 IMPROVED");
-  
-  gfx->setCursor(30, 140);
-  gfx->print("11 Anime Themes");
-  
-  gfx->setCursor(30, 170);
+  gfx->setTextColor(RGB565(120, 120, 130));
+  gfx->setCursor(38, 140);
+  gfx->print("11 Character Themes");
+  gfx->setCursor(38, 158);
   gfx->print("BoBoiBoy Element System");
+  gfx->setCursor(38, 176);
+  gfx->print("Gacha + Training + Boss Rush");
   
-  gfx->setCursor(30, 200);
-  gfx->print("Fusion Minigame");
+  // Hardware card
+  gfx->fillRoundRect(20, 215, LCD_WIDTH - 40, 90, 16, RGB565(22, 24, 32));
+  gfx->drawRoundRect(20, 215, LCD_WIDTH - 40, 90, 16, RGB565(50, 52, 65));
   
-  gfx->setCursor(30, 230);
-  gfx->print("Dynamic Day/Night BG");
+  gfx->setTextColor(theme->primary);
+  gfx->setTextSize(1);
+  gfx->setCursor(38, 230);
+  gfx->print("Hardware");
   
-  gfx->setTextColor(getCurrentTheme()->accent);
-  gfx->setCursor(30, 280);
-  gfx->print("Hardware:");
-  
-  gfx->setTextColor(COLOR_GRAY);
-  gfx->setCursor(30, 300);
+  gfx->setTextColor(RGB565(160, 160, 170));
+  gfx->setCursor(38, 252);
   gfx->print("ESP32-S3 + SH8601 AMOLED");
+  gfx->setCursor(38, 272);
+  gfx->print("368x448 | Touch | AXP2101");
+  gfx->setCursor(38, 292);
+  gfx->print("WiFi + BT | SD Card | IMU");
   
-  gfx->setCursor(30, 320);
-  gfx->print("368x448 pixels");
-  
-  // Back button
-  drawThemeButton(140, 400, 80, 35, "Back", false);
+  drawSwipeIndicator();
 }
 
 // =============================================================================

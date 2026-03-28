@@ -38,9 +38,15 @@
 #include "fusion_game.h"
 #include "character_games.h"
 #include "ui.h"
+#include "sd_manager.h"
 
-// Display
-Arduino_SH8601 *gfx = nullptr;
+// Display - MUST be properly allocated (not nullptr!)
+Arduino_DataBus *bus = new Arduino_ESP32QSPI(
+    LCD_CS /* CS */, LCD_SCLK /* SCK */, LCD_SDIO0 /* SDIO0 */, LCD_SDIO1 /* SDIO1 */,
+    LCD_SDIO2 /* SDIO2 */, LCD_SDIO3 /* SDIO3 */);
+
+Arduino_SH8601 *gfx = new Arduino_SH8601(
+    bus, GFX_NOT_DEFINED /* RST */, 0 /* rotation */, LCD_WIDTH /* width */, LCD_HEIGHT /* height */);
 
 // Global state
 SystemState system_state = {
@@ -78,8 +84,8 @@ SystemState system_state = {
 
 // Touch interrupt flag
 volatile bool touch_interrupt = false;
-bool sdCardInitialized = false;
-bool wifiConnected = false;
+// sdCardInitialized and wifiConnected are defined in sd_manager.cpp
+// and declared extern in sd_manager.h
 
 // =============================================================================
 // SETUP
@@ -154,54 +160,15 @@ void setup() {
   Serial.println("       UP/DOWN: App pages (on grid)");
 }
 
-// =============================================================================
-// TOUCH INTERRUPT HANDLER
-// =============================================================================
-
-void IRAM_ATTR touchISR() {
-  touch_interrupt = true;
-}
+// touchISR() is defined in touch.cpp
 
 // =============================================================================
-// SPLASH SCREEN
+// SPLASH SCREEN - defined in ui.cpp
 // =============================================================================
 
-void drawSplashScreen() {
-  gfx->fillScreen(COLOR_BLACK);
-  
-  // Animated loading
-  int centerX = LCD_WIDTH / 2;
-  int centerY = LCD_HEIGHT / 2;
-  
-  // Logo/Title
-  gfx->setTextColor(RGB565(255, 215, 50));
-  gfx->setTextSize(2);
-  gfx->setCursor(centerX - 80, centerY - 60);
-  gfx->print("ANIME WATCH");
-  
-  gfx->setTextColor(RGB565(100, 180, 255));
-  gfx->setTextSize(1);
-  gfx->setCursor(centerX - 55, centerY - 30);
-  gfx->print("IMPROVED EDITION");
-  
-  // Loading bar
-  gfx->drawRoundRect(centerX - 80, centerY + 30, 160, 20, 10, RGB565(80, 80, 90));
-  
-  for (int i = 0; i <= 150; i += 5) {
-    gfx->fillRoundRect(centerX - 75, centerY + 35, i, 10, 5, RGB565(100, 200, 150));
-    delay(15);
-  }
-  
-  // Features
-  gfx->setTextColor(RGB565(150, 150, 160));
-  gfx->setTextSize(1);
-  gfx->setCursor(centerX - 70, centerY + 70);
-  gfx->print("10 Character Themes");
-  gfx->setCursor(centerX - 60, centerY + 90);
-  gfx->print("Gacha Collection");
-  gfx->setCursor(centerX - 50, centerY + 110);
-  gfx->print("Mini-Games");
-}
+// Forward declarations for functions defined after loop()
+void updateCurrentScreen();
+void handleTouchGesture(TouchGesture& gesture);
 
 // =============================================================================
 // MAIN LOOP
@@ -229,12 +196,54 @@ void loop() {
 void handleTouchGesture(TouchGesture& gesture) {
   Serial.printf("[MAIN] Gesture: %d at (%d, %d)\n", gesture.event, gesture.x, gesture.y);
   
-  // Handle based on current screen type
+  // ==========================================================
+  // SWIPE UP = EXIT from any app back to app grid (Apple Watch style)
+  // ==========================================================
+  if (gesture.event == TOUCH_SWIPE_UP) {
+    switch (system_state.current_screen) {
+      // Main navigation screens - swipe up changes page or navigates
+      case SCREEN_WATCHFACE:
+      case SCREEN_CHARACTER_STATS:
+        handleSwipeNavigation(gesture.dx, gesture.dy);
+        break;
+      
+      // App grid - swipe up goes to page 2, or exits if already on page 2
+      case SCREEN_APP_GRID:
+        if (navState.appGridPage == 0) {
+          navState.appGridPage = 1;
+          navState.lastNavigationMs = millis();
+          drawCurrentScreen();
+        }
+        // Already on page 2 - do nothing (swipe down goes back to page 1)
+        break;
+      
+      // Collection goes back to Gacha
+      case SCREEN_COLLECTION:
+        system_state.current_screen = SCREEN_GACHA;
+        drawGachaScreen();
+        break;
+      
+      // Theme selector goes back to Settings
+      case SCREEN_THEME_SELECTOR:
+        system_state.current_screen = SCREEN_SETTINGS;
+        drawSettingsApp();
+        break;
+      
+      // ALL other screens → exit to app grid
+      default:
+        returnToAppGrid();
+        break;
+    }
+    return;
+  }
+  
+  // ==========================================================
+  // Handle other gestures per screen
+  // ==========================================================
   switch (system_state.current_screen) {
     case SCREEN_WATCHFACE:
     case SCREEN_APP_GRID:
     case SCREEN_CHARACTER_STATS:
-      // Main navigation screens - handle swipes and taps
       if (gesture.event == TOUCH_TAP) {
         handleCurrentScreenTouch(gesture);
       } else if (gesture.event >= TOUCH_SWIPE_LEFT && gesture.event <= TOUCH_SWIPE_DOWN) {
@@ -243,138 +252,74 @@ void handleTouchGesture(TouchGesture& gesture) {
       break;
     
     case SCREEN_GACHA:
-      if (gesture.event == TOUCH_TAP && gesture.y >= 380) {
-        returnToAppGrid();
-      } else {
-        handleGachaTouch(gesture);
-      }
+      handleGachaTouch(gesture);
       break;
     
     case SCREEN_TRAINING:
-      if (gesture.event == TOUCH_TAP && gesture.y >= 420) {
-        returnToAppGrid();
-      } else {
-        handleTrainingMenuTouch(gesture);
-      }
+      handleTrainingMenuTouch(gesture);
       break;
     
     case SCREEN_BOSS_RUSH:
-      if (gesture.event == TOUCH_TAP && gesture.y >= 420) {
-        returnToAppGrid();
-      } else {
-        handleBossRushTouch(gesture);
-      }
+      handleBossRushTouch(gesture);
       break;
     
     case SCREEN_GAMES:
-      if (gesture.event == TOUCH_TAP && gesture.y >= 420 && gesture.x >= 290) {
-        returnToAppGrid();
-      } else {
-        handleGameMenuTouch(gesture);
-      }
+      handleGameMenuTouch(gesture);
       break;
     
     case SCREEN_QUESTS:
-      if (gesture.event == TOUCH_TAP && gesture.y >= 420) {
-        returnToAppGrid();
-      } else {
-        handleQuestTouch(gesture);
-      }
+      handleQuestTouch(gesture);
       break;
     
     case SCREEN_ELEMENT_TREE:
-      // BoBoiBoy Element Tree - handle swipes for page changes and taps for selection
       handleElementTreeTouch(gesture);
       break;
     
     case SCREEN_FUSION_GAME:
-      // BoBoiBoy Fusion Minigame
       handleFusionGameTouch(gesture);
       break;
     
     case SCREEN_CHARACTER_GAME:
-      // Character-specific minigames
       handleCharacterGameTouch(gesture);
       break;
     
     case SCREEN_SETTINGS:
-      if (gesture.event == TOUCH_TAP && gesture.y >= 420) {
-        returnToAppGrid();
-      } else {
-        handleSettingsTouch(gesture);
-      }
+      handleSettingsTouch(gesture);
       break;
     
     case SCREEN_THEME_SELECTOR:
-      if (gesture.event == TOUCH_TAP && gesture.y >= 410) {
-        system_state.current_screen = SCREEN_SETTINGS;
-        drawSettingsApp();
-      } else {
-        handleThemeSelectorTouch(gesture);
-        drawThemeSelector();
-      }
+      handleThemeSelectorTouch(gesture);
       break;
     
     case SCREEN_MUSIC:
-      if (gesture.event == TOUCH_TAP && gesture.y >= 420) {
-        returnToAppGrid();
-      } else {
-        handleMusicTouch(gesture);
-      }
+      handleMusicTouch(gesture);
       break;
     
     case SCREEN_WEATHER_APP:
-      if (gesture.event == TOUCH_TAP && gesture.y >= 420) {
-        returnToAppGrid();
-      }
+      // Weather is display-only, taps ignored
       break;
     
     case SCREEN_WIFI_MANAGER:
-      if (gesture.event == TOUCH_TAP && gesture.y >= 420) {
-        returnToAppGrid();
-      } else {
-        handleWifiManagerTouch(gesture);
-      }
+      handleWifiManagerTouch(gesture);
       break;
     
     case SCREEN_COLLECTION:
-      if (gesture.event == TOUCH_TAP && gesture.y >= 420) {
-        system_state.current_screen = SCREEN_GACHA;
-        drawGachaScreen();
-      } else {
-        handleCollectionTouch(gesture);
-      }
+      handleCollectionTouch(gesture);
       break;
     
     case SCREEN_FILE_BROWSER:
-      if (gesture.event == TOUCH_TAP && gesture.y >= 420) {
-        returnToAppGrid();
-      } else {
-        handleFileBrowserTouch(gesture);
-      }
+      handleFileBrowserTouch(gesture);
       break;
     
     case SCREEN_CALCULATOR:
-      if (gesture.event == TOUCH_TAP && gesture.y >= 420) {
-        returnToAppGrid();
-      } else {
-        handleCalculatorTouch(gesture);
-      }
+      handleCalculatorTouch(gesture);
       break;
     
     case SCREEN_FLASHLIGHT:
-      if (gesture.event == TOUCH_SWIPE_RIGHT || gesture.event == TOUCH_SWIPE_LEFT) {
-        returnToAppGrid();
-      } else {
-        handleFlashlightTouch(gesture);
-      }
+      handleFlashlightTouch(gesture);
       break;
     
     default:
-      // For any other screen, tap on back button area returns to app grid
-      if (gesture.event == TOUCH_TAP && gesture.y >= 400) {
-        returnToAppGrid();
-      }
       break;
   }
 }
@@ -386,11 +331,10 @@ void handleTouchGesture(TouchGesture& gesture) {
 void updateCurrentScreen() {
   static unsigned long lastUpdate = 0;
   
-  // Update every second for watch face
+  // Update watchface - use PARTIAL update to avoid flicker
   if (system_state.current_screen == SCREEN_WATCHFACE && millis() - lastUpdate > 1000) {
     lastUpdate = millis();
-    drawWatchFace();
-    drawNavigationIndicators();
+    updateWatchFaceTime();  // Only redraw time area, no fillScreen!
   }
   
   // Update games
@@ -399,38 +343,7 @@ void updateCurrentScreen() {
   }
 }
 
-// =============================================================================
-// UTILITY FUNCTIONS
-// =============================================================================
-
-WatchTime getCurrentTime() {
-  WatchTime t;
-  
-  // Read from RTC if available
-  time_t now = time(nullptr);
-  struct tm* timeinfo = localtime(&now);
-  
-  if (timeinfo) {
-    t.hour = timeinfo->tm_hour;
-    t.minute = timeinfo->tm_min;
-    t.second = timeinfo->tm_sec;
-    t.day = timeinfo->tm_mday;
-    t.month = timeinfo->tm_mon + 1;
-    t.year = timeinfo->tm_year + 1900;
-    t.weekday = timeinfo->tm_wday;
-  } else {
-    // Fallback
-    t.hour = (millis() / 3600000) % 24;
-    t.minute = (millis() / 60000) % 60;
-    t.second = (millis() / 1000) % 60;
-    t.day = 15;
-    t.month = 6;
-    t.year = 2025;
-    t.weekday = 3;
-  }
-  
-  return t;
-}
+// getCurrentTime() is defined in hardware.cpp
 
 void saveAllData() {
   saveGachaProgress();
