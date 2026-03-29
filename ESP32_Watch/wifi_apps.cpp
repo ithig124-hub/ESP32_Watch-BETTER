@@ -12,6 +12,13 @@
 extern Arduino_SH8601 *gfx;
 extern SystemState system_state;
 
+// =============================================================================
+// HARDCODED WIFI CREDENTIALS - CONFIGURED FOR YOUR NETWORK
+// =============================================================================
+const char* AUTO_WIFI_SSID = "Optus_9D2E3D";
+const char* AUTO_WIFI_PASSWORD = "snucktemptGLeQU";
+bool wifi_auto_connected = false;
+
 // WiFi state
 static WiFiState wifi_state = WIFI_DISCONNECTED;
 static WiFiConfig wifi_config;
@@ -28,6 +35,42 @@ static NewsArticle cached_news[5];
 static int news_count = 0;
 
 // =============================================================================
+// AUTO WIFI CONNECTION
+// =============================================================================
+
+void autoConnectWiFi() {
+  if (wifi_auto_connected || WiFi.status() == WL_CONNECTED) return;
+  
+  Serial.println("[WiFi] Auto-connecting to configured network...");
+  Serial.printf("[WiFi] SSID: %s\\n", AUTO_WIFI_SSID);
+  
+  WiFi.begin(AUTO_WIFI_SSID, AUTO_WIFI_PASSWORD);
+  
+  int attempts = 0;
+  while (WiFi.status() != WL_CONNECTED && attempts < 20) {
+    delay(500);
+    Serial.print(".");
+    attempts++;
+  }
+  
+  if (WiFi.status() == WL_CONNECTED) {
+    wifi_auto_connected = true;
+    wifi_state = WIFI_CONNECTED;
+    system_state.wifi_connected = true;
+    system_state.wifi_ssid = WiFi.SSID();
+    system_state.wifi_signal_strength = WiFi.RSSI();
+    
+    Serial.println("\\n[WiFi] Auto-connected successfully!");
+    Serial.printf("[WiFi] IP: %s\\n", WiFi.localIP().toString().c_str());
+    
+    // Auto-fetch weather on successful connection
+    fetchWeatherData();
+  } else {
+    Serial.println("\\n[WiFi] Auto-connect failed");
+  }
+}
+
+// =============================================================================
 // WIFI MANAGER
 // =============================================================================
 
@@ -36,6 +79,9 @@ void initWiFiManager() {
   WiFi.mode(WIFI_STA);
   WiFi.disconnect();
   delay(100);
+  
+  // Try auto-connect
+  autoConnectWiFi();
 }
 
 // Alias function for initWiFiManager

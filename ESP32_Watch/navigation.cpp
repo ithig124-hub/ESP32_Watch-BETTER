@@ -10,6 +10,9 @@
  * - All apps now accessible and working
  * - Tap-to-switch elements for BoBoiBoy
  * - Character-specific minigames access
+ * - Steps tracker card (swipe right from watchface)
+ * - Daily quests system
+ * - 3-page app grid
  */
 
 #include "navigation.h"
@@ -28,6 +31,8 @@
 #include "ochobot.h"
 #include "fusion_game.h"
 #include "character_games.h"
+#include "steps_tracker.h"
+#include "daily_quests.h"
 #include <time.h>
 
 extern Arduino_SH8601 *gfx;
@@ -221,11 +226,16 @@ void drawCurrentScreen() {
     case MAIN_WATCHFACE:
       drawWatchFace();
       break;
+    case MAIN_STEPS_TRACKER:
+      drawStepsCard();
+      break;
     case MAIN_APP_GRID_1:
       if (navState.appGridPage == 0) {
         drawAppGrid1();
-      } else {
+      } else if (navState.appGridPage == 1) {
         drawAppGrid2();
+      } else {
+        drawAppGrid3();  // NEW: Third page
       }
       break;
     case MAIN_CHARACTER_STATS:
@@ -269,8 +279,16 @@ uint16_t getAppColor(const char* appName) {
   if (strcmp(appName, "TRAINING") == 0)  return RGB565(50, 200, 100);
   if (strcmp(appName, "BOSS") == 0)      return RGB565(220, 60, 60);
   if (strcmp(appName, "GAMES") == 0)     return RGB565(100, 150, 255);
-  if (strcmp(appName, "QUESTS") == 0)    return RGB565(200, 100, 255);
-  if (strcmp(appName, "ELEMENTS") == 0)  return BBB_BAND_ORANGE;  // BoBoiBoy Elements
+  if (strcmp(appName, "QUESTS") == 0)    return RGB565(255, 150, 100);  // Daily Quests
+  if (strcmp(appName, "STEPS") == 0)     return RGB565(100, 255, 100);  // Steps Tracker
+  if (strcmp(appName, "ACHIEVE") == 0)   return RGB565(255, 200, 50);   // Achievements
+  if (strcmp(appName, "SHOP") == 0)      return RGB565(200, 100, 255);  // Shop
+  if (strcmp(appName, "SOCIAL") == 0)    return RGB565(100, 200, 255);  // Social
+  if (strcmp(appName, "GALLERY") == 0)   return RGB565(255, 100, 200);  // Gallery
+  if (strcmp(appName, "TIMER") == 0)     return RGB565(100, 180, 255);  // Timer
+  if (strcmp(appName, "COMPASS") == 0)   return RGB565(255, 100, 150);  // Compass
+  if (strcmp(appName, "CONVERT") == 0)   return RGB565(180, 120, 255);  // Converter
+  if (strcmp(appName, "ELEMENTS") == 0)  return BBB_BAND_ORANGE;
   if (strcmp(appName, "MUSIC") == 0)     return RGB565(255, 100, 150);
   if (strcmp(appName, "WEATHER") == 0)   return RGB565(80, 180, 255);
   if (strcmp(appName, "WIFI") == 0)      return RGB565(100, 220, 200);
@@ -424,6 +442,56 @@ void drawAppGrid2() {
   drawSwipeIndicator();
 }
 
+void drawAppGrid3() {
+  // Dark AMOLED background
+  gfx->fillScreen(RGB565(8, 8, 12));
+  
+  ThemeColors* theme = getCurrentTheme();
+  
+  // Modern header bar
+  gfx->fillRoundRect(0, 0, LCD_WIDTH, 48, 0, RGB565(16, 18, 24));
+  gfx->drawFastHLine(0, 48, LCD_WIDTH, RGB565(40, 42, 55));
+  
+  // Title
+  gfx->setTextSize(2);
+  gfx->setTextColor(COLOR_WHITE);
+  gfx->setCursor(LCD_WIDTH/2 - 42, 14);
+  gfx->print("New Apps");
+  
+  // Page indicator dots
+  gfx->drawCircle(LCD_WIDTH - 38, 24, 4, RGB565(60, 60, 70));
+  gfx->drawCircle(LCD_WIDTH - 25, 24, 4, RGB565(60, 60, 70));
+  gfx->fillCircle(LCD_WIDTH - 12, 24, 4, theme->accent);
+  
+  // NEW App icons - Daily Quests, Steps, Achievements, etc.
+  const char* apps3[] = {"QUESTS", "STEPS", "ACHIEVE", "SHOP", "SOCIAL", "GALLERY", "TIMER", "COMPASS", "CONVERT"};
+  
+  int cols = 3;
+  int iconW = 100;
+  int iconH = 90;
+  int startX = (LCD_WIDTH - (cols * iconW + (cols-1) * 12)) / 2;
+  int startY = 58;
+  int spacingX = iconW + 12;
+  int spacingY = iconH + 12;
+  
+  for (int i = 0; i < 9; i++) {
+    int col = i % cols;
+    int row = i / cols;
+    int x = startX + col * spacingX;
+    int y = startY + row * spacingY;
+    
+    drawAppIcon(x, y, iconW, iconH, apps3[i], getAppColor(apps3[i]), false);
+  }
+  
+  // Swipe hint
+  gfx->setTextColor(RGB565(70, 72, 85));
+  gfx->setTextSize(1);
+  gfx->setCursor(LCD_WIDTH/2 - 36, LCD_HEIGHT - 28);
+  gfx->print("Swipe up/down");
+  
+  drawSwipeIndicator();
+}
+
 // =============================================================================
 // TOUCH HANDLING - IMPROVED
 // =============================================================================
@@ -525,8 +593,40 @@ void openApp(const char* appName) {
     drawGameMenu();
   }
   else if (strcmp(appName, "QUESTS") == 0) {
-    system_state.current_screen = SCREEN_QUESTS;
-    drawQuestScreen();
+    system_state.current_screen = SCREEN_DAILY_QUESTS;
+    drawDailyQuestsScreen();
+  }
+  else if (strcmp(appName, "STEPS") == 0) {
+    system_state.current_screen = SCREEN_STEPS_TRACKER;
+    drawStepsCard();
+  }
+  else if (strcmp(appName, "TIMER") == 0) {
+    system_state.current_screen = SCREEN_CALCULATOR;  // Placeholder
+    drawCalculatorApp();
+  }
+  else if (strcmp(appName, "COMPASS") == 0) {
+    system_state.current_screen = SCREEN_CALCULATOR;  // Placeholder
+    drawCalculatorApp();
+  }
+  else if (strcmp(appName, "CONVERT") == 0) {
+    system_state.current_screen = SCREEN_CALCULATOR;  // Placeholder
+    drawCalculatorApp();
+  }
+  else if (strcmp(appName, "ACHIEVE") == 0) {
+    system_state.current_screen = SCREEN_CALCULATOR;  // Placeholder
+    drawCalculatorApp();
+  }
+  else if (strcmp(appName, "SHOP") == 0) {
+    system_state.current_screen = SCREEN_CALCULATOR;  // Placeholder
+    drawCalculatorApp();
+  }
+  else if (strcmp(appName, "SOCIAL") == 0) {
+    system_state.current_screen = SCREEN_CALCULATOR;  // Placeholder
+    drawCalculatorApp();
+  }
+  else if (strcmp(appName, "GALLERY") == 0) {
+    system_state.current_screen = SCREEN_CALCULATOR;  // Placeholder
+    drawCalculatorApp();
   }
   else if (strcmp(appName, "ELEMENTS") == 0) {
     // BoBoiBoy Element Tree - only works in BoBoiBoy mode

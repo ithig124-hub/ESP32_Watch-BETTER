@@ -7,7 +7,10 @@
 #include "config.h"
 #include "display.h"
 #include "themes.h"
+#include "navigation.h"
+#include "games.h"
 #include <SD_MMC.h>
+#include <Preferences.h>
 
 extern Arduino_SH8601 *gfx;
 extern SystemState system_state;
@@ -223,6 +226,54 @@ bool loadGachaProgress() {
   dataFile.close();
   Serial.printf("[Gacha] Progress loaded: %d cards collected\n", system_state.gacha_cards_collected);
   return true;
+}
+
+// Save a pulled card to collection
+void saveGachaCard(GachaCard& card) {
+  int cardId = card.id;
+  
+  if (!cards_owned[cardId]) {
+    // New card!
+    cards_owned[cardId] = true;
+    cards_duplicates[cardId] = 1;
+    system_state.gacha_cards_collected++;
+    Serial.printf("[Gacha] NEW CARD: %s (%s) - %d/%d collected\n", 
+                  card.character_name, card.series, 
+                  system_state.gacha_cards_collected, GACHA_TOTAL_CARDS);
+  } else {
+    // Duplicate
+    cards_duplicates[cardId]++;
+    Serial.printf("[Gacha] Duplicate: %s (x%d)\n", card.character_name, cards_duplicates[cardId]);
+  }
+  
+  // Auto-save to SD card
+  saveGachaProgress();
+}
+
+// =============================================================================
+// HELPER FUNCTIONS
+// =============================================================================
+
+// Draw a 5-pointed star
+void drawStar(int x, int y, int size, uint16_t color) {
+  int points = 5;
+  float angleStep = 360.0 / points;
+  
+  for (int i = 0; i < points; i++) {
+    float angle1 = (i * angleStep - 90) * PI / 180.0;
+    float angle2 = ((i + 0.5) * angleStep - 90) * PI / 180.0;
+    float angle3 = ((i + 1) * angleStep - 90) * PI / 180.0;
+    
+    int x1 = x + cos(angle1) * size;
+    int y1 = y + sin(angle1) * size;
+    int x2 = x + cos(angle2) * (size * 0.4);
+    int y2 = y + sin(angle2) * (size * 0.4);
+    int x3 = x + cos(angle3) * size;
+    int y3 = y + sin(angle3) * size;
+    
+    gfx->fillTriangle(x, y, x1, y1, x2, y2, color);
+    gfx->fillTriangle(x, y, x2, y2, x3, y3, color);
+  }
 }
 
 // =============================================================================
@@ -533,6 +584,123 @@ void drawGachaReveal(GachaCard& card) {
   gfx->print("Tap to continue");
 }
 
+// IMPROVED GACHA REVEAL with animations and particles
+void drawGachaRevealImproved(GachaCard& card) {
+  // Animated particle reveal
+  for (int frame = 0; frame < 15; frame++) {
+    gfx->fillScreen(RGB565(8, 8, 12));
+    
+    // Particle effects based on rarity
+    for (int i = 0; i < 25; i++) {
+      int px = random(0, LCD_WIDTH);
+      int py = random(0, LCD_HEIGHT);
+      uint16_t pcolor;
+      
+      switch(card.rarity) {
+        case RARITY_MYTHIC:  pcolor = (random(0, 3) == 0) ? COLOR_GOLD : COLOR_PINK; break;
+        case RARITY_LEGENDARY: pcolor = COLOR_GOLD; break;
+        case RARITY_EPIC:    pcolor = COLOR_PURPLE; break;
+        case RARITY_RARE:    pcolor = COLOR_BLUE; break;
+        default:             pcolor = RGB565(150, 150, 150); break;
+      }
+      gfx->fillCircle(px, py, 2, pcolor);
+    }
+    
+    // Card with glow
+    int cardW = 240, cardH = 320;
+    int cardX = (LCD_WIDTH - cardW) / 2;
+    int cardY = 80;
+    
+    // Animated glow rings
+    uint16_t glowColor = getRarityBorderColor(card.rarity);
+    for (int r = 0; r < 4; r++) {
+      int offset = r + (frame % 3);
+      gfx->drawRoundRect(cardX - offset, cardY - offset, 
+                         cardW + offset*2, cardH + offset*2, 15, glowColor);
+    }
+    
+    // Card background
+    gfx->fillRoundRect(cardX, cardY, cardW, cardH, 15, RGB565(20, 22, 30));
+    gfx->drawRoundRect(cardX, cardY, cardW, cardH, 15, glowColor);
+    
+    // Character name with glow effect
+    gfx->setTextSize(2);
+    gfx->setTextColor(glowColor);
+    int nameLen = strlen(card.character_name.c_str()) * 12;
+    gfx->setCursor(cardX + (cardW - nameLen)/2, cardY + 30);
+    gfx->print(card.character_name);
+    
+    // Series
+    gfx->setTextSize(1);
+    gfx->setTextColor(RGB565(180, 180, 190));
+    int seriesLen = strlen(card.series.c_str()) * 6;
+    gfx->setCursor(cardX + (cardW - seriesLen)/2, cardY + 60);
+    gfx->print(card.series);
+    
+    // Rarity stars (animated)
+    int starY = cardY + 100;
+    int starCount = getRarityStars(card.rarity);
+    int starSpacing = 30;
+    int startX = cardX + (cardW - (starCount * starSpacing))/2;
+    
+    for (int s = 0; s < starCount; s++) {
+      if (frame > s * 2) {  // Staggered appearance
+        drawStar(startX + s * starSpacing, starY, 12, COLOR_GOLD);
+      }
+    }
+    
+    // Power level
+    gfx->setTextSize(4);
+    gfx->setTextColor(glowColor);
+    char powerStr[10];
+    sprintf(powerStr, "%d", card.power_rating);
+    int powerLen = strlen(powerStr) * 24;
+    gfx->setCursor(cardX + (cardW - powerLen)/2, cardY + 160);
+    gfx->print(powerStr);
+    
+    gfx->setTextSize(1);
+    gfx->setTextColor(RGB565(150, 150, 160));
+    gfx->setCursor(cardX + cardW/2 - 18, cardY + 200);
+    gfx->print("POWER");
+    
+    // Rarity name
+    const char* rarityName = getRarityName(card.rarity);
+    gfx->setTextSize(2);
+    gfx->setTextColor(glowColor);
+    int rarityLen = strlen(rarityName) * 12;
+    gfx->setCursor(cardX + (cardW - rarityLen)/2, cardY + 230);
+    gfx->print(rarityName);
+    
+    // Catchphrase
+    gfx->setTextSize(1);
+    gfx->setTextColor(COLOR_WHITE);
+    String phrase = card.catchphrase;
+    if (phrase.length() > 30) phrase = phrase.substring(0, 27) + "...";
+    int phraseLen = phrase.length() * 6;
+    gfx->setCursor(cardX + (cardW - phraseLen)/2, cardY + 270);
+    gfx->print(phrase);
+    
+    delay(40);  // Frame delay
+  }
+  
+  // Final state with prominent "TAP TO CONTINUE"
+  gfx->setTextSize(2);
+  gfx->setTextColor(RGB565(255, 200, 100));
+  gfx->setCursor(LCD_WIDTH/2 - 96, 430);
+  gfx->print("TAP TO CONTINUE");
+  
+  // Blink effect
+  for (int i = 0; i < 3; i++) {
+    delay(300);
+    gfx->fillRect(0, 425, LCD_WIDTH, 30, RGB565(8, 8, 12));
+    delay(300);
+    gfx->setTextSize(2);
+    gfx->setTextColor(RGB565(255, 200, 100));
+    gfx->setCursor(LCD_WIDTH/2 - 96, 430);
+    gfx->print("TAP TO CONTINUE");
+  }
+}
+
 void drawGachaCard(int x, int y, int w, int h, GachaCard& card) {
   // Background
   gfx->fillRoundRect(x, y, w, h, 15, card.card_color);
@@ -666,18 +834,32 @@ void drawGachaCollection() {
   drawGlassButton(140, 420, 80, 30, "Back", false);
 }
 
+// Global state for gacha reveal
+static bool showing_gacha_result = false;
+static GachaCard last_revealed_card;
+
 void handleGachaTouch(TouchGesture& gesture) {
   if (gesture.event != TOUCH_TAP) return;
   
   int x = gesture.x, y = gesture.y;
   
+  // TAP TO CONTINUE - Handle result screen
+  if (showing_gacha_result) {
+    // Save the card to collection
+    saveGachaCard(last_revealed_card);
+    showing_gacha_result = false;
+    drawGachaScreen();
+    return;
+  }
+  
   // Single pull button
   if (y >= 120 && y < 155 && x >= 60 && x < 300) {
     if (canPullSingle()) {
       GachaCard card = performSinglePull();
+      last_revealed_card = card;
       drawGachaPullAnimation(card);
-      drawGachaReveal(card);
-      delay(2000);  // Show reveal
+      drawGachaRevealImproved(card);
+      showing_gacha_result = true;
     }
     return;
   }
@@ -687,11 +869,14 @@ void handleGachaTouch(TouchGesture& gesture) {
     if (canPullTen()) {
       GachaCard results[10];
       performTenPull(results);
-      // Show each card briefly
+      // Show each card with save
       for (int i = 0; i < 10; i++) {
-        drawGachaReveal(results[i]);
-        delay(500);
+        saveGachaCard(results[i]);
       }
+      // Show last card
+      last_revealed_card = results[9];
+      drawGachaRevealImproved(results[9]);
+      showing_gacha_result = true;
     }
     return;
   }
@@ -699,12 +884,14 @@ void handleGachaTouch(TouchGesture& gesture) {
   // Collection button
   if (y >= 380 && y < 420 && x >= 40 && x < 170) {
     system_state.current_screen = SCREEN_COLLECTION;
+    drawGachaCollection();  // Fixed: use drawGachaCollection
     return;
   }
   
   // Back button
   if (y >= 380 && y < 420 && x >= 190 && x < 320) {
     system_state.current_screen = SCREEN_GAMES;
+    drawGameMenu();  // Fixed: use drawGameMenu not drawGamesMenu
     return;
   }
 }

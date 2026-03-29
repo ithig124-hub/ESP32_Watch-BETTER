@@ -162,8 +162,8 @@ void updateCharacterGame() {
 }
 
 void handleCharacterGameTouch(TouchGesture& gesture) {
-  // Back button
-  if (gesture.event == TOUCH_TAP && gesture.y > 410 && gesture.x < 80) {
+  // Swipe UP to exit (Apple Watch style)
+  if (gesture.event == TOUCH_SWIPE_UP) {
     endCharacterGame();
     returnToAppGrid();
     return;

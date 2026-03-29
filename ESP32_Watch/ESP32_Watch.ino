@@ -37,6 +37,8 @@
 #include "dynamic_bg.h"
 #include "fusion_game.h"
 #include "character_games.h"
+#include "steps_tracker.h"
+#include "daily_quests.h"
 #include "ui.h"
 #include "sd_manager.h"
 
@@ -146,8 +148,12 @@ void setup() {
   // Initialize filesystem
   initFilesystem();
   
-  // Initialize WiFi apps
+  // Initialize WiFi apps (with auto-connect)
   initWifiApps();
+  
+  // Initialize new features
+  initStepsTracker();
+  initDailyQuests();
   
   // Go to watch face
   system_state.current_screen = SCREEN_WATCHFACE;
@@ -185,6 +191,20 @@ void loop() {
   // Update dynamic content based on screen
   updateCurrentScreen();
   
+  // Update step counter (background)
+  static unsigned long lastStepUpdate = 0;
+  if (millis() - lastStepUpdate > 500) {  // Update every 500ms
+    updateStepCount();
+    lastStepUpdate = millis();
+  }
+  
+  // Check daily quest reset
+  static unsigned long lastQuestCheck = 0;
+  if (millis() - lastQuestCheck > 60000) {  // Check every minute
+    checkDailyReset();
+    lastQuestCheck = millis();
+  }
+  
   // Reduce CPU usage
   delay(16);  // ~60 FPS
 }
@@ -198,43 +218,52 @@ void handleTouchGesture(TouchGesture& gesture) {
   
   // ==========================================================
   // SWIPE UP = EXIT from any app back to app grid (Apple Watch style)
+  // EXCEPTION: Game screens handle their own swipe gestures
   // ==========================================================
   if (gesture.event == TOUCH_SWIPE_UP) {
-    switch (system_state.current_screen) {
-      // Main navigation screens - swipe up changes page or navigates
-      case SCREEN_WATCHFACE:
-      case SCREEN_CHARACTER_STATS:
-        handleSwipeNavigation(gesture.dx, gesture.dy);
-        break;
-      
-      // App grid - swipe up goes to page 2, or exits if already on page 2
-      case SCREEN_APP_GRID:
-        if (navState.appGridPage == 0) {
-          navState.appGridPage = 1;
-          navState.lastNavigationMs = millis();
-          drawCurrentScreen();
-        }
-        // Already on page 2 - do nothing (swipe down goes back to page 1)
-        break;
-      
-      // Collection goes back to Gacha
-      case SCREEN_COLLECTION:
-        system_state.current_screen = SCREEN_GACHA;
-        drawGachaScreen();
-        break;
-      
-      // Theme selector goes back to Settings
-      case SCREEN_THEME_SELECTOR:
-        system_state.current_screen = SCREEN_SETTINGS;
-        drawSettingsApp();
-        break;
-      
-      // ALL other screens → exit to app grid
-      default:
-        returnToAppGrid();
-        break;
+    // Games need swipe inputs for gameplay - don't intercept!
+    if (system_state.current_screen == SCREEN_CHARACTER_GAME ||
+        system_state.current_screen == SCREEN_BOSS_RUSH ||
+        system_state.current_screen == SCREEN_GAMES) {
+      // Pass through to game handler below
     }
-    return;
+    else {
+      switch (system_state.current_screen) {
+        // Main navigation screens - swipe up changes page or navigates
+        case SCREEN_WATCHFACE:
+        case SCREEN_CHARACTER_STATS:
+          handleSwipeNavigation(gesture.dx, gesture.dy);
+          break;
+        
+        // App grid - swipe up goes to page 2, or exits if already on page 2
+        case SCREEN_APP_GRID:
+          if (navState.appGridPage == 0) {
+            navState.appGridPage = 1;
+            navState.lastNavigationMs = millis();
+            drawCurrentScreen();
+          }
+          // Already on page 2 - do nothing (swipe down goes back to page 1)
+          break;
+        
+        // Collection goes back to Gacha
+        case SCREEN_COLLECTION:
+          system_state.current_screen = SCREEN_GACHA;
+          drawGachaScreen();
+          break;
+        
+        // Theme selector goes back to Settings
+        case SCREEN_THEME_SELECTOR:
+          system_state.current_screen = SCREEN_SETTINGS;
+          drawSettingsApp();
+          break;
+        
+        // ALL other screens → exit to app grid
+        default:
+          returnToAppGrid();
+          break;
+      }
+      return;
+    }
   }
   
   // ==========================================================
@@ -269,6 +298,14 @@ void handleTouchGesture(TouchGesture& gesture) {
     
     case SCREEN_QUESTS:
       handleQuestTouch(gesture);
+      break;
+    
+    case SCREEN_DAILY_QUESTS:
+      handleDailyQuestsTouch(gesture);
+      break;
+    
+    case SCREEN_STEPS_TRACKER:
+      handleStepsCardTouch(gesture);
       break;
     
     case SCREEN_ELEMENT_TREE:

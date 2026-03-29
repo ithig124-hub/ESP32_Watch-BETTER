@@ -8,7 +8,9 @@
 #include "display.h"
 #include "themes.h"
 #include "rpg.h"
-#include "gacha.h"  // For addGems function
+#include "gacha.h"
+#include "training.h"
+#include "boss_rush.h"
 
 extern Arduino_SH8601 *gfx;
 extern SystemState system_state;
@@ -68,12 +70,21 @@ void launchGame(GameType game) {
     case GAME_WAKFU_QUEST:     initWakfuQuest(); break;
     case GAME_MINI_SNAKE:      initSnakeGame(); break;
     case GAME_MEMORY_MATCH:    initMemoryGame(); break;
-    case GAME_GACHA:           system_state.current_screen = SCREEN_GACHA; break;
+    case GAME_GACHA:           
+      system_state.current_screen = SCREEN_GACHA;
+      drawGachaScreen();
+      break;
     case GAME_TRAINING_REFLEX:
     case GAME_TRAINING_TARGET:
     case GAME_TRAINING_SPEED:
-    case GAME_TRAINING_MEMORY: system_state.current_screen = SCREEN_TRAINING; break;
-    case GAME_BOSS_RUSH:       system_state.current_screen = SCREEN_BOSS_RUSH; break;
+    case GAME_TRAINING_MEMORY: 
+      system_state.current_screen = SCREEN_TRAINING;
+      drawTrainingMenu();  // Fixed: use drawTrainingMenu not drawTrainingScreen
+      break;
+    case GAME_BOSS_RUSH:       
+      system_state.current_screen = SCREEN_BOSS_RUSH;
+      drawBossRushMenu();
+      break;
     default: break;
   }
 }

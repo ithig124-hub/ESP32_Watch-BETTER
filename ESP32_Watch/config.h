@@ -77,7 +77,7 @@
 // NAVIGATION CONFIGURATION - IMPROVED
 // =============================================================================
 #define MAIN_SCREEN_COUNT         3     // Watchface, App Grid, Character Stats
-#define APP_GRID_PAGES            2     // Two pages of apps
+#define APP_GRID_PAGES            3     // Three pages of apps
 
 // =============================================================================
 // COLOR DEFINITIONS - RGB565 FORMAT
@@ -327,6 +327,7 @@ enum ScreenType {
   SCREEN_WATCHFACE,
   SCREEN_APP_GRID,
   SCREEN_CHARACTER_STATS,
+  SCREEN_STEPS_TRACKER,        // NEW: Steps card
   SCREEN_SETTINGS,
   SCREEN_THEME_SELECTOR,
   SCREEN_MUSIC,
@@ -338,18 +339,19 @@ enum ScreenType {
   SCREEN_WALLPAPER_SELECTOR,
   SCREEN_WEATHER_APP,
   SCREEN_WIFI_MANAGER,
-  SCREEN_WIFI_SETUP,           // FIXED: Added missing screen type
-  SCREEN_NETWORK_STATUS,       // FIXED: Added missing screen type
-  SCREEN_NEWS_APP,             // FIXED: Added missing screen type
+  SCREEN_WIFI_SETUP,
+  SCREEN_NETWORK_STATUS,
+  SCREEN_NEWS_APP,
   SCREEN_GAMES,
   SCREEN_GACHA,
   SCREEN_COLLECTION,
   SCREEN_TRAINING,
   SCREEN_BOSS_RUSH,
   SCREEN_QUESTS,
-  SCREEN_ELEMENT_TREE,    // BoBoiBoy Element Tree
-  SCREEN_FUSION_GAME,     // BoBoiBoy Fusion Minigame
-  SCREEN_CHARACTER_GAME,  // Character-specific minigames
+  SCREEN_DAILY_QUESTS,         // NEW: Daily quests
+  SCREEN_ELEMENT_TREE,
+  SCREEN_FUSION_GAME,
+  SCREEN_CHARACTER_GAME,
   SCREEN_SLEEP
 };
 
@@ -367,12 +369,16 @@ enum AppType {
   APP_WALLPAPER_SELECTOR
 };
 
-// Main Navigation Screens
+// Main Navigation Screens - UPDATED for infinite loop
+// Order: Watchface → Steps → App Grid → Stats → Watchface (loop)
 enum MainScreen {
   MAIN_WATCHFACE = 0,
+  MAIN_STEPS_TRACKER,      // NEW: Steps card in the loop
   MAIN_APP_GRID_1,
   MAIN_CHARACTER_STATS
 };
+
+#define MAIN_SCREEN_COUNT 4   // Updated: 4 screens in loop
 
 // Touch Events - FIXED: Added TOUCH_MOVE
 enum TouchEvent {

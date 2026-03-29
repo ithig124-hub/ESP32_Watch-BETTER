@@ -9,6 +9,7 @@
 #include "themes.h"
 #include "gacha.h"
 #include "rpg.h"
+#include "navigation.h"
 #include <SD_MMC.h>
 
 extern Arduino_SH8601 *gfx;
@@ -703,6 +704,13 @@ void drawBossDefeat() {
 }
 
 void handleBossRushMenuTouch(TouchGesture& gesture) {
+  // Swipe UP to exit (Apple Watch style)
+  if (gesture.event == TOUCH_SWIPE_UP) {
+    system_state.current_screen = SCREEN_GAMES;
+    returnToAppGrid();
+    return;
+  }
+  
   if (gesture.event != TOUCH_TAP) return;
   
   int y = gesture.y;
@@ -744,10 +752,23 @@ void handleBossSelectionTouch(TouchGesture& gesture) {
 }
 
 void handleBossBattleTouch(TouchGesture& gesture) {
+  // Swipe UP to exit battle (return to boss menu)
+  if (gesture.event == TOUCH_SWIPE_UP) {
+    if (!battle_active) {
+      // Victory/Defeat screen - return to boss menu
+      system_state.current_screen = SCREEN_BOSS_RUSH;
+      drawBossRushMenu();
+      return;
+    }
+    // Don't allow exit during active battle
+    return;
+  }
+  
   if (gesture.event != TOUCH_TAP) return;
   if (!battle_active) {
     // Victory/Defeat screen - continue
     system_state.current_screen = SCREEN_BOSS_RUSH;
+    drawBossRushMenu();
     return;
   }
   
