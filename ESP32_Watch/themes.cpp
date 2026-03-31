@@ -1661,14 +1661,32 @@ void drawStepCounter() {
 }
 
 void drawBatteryIndicator() {
+  // Read fresh battery data from AXP2101 PMU
+  int battPct = getBatteryPercentage();
+  if (battPct >= 0 && battPct <= 100) {
+    system_state.battery_percentage = battPct;
+  }
+  
   int x = LCD_WIDTH - 50, y = 10;
   // Retro pixel battery
   gfx->drawRect(x, y, 40, 18, RGB565(80, 85, 100));
   gfx->fillRect(x + 40, y + 4, 4, 10, RGB565(80, 85, 100));
+  
+  // Clear inside first
+  gfx->fillRect(x + 2, y + 2, 36, 14, RGB565(2, 2, 5));
+  
   int fillWidth = (system_state.battery_percentage * 36) / 100;
   uint16_t color = system_state.battery_percentage > 20 ? RGB565(0, 200, 80) : COLOR_RED;
   if (system_state.is_charging) color = COLOR_GOLD;
-  gfx->fillRect(x + 2, y + 2, fillWidth, 14, color);
+  if (fillWidth > 0) {
+    gfx->fillRect(x + 2, y + 2, fillWidth, 14, color);
+  }
+  
+  // Battery percentage text
+  gfx->setTextColor(RGB565(150, 155, 170));
+  gfx->setTextSize(1);
+  gfx->setCursor(x - 25, y + 5);
+  gfx->printf("%d%%", system_state.battery_percentage);
 }
 
 void drawThemeButton(int x, int y, int w, int h, const char* text, bool pressed) {
@@ -2072,47 +2090,67 @@ void drawProgressionScreen() {
     }
   }
   
-  // Scroll indicators
+  // Scroll indicators - LEFT/RIGHT navigation
   int maxScroll = (numTitles - 1) / 4;
-  if (progression_scroll > 0) {
-    gfx->setTextColor(theme->primary);
-    gfx->setTextSize(1);
-    gfx->setCursor(centerX - 30, 52);
-    gfx->print("^^^ SWIPE DOWN ^^^");
-  }
-  if (progression_scroll < maxScroll) {
-    gfx->setTextColor(theme->primary);
-    gfx->setTextSize(1);
-    gfx->setCursor(centerX - 30, LCD_HEIGHT - 25);
-    gfx->print("vvv SWIPE UP vvv");
-  }
   
-  // Page indicator
-  gfx->setTextColor(RGB565(80, 85, 100));
-  gfx->setCursor(LCD_WIDTH - 40, LCD_HEIGHT - 25);
-  gfx->printf("%d/%d", progression_scroll + 1, maxScroll + 1);
+  gfx->setTextColor(theme->primary);
+  gfx->setTextSize(1);
+  
+  // Left arrow
+  gfx->setCursor(25, centerX);
+  gfx->print("<");
+  
+  // Right arrow  
+  gfx->setCursor(LCD_WIDTH - 35, centerX);
+  gfx->print(">");
+  
+  // Page indicator at bottom
+  gfx->setTextColor(RGB565(100, 105, 120));
+  gfx->setCursor(centerX - 25, LCD_HEIGHT - 25);
+  gfx->printf("< %d/%d >", progression_scroll + 1, maxScroll + 1);
+  
+  // Swipe down hint
+  gfx->setTextColor(RGB565(60, 65, 80));
+  gfx->setCursor(centerX - 45, LCD_HEIGHT - 12);
+  gfx->print("SWIPE DOWN: BACK");
   
   drawSwipeIndicator();
 }
 
 void handleProgressionTouch(TouchGesture& gesture) {
-  int maxScroll = 4;  // (20 titles / 4 per page) - 1
+  // Get max scroll based on current theme's title count
+  int numTitles;
+  switch(system_state.current_theme) {
+    case THEME_LUFFY_GEAR5:
+    case THEME_YUGO_WAKFU:
+    case THEME_SUNG_JINWOO:
+      numTitles = 22;
+      break;
+    default:
+      numTitles = 19;
+      break;
+  }
+  int maxScroll = (numTitles - 1) / 4;
   
-  if (gesture.event == TOUCH_SWIPE_UP && progression_scroll < maxScroll) {
-    // Swipe UP = scroll to see MORE titles (next page)
+  if (gesture.event == TOUCH_SWIPE_LEFT) {
+    // Swipe LEFT = next page (infinite loop)
     progression_scroll++;
+    if (progression_scroll > maxScroll) {
+      progression_scroll = 0;  // Loop back to start
+    }
+    drawProgressionScreen();
+  } else if (gesture.event == TOUCH_SWIPE_RIGHT) {
+    // Swipe RIGHT = previous page (infinite loop)
+    progression_scroll--;
+    if (progression_scroll < 0) {
+      progression_scroll = maxScroll;  // Loop to end
+    }
     drawProgressionScreen();
   } else if (gesture.event == TOUCH_SWIPE_DOWN) {
-    if (progression_scroll > 0) {
-      // Swipe DOWN = scroll to see PREVIOUS titles
-      progression_scroll--;
-      drawProgressionScreen();
-    } else {
-      // At first page - go back to character stats
-      progression_scroll = 0;
-      system_state.current_screen = SCREEN_CHARACTER_STATS;
-      drawCharacterStatsScreen();
-    }
+    // Swipe DOWN = go back to character stats
+    progression_scroll = 0;
+    system_state.current_screen = SCREEN_CHARACTER_STATS;
+    drawCharacterStatsScreen();
   }
 }
 

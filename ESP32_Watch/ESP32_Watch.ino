@@ -620,6 +620,13 @@ void handleTouchGesture(TouchGesture& gesture) {
 void updateCurrentScreen() {
   static unsigned long lastUpdate = 0;
   static unsigned long lastTimerUpdate = 0;
+  static unsigned long lastBatteryUpdate = 0;
+  
+  // Update battery status every 30 seconds
+  if (millis() - lastBatteryUpdate > 30000) {
+    lastBatteryUpdate = millis();
+    updateBatteryStatus();
+  }
   
   // Only update watchface time when on watchface
   if (system_state.current_screen == SCREEN_WATCHFACE && 
