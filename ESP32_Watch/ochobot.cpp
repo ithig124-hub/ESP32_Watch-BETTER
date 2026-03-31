@@ -211,8 +211,8 @@ void drawOchobotMessageBubble() {
   int bubbleH = 40;
   
   // Speech bubble
-  gfx->fillRoundRect(bubbleX, bubbleY, bubbleW, bubbleH, 10, COLOR_WHITE);
-  gfx->drawRoundRect(bubbleX, bubbleY, bubbleW, bubbleH, 10, BBB_BAND_ORANGE);
+  gfx->fillRect(bubbleX, bubbleY, bubbleW, bubbleH, COLOR_WHITE);
+  gfx->drawRect(bubbleX, bubbleY, bubbleW, bubbleH, BBB_BAND_ORANGE);
   
   // Bubble tail
   gfx->fillTriangle(

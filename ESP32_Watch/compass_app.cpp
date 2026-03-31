@@ -43,43 +43,53 @@ void initCompassApp() {
 // =============================================================================
 
 void drawCompassApp() {
-  gfx->fillScreen(RGB565(8, 8, 12));
+  // ========================================
+  // RETRO ANIME COMPASS - CRT Style
+  // ========================================
+  gfx->fillScreen(RGB565(2, 2, 5));
+  for (int y = 0; y < LCD_HEIGHT; y += 4) {
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+  }
   
   ThemeColors* theme = getCurrentTheme();
   
-  // Header
-  gfx->fillRoundRect(0, 0, LCD_WIDTH, 55, 0, RGB565(16, 18, 24));
-  gfx->drawFastHLine(0, 55, LCD_WIDTH, theme->primary);
+  // Retro header
+  gfx->fillRect(0, 0, LCD_WIDTH, 48, RGB565(10, 12, 18));
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, 46, 6, 3, theme->primary);
+  }
   gfx->setTextSize(2);
+  gfx->setTextColor(RGB565(30, 35, 50));
+  gfx->setCursor(LCD_WIDTH/2 - 42 + 1, 14 + 1);
+  gfx->print("COMPASS");
   gfx->setTextColor(COLOR_WHITE);
-  gfx->setCursor(LCD_WIDTH/2 - 48, 18);
-  gfx->print("Compass");
+  gfx->setCursor(LCD_WIDTH/2 - 42, 14);
+  gfx->print("COMPASS");
   
   int centerX = LCD_WIDTH / 2;
   int centerY = 240;
   int outerRadius = 120;
   int innerRadius = 100;
   
-  // Update compass reading
   updateCompassReading();
   
-  // Outer compass ring
+  // Outer compass ring - pixel style tick marks
   for (int i = 0; i < 360; i += 3) {
     float a = i * PI / 180.0 - PI/2;
     int x = centerX + cos(a) * outerRadius;
     int y = centerY + sin(a) * outerRadius;
     
-    // Major marks every 30 degrees
     if (i % 30 == 0) {
-      gfx->fillCircle(x, y, 3, theme->primary);
-    } else {
-      gfx->drawPixel(x, y, RGB565(80, 80, 90));
+      // Major marks - pixel squares
+      gfx->fillRect(x - 2, y - 2, 5, 5, theme->primary);
+    } else if (i % 15 == 0) {
+      gfx->fillRect(x - 1, y - 1, 3, 3, RGB565(50, 55, 70));
     }
   }
   
-  // Cardinal directions
+  // Cardinal directions - retro styled
   const char* cardinals[] = {"N", "E", "S", "W"};
-  uint16_t cardinalColors[] = {COLOR_RED, COLOR_WHITE, COLOR_WHITE, COLOR_WHITE};
+  uint16_t cardinalColors[] = {COLOR_RED, RGB565(180, 185, 200), RGB565(180, 185, 200), RGB565(180, 185, 200)};
   int cardinalAngles[] = {0, 90, 180, 270};
   
   for (int i = 0; i < 4; i++) {
@@ -93,55 +103,59 @@ void drawCompassApp() {
     gfx->print(cardinals[i]);
   }
   
-  // Compass needle (rotated by heading)
+  // Compass needle - pixel rectangles instead of circles
   float needleAngle = compass.heading * PI / 180.0 - PI/2;
   
-  // North pointer (red)
-  int northX = centerX + cos(needleAngle) * innerRadius;
-  int northY = centerY + sin(needleAngle) * innerRadius;
+  // North pointer (red pixel trail)
   for (int i = 0; i < 8; i++) {
-    float a = needleAngle;
-    int x = centerX + cos(a) * (i * 12);
-    int y = centerY + sin(a) * (i * 12);
-    gfx->fillCircle(x, y, 4, COLOR_RED);
+    int x = centerX + cos(needleAngle) * (i * 12);
+    int y = centerY + sin(needleAngle) * (i * 12);
+    int sz = 8 - i;
+    gfx->fillRect(x - sz/2, y - sz/2, sz, sz, COLOR_RED);
   }
   
-  // South pointer (white)
+  // South pointer (dim pixel trail)
   float southAngle = needleAngle + PI;
-  int southX = centerX + cos(southAngle) * (innerRadius / 2);
-  int southY = centerY + sin(southAngle) * (innerRadius / 2);
   for (int i = 0; i < 5; i++) {
-    float a = southAngle;
-    int x = centerX + cos(a) * (i * 10);
-    int y = centerY + sin(a) * (i * 10);
-    gfx->fillCircle(x, y, 3, COLOR_WHITE);
+    int x = centerX + cos(southAngle) * (i * 10);
+    int y = centerY + sin(southAngle) * (i * 10);
+    gfx->fillRect(x - 2, y - 2, 5, 5, RGB565(80, 85, 100));
   }
   
-  // Center dot
-  gfx->fillCircle(centerX, centerY, 8, RGB565(40, 40, 50));
-  gfx->fillCircle(centerX, centerY, 5, theme->accent);
+  // Center - pixel cross
+  gfx->fillRect(centerX - 6, centerY - 6, 12, 12, RGB565(30, 32, 42));
+  gfx->fillRect(centerX - 3, centerY - 3, 6, 6, theme->accent);
   
-  // Heading display
+  // Heading display - retro framed
+  gfx->fillRect(centerX - 60, 80, 120, 50, RGB565(12, 14, 20));
+  gfx->drawRect(centerX - 60, 80, 120, 50, RGB565(40, 45, 60));
+  gfx->fillRect(centerX - 60, 80, 5, 5, theme->primary);
+  gfx->fillRect(centerX + 55, 80, 5, 5, theme->primary);
+  
   gfx->setTextSize(4);
   gfx->setTextColor(theme->primary);
   char headingStr[8];
-  sprintf(headingStr, "%3d°", (int)compass.heading);
-  gfx->setCursor(centerX - 54, 100);
+  sprintf(headingStr, "%3d", (int)compass.heading);
+  gfx->setCursor(centerX - 42, 90);
   gfx->print(headingStr);
+  gfx->setTextSize(2);
+  gfx->print("o");
   
   // Cardinal direction text
   const char* direction = getCardinalDirection(compass.heading);
   gfx->setTextSize(2);
   gfx->setTextColor(theme->accent);
   int dirLen = strlen(direction) * 12;
-  gfx->setCursor(centerX - dirLen/2, 145);
+  gfx->setCursor(centerX - dirLen/2, 140);
   gfx->print(direction);
   
-  // Calibration status
+  // Calibration status - retro
   if (!compass.calibrated) {
+    gfx->fillRect(50, 395, LCD_WIDTH - 100, 22, RGB565(10, 12, 18));
+    gfx->drawRect(50, 395, LCD_WIDTH - 100, 22, RGB565(255, 200, 0));
     gfx->setTextSize(1);
     gfx->setTextColor(RGB565(255, 200, 0));
-    gfx->setCursor(90, 400);
+    gfx->setCursor(65, 402);
     gfx->print("Rotate watch to calibrate");
   }
   

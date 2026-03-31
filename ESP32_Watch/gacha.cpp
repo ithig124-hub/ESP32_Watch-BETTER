@@ -96,10 +96,15 @@ void initGachaSystem() {
     // Initialize fresh
     system_state.player_gems = 500;  // Starting gems
     system_state.gacha_cards_collected = 0;
+    system_state.pity_counter = 0;
+    system_state.pity_legendary_counter = 0;
+    system_state.deck_size = 0;
+    for (int i = 0; i < MAX_DECK_SIZE; i++) system_state.battle_deck[i] = -1;
     
     for (int i = 0; i < GACHA_TOTAL_CARDS; i++) {
       cards_owned[i] = false;
       cards_duplicates[i] = 0;
+      gacha_cards[i].evolution_level = 0;
     }
   }
 }
@@ -153,6 +158,14 @@ GachaCard generateCard(int series_index, int card_index, GachaRarity rarity) {
   
   card.owned = false;
   card.duplicate_count = 0;
+  card.duplicates = 0;
+  card.evolution_level = 0;
+  card.power = card.power_rating;  // Store base power
+  
+  // Stats based on rarity + power
+  card.hp = 50 + card.power_rating / 2;
+  card.attack = 10 + card.power_rating / 5;
+  card.defense = 5 + card.power_rating / 8;
   
   return card;
 }
@@ -170,13 +183,24 @@ void saveGachaProgress() {
     return;
   }
   
-  dataFile.printf("VERSION=1\n");
+  dataFile.printf("VERSION=2\n");
   dataFile.printf("TOTAL_COLLECTED=%d\n", system_state.gacha_cards_collected);
+  dataFile.printf("PITY_EPIC=%d\n", system_state.pity_counter);
+  dataFile.printf("PITY_LEGEND=%d\n", system_state.pity_legendary_counter);
+  dataFile.printf("DECK_SIZE=%d\n", system_state.deck_size);
   
-  // Save each card's owned status and duplicate count
+  // Save deck
+  for (int i = 0; i < system_state.deck_size; i++) {
+    dataFile.printf("DECK_%d=%d\n", i, system_state.battle_deck[i]);
+  }
+  
+  // Save each card's owned status, duplicate count, and evolution level
   for (int i = 0; i < GACHA_TOTAL_CARDS; i++) {
     if (cards_owned[i]) {
       dataFile.printf("CARD_%d=%d\n", i, cards_duplicates[i]);
+      if (gacha_cards[i].evolution_level > 0) {
+        dataFile.printf("EVO_%d=%d\n", i, gacha_cards[i].evolution_level);
+      }
     }
   }
   
@@ -200,7 +224,12 @@ bool loadGachaProgress() {
   for (int i = 0; i < GACHA_TOTAL_CARDS; i++) {
     cards_owned[i] = false;
     cards_duplicates[i] = 0;
+    gacha_cards[i].evolution_level = 0;
   }
+  system_state.pity_counter = 0;
+  system_state.pity_legendary_counter = 0;
+  system_state.deck_size = 0;
+  for (int i = 0; i < MAX_DECK_SIZE; i++) system_state.battle_deck[i] = -1;
   
   while (dataFile.available()) {
     String line = dataFile.readStringUntil('\n');
@@ -214,6 +243,25 @@ bool loadGachaProgress() {
     
     if (key == "TOTAL_COLLECTED") {
       system_state.gacha_cards_collected = value;
+    } else if (key == "PITY_EPIC") {
+      system_state.pity_counter = value;
+    } else if (key == "PITY_LEGEND") {
+      system_state.pity_legendary_counter = value;
+    } else if (key == "DECK_SIZE") {
+      system_state.deck_size = min(value, MAX_DECK_SIZE);
+    } else if (key.startsWith("DECK_")) {
+      int slot = key.substring(5).toInt();
+      if (slot >= 0 && slot < MAX_DECK_SIZE) {
+        system_state.battle_deck[slot] = value;
+      }
+    } else if (key.startsWith("EVO_")) {
+      int cardIndex = key.substring(4).toInt();
+      if (cardIndex >= 0 && cardIndex < GACHA_TOTAL_CARDS) {
+        gacha_cards[cardIndex].evolution_level = value;
+        // Recalculate power with evolution multiplier
+        float mult = getEvolvePowerMult(value);
+        gacha_cards[cardIndex].power_rating = (int)(gacha_cards[cardIndex].power * mult);
+      }
     } else if (key.startsWith("CARD_")) {
       int cardIndex = key.substring(5).toInt();
       if (cardIndex >= 0 && cardIndex < GACHA_TOTAL_CARDS) {
@@ -312,11 +360,44 @@ bool canPullTen() {
 GachaRarity rollRarity() {
   int roll = random(0, 100);
   
-  if (roll < 1) return RARITY_MYTHIC;          // 1%
-  else if (roll < 5) return RARITY_LEGENDARY;  // 4%
-  else if (roll < 20) return RARITY_EPIC;      // 15%
-  else if (roll < 50) return RARITY_RARE;      // 30%
-  else return RARITY_COMMON;                    // 50%
+  GachaRarity result;
+  if (roll < 1) result = RARITY_MYTHIC;          // 1%
+  else if (roll < 5) result = RARITY_LEGENDARY;  // 4%
+  else if (roll < 20) result = RARITY_EPIC;      // 15%
+  else if (roll < 50) result = RARITY_RARE;      // 30%
+  else result = RARITY_COMMON;                    // 50%
+  
+  // Apply pity system
+  applyPitySystem(result);
+  return result;
+}
+
+void applyPitySystem(GachaRarity& rarity) {
+  system_state.pity_counter++;
+  system_state.pity_legendary_counter++;
+  
+  // Hard pity: guaranteed Legendary at 90 pulls
+  if (system_state.pity_legendary_counter >= PITY_LEGENDARY_GUARANTEE) {
+    if (rarity < RARITY_LEGENDARY) {
+      rarity = RARITY_LEGENDARY;
+      Serial.println("[Pity] LEGENDARY PITY triggered!");
+    }
+  }
+  // Soft pity: guaranteed Epic at 30 pulls
+  else if (system_state.pity_counter >= PITY_EPIC_GUARANTEE) {
+    if (rarity < RARITY_EPIC) {
+      rarity = RARITY_EPIC;
+      Serial.println("[Pity] EPIC PITY triggered!");
+    }
+  }
+  
+  // Reset counters on high rarity pull
+  if (rarity >= RARITY_EPIC) {
+    system_state.pity_counter = 0;
+  }
+  if (rarity >= RARITY_LEGENDARY) {
+    system_state.pity_legendary_counter = 0;
+  }
 }
 
 GachaCard performSinglePull() {
@@ -498,77 +579,159 @@ int getPowerRange(GachaRarity rarity, bool max) {
 // =============================================================================
 
 void drawGachaScreen() {
-  gfx->fillScreen(COLOR_BLACK);
+  // ========================================
+  // RETRO ANIME GACHA SCREEN - CRT Style
+  // ========================================
+  gfx->fillScreen(RGB565(2, 2, 5));
   
-  // Header
-  gfx->setTextColor(getCurrentTheme()->primary);
+  // CRT scan lines
+  for (int y = 0; y < LCD_HEIGHT; y += 4) {
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+  }
+  
+  ThemeColors* theme = getCurrentTheme();
+  
+  // Retro header
+  gfx->fillRect(0, 0, LCD_WIDTH, 48, RGB565(10, 12, 18));
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, 46, 6, 3, theme->primary);
+  }
+  
   gfx->setTextSize(2);
-  gfx->setCursor(140, 15);
+  gfx->setTextColor(RGB565(30, 35, 50));
+  gfx->setCursor(LCD_WIDTH/2 - 30 + 1, 14 + 1);
+  gfx->print("GACHA");
+  gfx->setTextColor(theme->primary);
+  gfx->setCursor(LCD_WIDTH/2 - 30, 14);
   gfx->print("GACHA");
   
-  // Gems display
+  // Gems display - retro card
+  gfx->fillRect(20, 56, 150, 28, RGB565(12, 14, 20));
+  gfx->fillRect(20, 56, 4, 4, COLOR_GOLD);
+  gfx->fillRect(166, 56, 4, 4, COLOR_GOLD);
+  gfx->drawRect(20, 56, 150, 28, RGB565(40, 45, 60));
   gfx->setTextColor(COLOR_GOLD);
   gfx->setTextSize(1);
-  gfx->setCursor(20, 50);
-  gfx->printf("Gems: %d", system_state.player_gems);
+  gfx->setCursor(30, 65);
+  gfx->printf("GEMS: %d", system_state.player_gems);
   
-  // Collection progress
+  // Collection progress - retro card
+  gfx->fillRect(190, 56, 160, 28, RGB565(12, 14, 20));
+  gfx->fillRect(190, 56, 4, 4, theme->accent);
+  gfx->fillRect(346, 56, 4, 4, theme->accent);
+  gfx->drawRect(190, 56, 160, 28, RGB565(40, 45, 60));
   gfx->setTextColor(COLOR_WHITE);
-  gfx->setCursor(200, 50);
-  gfx->printf("Cards: %d/%d", getCardsOwned(), getTotalCards());
+  gfx->setCursor(200, 65);
+  gfx->printf("CARDS: %d/%d", getCardsOwned(), getTotalCards());
   
-  // Pull buttons with glass effect
-  drawGlassPanel(40, 100, 280, 120);
+  // Pull panel - retro framed
+  gfx->fillRect(30, 95, LCD_WIDTH - 60, 120, RGB565(12, 14, 20));
+  gfx->drawRect(30, 95, LCD_WIDTH - 60, 120, RGB565(40, 45, 60));
+  // Pixel corner accents
+  gfx->fillRect(30, 95, 5, 5, theme->primary);
+  gfx->fillRect(LCD_WIDTH - 35, 95, 5, 5, theme->primary);
+  gfx->fillRect(30, 210, 5, 5, theme->primary);
+  gfx->fillRect(LCD_WIDTH - 35, 210, 5, 5, theme->primary);
   
   // Single Pull button
   bool canSingle = canPullSingle();
-  gfx->fillRoundRect(60, 120, 240, 35, 10, canSingle ? getCurrentTheme()->primary : COLOR_GRAY);
+  uint16_t pullColor = canSingle ? theme->primary : RGB565(40, 42, 55);
+  gfx->fillRect(50, 115, LCD_WIDTH - 100, 35, pullColor);
+  gfx->drawRect(50, 115, LCD_WIDTH - 100, 35, RGB565(60, 65, 80));
   gfx->setTextColor(COLOR_WHITE);
   gfx->setTextSize(2);
-  gfx->setCursor(90, 128);
+  gfx->setCursor(80, 122);
   gfx->printf("1x Pull - %d", GACHA_SINGLE_PULL_COST);
   
   // 10x Pull button
   bool canTen = canPullTen();
-  gfx->fillRoundRect(60, 165, 240, 35, 10, canTen ? getCurrentTheme()->accent : COLOR_GRAY);
-  gfx->setCursor(80, 173);
+  uint16_t pull10Color = canTen ? theme->accent : RGB565(40, 42, 55);
+  gfx->fillRect(50, 165, LCD_WIDTH - 100, 35, pull10Color);
+  gfx->drawRect(50, 165, LCD_WIDTH - 100, 35, RGB565(60, 65, 80));
+  gfx->setCursor(70, 172);
   gfx->printf("10x Pull - %d", GACHA_TEN_PULL_COST);
   
-  // Recent pull display area
-  gfx->setTextColor(COLOR_WHITE);
+  // Recent pull display
+  gfx->setTextColor(RGB565(100, 110, 130));
   gfx->setTextSize(1);
-  gfx->setCursor(40, 240);
-  gfx->print("Recent Pulls:");
+  gfx->setCursor(40, 230);
+  gfx->print("RECENT PULLS:");
   
-  drawGlassPanel(40, 255, 280, 100);
+  gfx->fillRect(30, 245, LCD_WIDTH - 60, 100, RGB565(10, 12, 18));
+  gfx->drawRect(30, 245, LCD_WIDTH - 60, 100, RGB565(35, 40, 55));
   
-  // Collection button
-  drawGlassButton(40, 380, 130, 40, "Collection", false);
+  // Scan lines inside pull area
+  for (int sy = 248; sy < 342; sy += 4) {
+    gfx->drawFastHLine(32, sy, LCD_WIDTH - 64, RGB565(6, 6, 10));
+  }
   
-  // Back button
-  drawGlassButton(190, 380, 130, 40, "Back", false);
+  // Collection button - retro
+  gfx->fillRect(10, 365, 95, 40, RGB565(15, 18, 25));
+  gfx->fillRect(10, 365, 5, 5, theme->primary);
+  gfx->drawRect(10, 365, 95, 40, RGB565(40, 45, 60));
+  gfx->setTextColor(RGB565(180, 185, 200));
+  gfx->setTextSize(1);
+  gfx->setCursor(20, 381);
+  gfx->print("Collection");
+  
+  // Evolve button - retro gold
+  gfx->fillRect(115, 365, 75, 40, RGB565(20, 18, 10));
+  gfx->drawRect(115, 365, 75, 40, COLOR_GOLD);
+  gfx->fillRect(115, 365, 4, 4, COLOR_GOLD);
+  gfx->fillRect(186, 365, 4, 4, COLOR_GOLD);
+  gfx->setTextColor(COLOR_GOLD);
+  gfx->setCursor(127, 381);
+  gfx->print("Evolve");
+  
+  // Deck button - retro cyan
+  gfx->fillRect(200, 365, 65, 40, RGB565(10, 18, 20));
+  gfx->drawRect(200, 365, 65, 40, COLOR_CYAN);
+  gfx->fillRect(200, 365, 4, 4, COLOR_CYAN);
+  gfx->fillRect(261, 365, 4, 4, COLOR_CYAN);
+  gfx->setTextColor(COLOR_CYAN);
+  gfx->setCursor(215, 381);
+  gfx->print("Deck");
+  
+  // Back button - retro
+  gfx->fillRect(275, 365, 75, 40, RGB565(15, 18, 25));
+  gfx->drawRect(275, 365, 75, 40, RGB565(40, 45, 60));
+  gfx->setTextColor(RGB565(180, 185, 200));
+  gfx->setCursor(295, 381);
+  gfx->print("Back");
+  
+  // Pity counter at bottom
+  drawPityCounter(20, 415);
+  
+  drawSwipeIndicator();
 }
 
 void drawGachaPullAnimation(GachaCard& card) {
-  // Spinning portal animation
-  gfx->fillScreen(COLOR_BLACK);
+  // Retro CRT-style pull animation
+  gfx->fillScreen(RGB565(2, 2, 5));
   
+  uint16_t glowColor = getRarityGlowColor(card.rarity);
+  
+  // Expanding pixel squares instead of circles
   for (int r = 10; r < 100; r += 10) {
-    gfx->drawCircle(LCD_WIDTH/2, LCD_HEIGHT/2, r, getRarityGlowColor(card.rarity));
+    gfx->drawRect(LCD_WIDTH/2 - r, LCD_HEIGHT/2 - r, r*2, r*2, glowColor);
     delay(50);
   }
   
-  // Flash based on rarity
+  // Flash based on rarity - CRT flicker
   for (int i = 0; i < (int)card.rarity + 1; i++) {
-    gfx->fillScreen(getRarityGlowColor(card.rarity));
+    gfx->fillScreen(glowColor);
     delay(50);
-    gfx->fillScreen(COLOR_BLACK);
+    gfx->fillScreen(RGB565(2, 2, 5));
     delay(50);
   }
 }
 
 void drawGachaReveal(GachaCard& card) {
-  gfx->fillScreen(COLOR_BLACK);
+  // Retro CRT reveal
+  gfx->fillScreen(RGB565(2, 2, 5));
+  for (int y = 0; y < LCD_HEIGHT; y += 4) {
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+  }
   
   // Draw large card in center
   int cardW = 200, cardH = 280;
@@ -577,20 +740,25 @@ void drawGachaReveal(GachaCard& card) {
   
   drawGachaCard(cardX, cardY, cardW, cardH, card);
   
-  // Tap to continue
-  gfx->setTextColor(COLOR_WHITE);
+  // Retro tap prompt
+  gfx->setTextColor(RGB565(80, 85, 100));
   gfx->setTextSize(1);
-  gfx->setCursor(120, 400);
-  gfx->print("Tap to continue");
+  gfx->setCursor(LCD_WIDTH/2 - 50, 400);
+  gfx->print("> TAP TO CONTINUE <");
 }
 
-// IMPROVED GACHA REVEAL with animations and particles
+// IMPROVED GACHA REVEAL with retro CRT animations
 void drawGachaRevealImproved(GachaCard& card) {
-  // Animated particle reveal
+  // Animated pixel reveal
   for (int frame = 0; frame < 15; frame++) {
-    gfx->fillScreen(RGB565(8, 8, 12));
+    gfx->fillScreen(RGB565(2, 2, 5));
     
-    // Particle effects based on rarity
+    // CRT scan lines
+    for (int y = 0; y < LCD_HEIGHT; y += 4) {
+      gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+    }
+    
+    // Particle effects - pixel style based on rarity
     for (int i = 0; i < 25; i++) {
       int px = random(0, LCD_WIDTH);
       int py = random(0, LCD_HEIGHT);
@@ -601,27 +769,37 @@ void drawGachaRevealImproved(GachaCard& card) {
         case RARITY_LEGENDARY: pcolor = COLOR_GOLD; break;
         case RARITY_EPIC:    pcolor = COLOR_PURPLE; break;
         case RARITY_RARE:    pcolor = COLOR_BLUE; break;
-        default:             pcolor = RGB565(150, 150, 150); break;
+        default:             pcolor = RGB565(100, 105, 120); break;
       }
-      gfx->fillCircle(px, py, 2, pcolor);
+      gfx->fillRect(px, py, 3, 3, pcolor);
     }
     
-    // Card with glow
+    // Card with retro pixel glow
     int cardW = 240, cardH = 320;
     int cardX = (LCD_WIDTH - cardW) / 2;
     int cardY = 80;
     
-    // Animated glow rings
+    // Animated glow - pixel rectangles
     uint16_t glowColor = getRarityBorderColor(card.rarity);
     for (int r = 0; r < 4; r++) {
       int offset = r + (frame % 3);
-      gfx->drawRoundRect(cardX - offset, cardY - offset, 
-                         cardW + offset*2, cardH + offset*2, 15, glowColor);
+      gfx->drawRect(cardX - offset, cardY - offset, 
+                     cardW + offset*2, cardH + offset*2, glowColor);
     }
     
-    // Card background
-    gfx->fillRoundRect(cardX, cardY, cardW, cardH, 15, RGB565(20, 22, 30));
-    gfx->drawRoundRect(cardX, cardY, cardW, cardH, 15, glowColor);
+    // Card background - retro dark
+    gfx->fillRect(cardX, cardY, cardW, cardH, RGB565(12, 14, 20));
+    gfx->drawRect(cardX, cardY, cardW, cardH, glowColor);
+    // Pixel corners
+    gfx->fillRect(cardX, cardY, 8, 8, glowColor);
+    gfx->fillRect(cardX + cardW - 8, cardY, 8, 8, glowColor);
+    gfx->fillRect(cardX, cardY + cardH - 8, 8, 8, glowColor);
+    gfx->fillRect(cardX + cardW - 8, cardY + cardH - 8, 8, 8, glowColor);
+    
+    // CRT scan lines on card
+    for (int sy = cardY + 2; sy < cardY + cardH - 2; sy += 4) {
+      gfx->drawFastHLine(cardX + 2, sy, cardW - 4, RGB565(8, 10, 16));
+    }
     
     // Character name with glow effect
     gfx->setTextSize(2);
@@ -632,19 +810,19 @@ void drawGachaRevealImproved(GachaCard& card) {
     
     // Series
     gfx->setTextSize(1);
-    gfx->setTextColor(RGB565(180, 180, 190));
+    gfx->setTextColor(RGB565(120, 125, 140));
     int seriesLen = strlen(card.series.c_str()) * 6;
     gfx->setCursor(cardX + (cardW - seriesLen)/2, cardY + 60);
     gfx->print(card.series);
     
-    // Rarity stars (animated)
+    // Rarity stars (animated - pixel style)
     int starY = cardY + 100;
     int starCount = getRarityStars(card.rarity);
     int starSpacing = 30;
     int startX = cardX + (cardW - (starCount * starSpacing))/2;
     
     for (int s = 0; s < starCount; s++) {
-      if (frame > s * 2) {  // Staggered appearance
+      if (frame > s * 2) {
         drawStar(startX + s * starSpacing, starY, 12, COLOR_GOLD);
       }
     }
@@ -659,7 +837,7 @@ void drawGachaRevealImproved(GachaCard& card) {
     gfx->print(powerStr);
     
     gfx->setTextSize(1);
-    gfx->setTextColor(RGB565(150, 150, 160));
+    gfx->setTextColor(RGB565(80, 85, 100));
     gfx->setCursor(cardX + cardW/2 - 18, cardY + 200);
     gfx->print("POWER");
     
@@ -673,74 +851,88 @@ void drawGachaRevealImproved(GachaCard& card) {
     
     // Catchphrase
     gfx->setTextSize(1);
-    gfx->setTextColor(COLOR_WHITE);
+    gfx->setTextColor(RGB565(150, 155, 170));
     String phrase = card.catchphrase;
     if (phrase.length() > 30) phrase = phrase.substring(0, 27) + "...";
     int phraseLen = phrase.length() * 6;
     gfx->setCursor(cardX + (cardW - phraseLen)/2, cardY + 270);
     gfx->print(phrase);
     
-    delay(40);  // Frame delay
+    delay(40);
   }
   
-  // Final state with prominent "TAP TO CONTINUE"
+  // Final state - retro blinking prompt
   gfx->setTextSize(2);
-  gfx->setTextColor(RGB565(255, 200, 100));
+  gfx->setTextColor(COLOR_GOLD);
   gfx->setCursor(LCD_WIDTH/2 - 96, 430);
-  gfx->print("TAP TO CONTINUE");
+  gfx->print("> CONTINUE <");
   
-  // Blink effect
   for (int i = 0; i < 3; i++) {
     delay(300);
-    gfx->fillRect(0, 425, LCD_WIDTH, 30, RGB565(8, 8, 12));
+    gfx->fillRect(0, 425, LCD_WIDTH, 30, RGB565(2, 2, 5));
     delay(300);
     gfx->setTextSize(2);
-    gfx->setTextColor(RGB565(255, 200, 100));
+    gfx->setTextColor(COLOR_GOLD);
     gfx->setCursor(LCD_WIDTH/2 - 96, 430);
-    gfx->print("TAP TO CONTINUE");
+    gfx->print("> CONTINUE <");
   }
 }
 
 void drawGachaCard(int x, int y, int w, int h, GachaCard& card) {
-  // Background
-  gfx->fillRoundRect(x, y, w, h, 15, card.card_color);
+  // Retro card background
+  gfx->fillRect(x, y, w, h, RGB565(12, 14, 20));
   
-  // Rarity border
-  drawCardRarityBorder(x, y, w, h, card.rarity);
+  // Rarity border - pixel style
+  uint16_t borderColor = getRarityBorderColor(card.rarity);
+  gfx->drawRect(x, y, w, h, borderColor);
+  gfx->drawRect(x + 1, y + 1, w - 2, h - 2, borderColor);
+  // Pixel corners
+  gfx->fillRect(x, y, 6, 6, borderColor);
+  gfx->fillRect(x + w - 6, y, 6, 6, borderColor);
+  gfx->fillRect(x, y + h - 6, 6, 6, borderColor);
+  gfx->fillRect(x + w - 6, y + h - 6, 6, 6, borderColor);
+  
+  // Card art area
+  gfx->fillRect(x + 10, y + 10, w - 20, h/3, card.card_color);
+  // Scan lines on art
+  for (int sy = y + 11; sy < y + 10 + h/3; sy += 3) {
+    gfx->drawFastHLine(x + 11, sy, w - 22, RGB565(0, 0, 0));
+  }
   
   // Character name
-  gfx->setTextColor(COLOR_WHITE);
+  gfx->setTextColor(RGB565(200, 205, 220));
   gfx->setTextSize(2);
   gfx->setCursor(x + 10, y + 20);
   gfx->print(card.character_name);
   
   // Series
   gfx->setTextSize(1);
-  gfx->setTextColor(COLOR_BLACK);
+  gfx->setTextColor(RGB565(100, 105, 120));
   gfx->setCursor(x + 10, y + 50);
   gfx->print(card.series);
   
   // Power rating
-  gfx->setTextColor(COLOR_WHITE);
+  gfx->setTextColor(COLOR_GOLD);
   gfx->setTextSize(2);
   gfx->setCursor(x + 10, y + h - 60);
   gfx->printf("PWR: %d", card.power_rating);
   
-  // Stars for rarity
+  // Stars for rarity - pixel asterisks
   gfx->setTextSize(1);
+  gfx->setTextColor(COLOR_GOLD);
   gfx->setCursor(x + 10, y + h - 30);
   for (int i = 0; i < getRarityStars(card.rarity); i++) {
     gfx->print("*");
   }
   
   // Rarity name
-  gfx->setTextColor(getRarityBorderColor(card.rarity));
+  gfx->setTextColor(borderColor);
   gfx->setCursor(x + w - 60, y + h - 30);
   gfx->print(getRarityName(card.rarity));
   
   // Catchphrase (if fits)
   if (h > 200) {
-    gfx->setTextColor(COLOR_WHITE);
+    gfx->setTextColor(RGB565(130, 135, 150));
     gfx->setTextSize(1);
     gfx->setCursor(x + 10, y + 80);
     // Truncate catchphrase if too long
@@ -754,17 +946,20 @@ void drawCardRarityBorder(int x, int y, int w, int h, GachaRarity rarity) {
   uint16_t color = getRarityBorderColor(rarity);
   int thickness = (rarity >= RARITY_EPIC) ? 4 : 2;
   
+  // Retro pixel borders
   for (int i = 0; i < thickness; i++) {
-    gfx->drawRoundRect(x - i, y - i, w + i*2, h + i*2, 15 + i, color);
+    gfx->drawRect(x - i, y - i, w + i*2, h + i*2, color);
   }
   
-  // Mythic rainbow effect (simplified)
+  // Mythic pixel effect
   if (rarity == RARITY_MYTHIC) {
-    static uint8_t hue = 0;
-    hue += 20;
-    // In real implementation, would cycle through rainbow colors
-    gfx->drawRoundRect(x - 4, y - 4, w + 8, h + 8, 19, COLOR_PINK);
-    gfx->drawRoundRect(x - 5, y - 5, w + 10, h + 10, 20, COLOR_CYAN);
+    gfx->drawRect(x - 4, y - 4, w + 8, h + 8, COLOR_PINK);
+    gfx->drawRect(x - 5, y - 5, w + 10, h + 10, COLOR_CYAN);
+    // Pixel corners
+    gfx->fillRect(x - 5, y - 5, 8, 8, COLOR_GOLD);
+    gfx->fillRect(x + w - 3, y - 5, 8, 8, COLOR_GOLD);
+    gfx->fillRect(x - 5, y + h - 3, 8, 8, COLOR_GOLD);
+    gfx->fillRect(x + w - 3, y + h - 3, 8, 8, COLOR_GOLD);
   }
 }
 
@@ -773,27 +968,42 @@ void drawCardGlow(int x, int y, int w, int h, GachaRarity rarity) {
   
   uint16_t glowColor = getRarityGlowColor(rarity);
   
-  // Outer glow effect
+  // Retro pixel glow
   for (int i = 0; i < 3; i++) {
-    gfx->drawRoundRect(x - 6 - i, y - 6 - i, w + 12 + i*2, h + 12 + i*2, 18 + i, glowColor);
+    gfx->drawRect(x - 6 - i, y - 6 - i, w + 12 + i*2, h + 12 + i*2, glowColor);
   }
 }
 
 void drawGachaCollection() {
-  gfx->fillScreen(COLOR_BLACK);
+  // ========================================
+  // RETRO ANIME COLLECTION - CRT Style
+  // ========================================
+  gfx->fillScreen(RGB565(2, 2, 5));
   
-  gfx->setTextColor(getCurrentTheme()->primary);
+  for (int y = 0; y < LCD_HEIGHT; y += 4) {
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+  }
+  
+  ThemeColors* theme = getCurrentTheme();
+  
+  // Retro header
+  gfx->fillRect(0, 0, LCD_WIDTH, 48, RGB565(10, 12, 18));
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, 46, 6, 3, theme->accent);
+  }
+  
   gfx->setTextSize(2);
-  gfx->setCursor(90, 15);
+  gfx->setTextColor(theme->primary);
+  gfx->setCursor(LCD_WIDTH/2 - 60, 14);
   gfx->print("COLLECTION");
   
   // Progress
-  gfx->setTextColor(COLOR_WHITE);
+  gfx->setTextColor(RGB565(120, 130, 150));
   gfx->setTextSize(1);
-  gfx->setCursor(120, 45);
+  gfx->setCursor(LCD_WIDTH/2 - 40, 55);
   gfx->printf("%d / %d cards", getCardsOwned(), getTotalCards());
   
-  // Card grid - 3x4 small cards
+  // Card grid - 3x4 small cards - retro style
   int cardW = 100, cardH = 80;
   int startX = 25, startY = 70;
   int spacing = 10;
@@ -805,9 +1015,13 @@ void drawGachaCollection() {
     int y = startY + row * (cardH + spacing);
     
     if (i < GACHA_TOTAL_CARDS && cards_owned[i]) {
-      // Draw mini card
-      gfx->fillRoundRect(x, y, cardW, cardH, 8, gacha_cards[i].card_color);
-      gfx->drawRoundRect(x, y, cardW, cardH, 8, getRarityBorderColor(gacha_cards[i].rarity));
+      // Owned card - retro style with pixel corners
+      gfx->fillRect(x, y, cardW, cardH, RGB565(15, 18, 25));
+      gfx->fillRect(x, y, 4, 4, gacha_cards[i].card_color);
+      gfx->fillRect(x + cardW - 4, y, 4, 4, gacha_cards[i].card_color);
+      gfx->fillRect(x, y + cardH - 4, 4, 4, gacha_cards[i].card_color);
+      gfx->fillRect(x + cardW - 4, y + cardH - 4, 4, 4, gacha_cards[i].card_color);
+      gfx->drawRect(x, y, cardW, cardH, getRarityBorderColor(gacha_cards[i].rarity));
       
       gfx->setTextColor(COLOR_WHITE);
       gfx->setTextSize(1);
@@ -816,22 +1030,28 @@ void drawGachaCollection() {
       if (name.length() > 10) name = name.substring(0, 8) + "..";
       gfx->print(name);
     } else {
-      // Empty slot
-      gfx->fillRoundRect(x, y, cardW, cardH, 8, RGB565(30, 30, 30));
-      gfx->drawRoundRect(x, y, cardW, cardH, 8, COLOR_GRAY);
-      gfx->setTextColor(COLOR_GRAY);
+      // Empty slot - retro dim
+      gfx->fillRect(x, y, cardW, cardH, RGB565(10, 12, 18));
+      gfx->drawRect(x, y, cardW, cardH, RGB565(30, 35, 50));
+      gfx->setTextColor(RGB565(40, 45, 60));
       gfx->setTextSize(2);
       gfx->setCursor(x + 40, y + 30);
       gfx->print("?");
     }
   }
   
-  // Navigation
   gfx->setTextSize(1);
-  gfx->setCursor(130, 400);
+  gfx->setTextColor(RGB565(50, 55, 70));
+  gfx->setCursor(LCD_WIDTH/2 - 40, 400);
   gfx->print("Swipe for more");
   
-  drawGlassButton(140, 420, 80, 30, "Back", false);
+  // Back button - retro
+  gfx->fillRect(LCD_WIDTH/2 - 40, 415, 80, 28, RGB565(15, 18, 25));
+  gfx->drawRect(LCD_WIDTH/2 - 40, 415, 80, 28, RGB565(40, 45, 60));
+  gfx->setTextColor(RGB565(180, 185, 200));
+  gfx->setTextSize(1);
+  gfx->setCursor(LCD_WIDTH/2 - 12, 424);
+  gfx->print("Back");
 }
 
 // Global state for gacha reveal
@@ -882,16 +1102,30 @@ void handleGachaTouch(TouchGesture& gesture) {
   }
   
   // Collection button
-  if (y >= 380 && y < 420 && x >= 40 && x < 170) {
+  if (y >= 365 && y < 405 && x >= 10 && x < 105) {
     system_state.current_screen = SCREEN_COLLECTION;
-    drawGachaCollection();  // Fixed: use drawGachaCollection
+    drawGachaCollection();
+    return;
+  }
+  
+  // Evolve button
+  if (y >= 365 && y < 405 && x >= 115 && x < 190) {
+    system_state.current_screen = SCREEN_CARD_EVOLUTION;
+    drawCardEvolutionScreen();
+    return;
+  }
+  
+  // Deck button
+  if (y >= 365 && y < 405 && x >= 200 && x < 265) {
+    system_state.current_screen = SCREEN_DECK_BUILDER;
+    drawDeckBuilderScreen();
     return;
   }
   
   // Back button
-  if (y >= 380 && y < 420 && x >= 190 && x < 320) {
+  if (y >= 365 && y < 405 && x >= 275 && x < 350) {
     system_state.current_screen = SCREEN_GAMES;
-    drawGameMenu();  // Fixed: use drawGameMenu not drawGamesMenu
+    drawGameMenu();
     return;
   }
 }
@@ -899,5 +1133,592 @@ void handleGachaTouch(TouchGesture& gesture) {
 void handleCollectionTouch(TouchGesture& gesture) {
   if (gesture.event == TOUCH_TAP && gesture.y >= 420) {
     system_state.current_screen = SCREEN_GACHA;
+  }
+}
+
+
+// =============================================================================
+// PITY SYSTEM
+// =============================================================================
+
+void drawPityCounter(int x, int y) {
+  ThemeColors* theme = getCurrentTheme();
+  
+  // Pity counter panel - retro terminal style
+  gfx->fillRect(x, y, LCD_WIDTH - 40, 50, RGB565(8, 10, 14));
+  gfx->drawRect(x, y, LCD_WIDTH - 40, 50, RGB565(30, 35, 50));
+  gfx->fillRect(x, y, 4, 4, theme->accent);
+  
+  gfx->setTextSize(1);
+  
+  // Epic pity bar
+  int epicPulls = system_state.pity_counter;
+  float epicProgress = (float)epicPulls / PITY_EPIC_GUARANTEE;
+  if (epicProgress > 1.0f) epicProgress = 1.0f;
+  
+  gfx->setTextColor(COLOR_PURPLE);
+  gfx->setCursor(x + 6, y + 6);
+  gfx->printf("EPIC PITY: %d/%d", epicPulls, PITY_EPIC_GUARANTEE);
+  
+  // Epic bar
+  int barW = LCD_WIDTH - 60;
+  gfx->fillRect(x + 6, y + 18, barW, 6, RGB565(15, 12, 22));
+  gfx->drawRect(x + 6, y + 18, barW, 6, RGB565(30, 25, 45));
+  int epicFill = (int)(barW * epicProgress);
+  if (epicFill > 0) gfx->fillRect(x + 7, y + 19, epicFill - 2, 4, COLOR_PURPLE);
+  
+  // Legendary pity bar
+  int legPulls = system_state.pity_legendary_counter;
+  float legProgress = (float)legPulls / PITY_LEGENDARY_GUARANTEE;
+  if (legProgress > 1.0f) legProgress = 1.0f;
+  
+  gfx->setTextColor(COLOR_GOLD);
+  gfx->setCursor(x + 6, y + 28);
+  gfx->printf("LEGEND PITY: %d/%d", legPulls, PITY_LEGENDARY_GUARANTEE);
+  
+  // Legendary bar
+  gfx->fillRect(x + 6, y + 40, barW, 6, RGB565(20, 18, 8));
+  gfx->drawRect(x + 6, y + 40, barW, 6, RGB565(40, 35, 15));
+  int legFill = (int)(barW * legProgress);
+  if (legFill > 0) gfx->fillRect(x + 7, y + 41, legFill - 2, 4, COLOR_GOLD);
+}
+
+// =============================================================================
+// CARD EVOLUTION
+// =============================================================================
+
+const char* getEvolutionName(int level) {
+  switch (level) {
+    case 0: return "BASE";
+    case 1: return "EVOLVED";
+    case 2: return "AWAKENED";
+    case 3: return "TRANSCENDED";
+    default: return "BASE";
+  }
+}
+
+uint16_t getEvolutionColor(int level) {
+  switch (level) {
+    case 0: return RGB565(130, 135, 150);
+    case 1: return RGB565(80, 200, 255);
+    case 2: return COLOR_GOLD;
+    case 3: return COLOR_PINK;
+    default: return RGB565(130, 135, 150);
+  }
+}
+
+int getEvolveCost(int currentLevel) {
+  switch (currentLevel) {
+    case 0: return EVOLVE_COST_LV1;
+    case 1: return EVOLVE_COST_LV2;
+    case 2: return EVOLVE_COST_LV3;
+    default: return 999;
+  }
+}
+
+float getEvolvePowerMult(int level) {
+  switch (level) {
+    case 1: return EVOLVE_POWER_MULT_LV1;
+    case 2: return EVOLVE_POWER_MULT_LV2;
+    case 3: return EVOLVE_POWER_MULT_LV3;
+    default: return 1.0f;
+  }
+}
+
+bool evolveCard(int cardIndex) {
+  if (cardIndex < 0 || cardIndex >= GACHA_TOTAL_CARDS) return false;
+  if (!cards_owned[cardIndex]) return false;
+  if (gacha_cards[cardIndex].evolution_level >= 3) return false;
+  
+  int cost = getEvolveCost(gacha_cards[cardIndex].evolution_level);
+  if (cards_duplicates[cardIndex] < cost) return false;
+  
+  // Consume duplicates
+  cards_duplicates[cardIndex] -= cost;
+  gacha_cards[cardIndex].evolution_level++;
+  
+  // Apply power boost
+  float mult = getEvolvePowerMult(gacha_cards[cardIndex].evolution_level);
+  gacha_cards[cardIndex].power_rating = (int)(gacha_cards[cardIndex].power * mult);
+  gacha_cards[cardIndex].hp = (int)(gacha_cards[cardIndex].hp * 1.2f);
+  gacha_cards[cardIndex].attack = (int)(gacha_cards[cardIndex].attack * 1.2f);
+  gacha_cards[cardIndex].defense = (int)(gacha_cards[cardIndex].defense * 1.2f);
+  
+  Serial.printf("[Evolve] %s -> %s (PWR: %d)\n", 
+                gacha_cards[cardIndex].character_name.c_str(),
+                getEvolutionName(gacha_cards[cardIndex].evolution_level),
+                gacha_cards[cardIndex].power_rating);
+  
+  saveGachaProgress();
+  return true;
+}
+
+// Evolution selection state
+static int evo_scroll_offset = 0;
+static int evo_selected_card = -1;
+
+void drawCardEvolutionScreen() {
+  gfx->fillScreen(RGB565(2, 2, 5));
+  for (int y = 0; y < LCD_HEIGHT; y += 4) {
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+  }
+  
+  ThemeColors* theme = getCurrentTheme();
+  
+  // Retro header
+  gfx->fillRect(0, 0, LCD_WIDTH, 48, RGB565(10, 12, 18));
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, 46, 6, 3, COLOR_GOLD);
+  }
+  gfx->setTextSize(2);
+  gfx->setTextColor(RGB565(30, 35, 50));
+  gfx->setCursor(LCD_WIDTH/2 - 54 + 1, 14 + 1);
+  gfx->print("EVOLUTION");
+  gfx->setTextColor(COLOR_GOLD);
+  gfx->setCursor(LCD_WIDTH/2 - 54, 14);
+  gfx->print("EVOLUTION");
+  
+  // Card list - show owned cards that can be evolved
+  int cardY = 58;
+  int shown = 0;
+  
+  for (int i = 0; i < GACHA_TOTAL_CARDS && shown < 4; i++) {
+    if (!cards_owned[i]) continue;
+    if (shown < evo_scroll_offset) { shown++; continue; }
+    
+    int cy = cardY + (shown - evo_scroll_offset) * 82;
+    bool selected = (i == evo_selected_card);
+    int evoLvl = gacha_cards[i].evolution_level;
+    int dupes = cards_duplicates[i];
+    int cost = getEvolveCost(evoLvl);
+    bool canEvolve = (evoLvl < 3 && dupes >= cost);
+    
+    // Card row - retro
+    uint16_t bg = selected ? RGB565(18, 20, 30) : RGB565(12, 14, 20);
+    uint16_t border = selected ? getEvolutionColor(evoLvl) : RGB565(40, 45, 60);
+    gfx->fillRect(10, cy, LCD_WIDTH - 20, 72, bg);
+    gfx->drawRect(10, cy, LCD_WIDTH - 20, 72, border);
+    gfx->fillRect(10, cy, 5, 5, getEvolutionColor(evoLvl));
+    gfx->fillRect(LCD_WIDTH - 15, cy, 5, 5, getEvolutionColor(evoLvl));
+    
+    // Card color swatch
+    gfx->fillRect(18, cy + 8, 40, 56, gacha_cards[i].card_color);
+    gfx->drawRect(18, cy + 8, 40, 56, RGB565(50, 55, 70));
+    // CRT on swatch
+    for (int sy = cy + 9; sy < cy + 63; sy += 3) {
+      gfx->drawFastHLine(19, sy, 38, RGB565(0, 0, 0));
+    }
+    // Initial
+    gfx->setTextColor(COLOR_WHITE);
+    gfx->setTextSize(2);
+    char init[2] = {gacha_cards[i].character_name[0], 0};
+    gfx->setCursor(28, cy + 28);
+    gfx->print(init);
+    
+    // Name + evolution level
+    gfx->setTextColor(RGB565(200, 205, 220));
+    gfx->setTextSize(1);
+    gfx->setCursor(68, cy + 10);
+    gfx->print(gacha_cards[i].character_name);
+    
+    gfx->setTextColor(getEvolutionColor(evoLvl));
+    gfx->setCursor(68, cy + 24);
+    gfx->printf("[%s]", getEvolutionName(evoLvl));
+    
+    // Power
+    gfx->setTextColor(theme->accent);
+    gfx->setCursor(68, cy + 38);
+    gfx->printf("PWR: %d", gacha_cards[i].power_rating);
+    
+    // Dupes and cost
+    gfx->setTextColor(RGB565(100, 105, 120));
+    gfx->setCursor(68, cy + 52);
+    if (evoLvl < 3) {
+      gfx->printf("Dupes: %d/%d", dupes, cost);
+    } else {
+      gfx->print("MAX LEVEL");
+    }
+    
+    // Evolve button (if possible)
+    if (canEvolve) {
+      gfx->fillRect(LCD_WIDTH - 85, cy + 20, 65, 30, RGB565(20, 40, 15));
+      gfx->drawRect(LCD_WIDTH - 85, cy + 20, 65, 30, RGB565(0, 200, 80));
+      gfx->fillRect(LCD_WIDTH - 85, cy + 20, 4, 4, RGB565(0, 200, 80));
+      gfx->setTextColor(RGB565(0, 200, 80));
+      gfx->setTextSize(1);
+      gfx->setCursor(LCD_WIDTH - 78, cy + 31);
+      gfx->print("EVOLVE");
+    } else if (evoLvl >= 3) {
+      gfx->fillRect(LCD_WIDTH - 85, cy + 20, 65, 30, RGB565(25, 20, 30));
+      gfx->drawRect(LCD_WIDTH - 85, cy + 20, 65, 30, COLOR_PINK);
+      gfx->setTextColor(COLOR_PINK);
+      gfx->setTextSize(1);
+      gfx->setCursor(LCD_WIDTH - 75, cy + 31);
+      gfx->print("MAX");
+    }
+    
+    shown++;
+  }
+  
+  if (shown == 0) {
+    gfx->setTextColor(RGB565(80, 85, 100));
+    gfx->setTextSize(1);
+    gfx->setCursor(LCD_WIDTH/2 - 50, 200);
+    gfx->print("No cards to evolve");
+    gfx->setCursor(LCD_WIDTH/2 - 60, 220);
+    gfx->print("Pull more from Gacha!");
+  }
+  
+  // Scroll hint
+  gfx->setTextColor(RGB565(50, 55, 70));
+  gfx->setTextSize(1);
+  gfx->setCursor(LCD_WIDTH/2 - 40, 395);
+  gfx->print("> SWIPE <");
+  
+  // Back button
+  gfx->fillRect(LCD_WIDTH/2 - 35, 415, 70, 28, RGB565(15, 18, 25));
+  gfx->drawRect(LCD_WIDTH/2 - 35, 415, 70, 28, RGB565(40, 45, 60));
+  gfx->setTextColor(RGB565(180, 185, 200));
+  gfx->setCursor(LCD_WIDTH/2 - 12, 424);
+  gfx->print("Back");
+}
+
+void handleCardEvolutionTap(int x, int y) {
+  // Check evolve buttons
+  int cardY = 58;
+  int shown = 0;
+  
+  for (int i = 0; i < GACHA_TOTAL_CARDS && shown < 4; i++) {
+    if (!cards_owned[i]) continue;
+    if (shown < evo_scroll_offset) { shown++; continue; }
+    
+    int cy = cardY + (shown - evo_scroll_offset) * 82;
+    
+    // Evolve button hit
+    if (x >= LCD_WIDTH - 85 && x < LCD_WIDTH - 20 && y >= cy + 20 && y < cy + 50) {
+      if (gacha_cards[i].evolution_level < 3) {
+        if (evolveCard(i)) {
+          // Flash animation
+          gfx->fillScreen(getEvolutionColor(gacha_cards[i].evolution_level));
+          delay(150);
+          gfx->fillScreen(RGB565(2, 2, 5));
+          delay(100);
+        }
+      }
+      drawCardEvolutionScreen();
+      return;
+    }
+    
+    shown++;
+  }
+  
+  // Back button
+  if (y >= 415 && y < 443 && x >= LCD_WIDTH/2 - 35 && x < LCD_WIDTH/2 + 35) {
+    system_state.current_screen = SCREEN_GACHA;
+    drawGachaScreen();
+    return;
+  }
+}
+
+// =============================================================================
+// BATTLE DECK BUILDER
+// =============================================================================
+
+static int deck_scroll_offset = 0;
+
+bool addCardToDeck(int cardIndex) {
+  if (cardIndex < 0 || cardIndex >= GACHA_TOTAL_CARDS) return false;
+  if (!cards_owned[cardIndex]) return false;
+  if (system_state.deck_size >= MAX_DECK_SIZE) return false;
+  
+  // Check if already in deck
+  for (int i = 0; i < system_state.deck_size; i++) {
+    if (system_state.battle_deck[i] == cardIndex) return false;
+  }
+  
+  system_state.battle_deck[system_state.deck_size] = cardIndex;
+  system_state.deck_size++;
+  Serial.printf("[Deck] Added %s to deck (slot %d)\n", 
+                gacha_cards[cardIndex].character_name.c_str(), system_state.deck_size);
+  return true;
+}
+
+bool removeCardFromDeck(int slotIndex) {
+  if (slotIndex < 0 || slotIndex >= system_state.deck_size) return false;
+  
+  // Shift cards down
+  for (int i = slotIndex; i < system_state.deck_size - 1; i++) {
+    system_state.battle_deck[i] = system_state.battle_deck[i + 1];
+  }
+  system_state.deck_size--;
+  system_state.battle_deck[system_state.deck_size] = -1;
+  return true;
+}
+
+int getDeckTotalPower() {
+  int total = 0;
+  for (int i = 0; i < system_state.deck_size; i++) {
+    int idx = system_state.battle_deck[i];
+    if (idx >= 0 && idx < GACHA_TOTAL_CARDS && cards_owned[idx]) {
+      total += gacha_cards[idx].power_rating;
+    }
+  }
+  return total;
+}
+
+int getDeckBonusATK() {
+  int bonus = 0;
+  for (int i = 0; i < system_state.deck_size; i++) {
+    int idx = system_state.battle_deck[i];
+    if (idx >= 0 && idx < GACHA_TOTAL_CARDS && cards_owned[idx]) {
+      bonus += DECK_ATK_BONUS_PER_CARD + gacha_cards[idx].attack / 10;
+    }
+  }
+  return bonus;
+}
+
+int getDeckBonusHP() {
+  int bonus = 0;
+  for (int i = 0; i < system_state.deck_size; i++) {
+    int idx = system_state.battle_deck[i];
+    if (idx >= 0 && idx < GACHA_TOTAL_CARDS && cards_owned[idx]) {
+      bonus += DECK_HP_BONUS_PER_CARD + gacha_cards[idx].hp / 10;
+    }
+  }
+  return bonus;
+}
+
+int getDeckBonusDEF() {
+  int bonus = 0;
+  for (int i = 0; i < system_state.deck_size; i++) {
+    int idx = system_state.battle_deck[i];
+    if (idx >= 0 && idx < GACHA_TOTAL_CARDS && cards_owned[idx]) {
+      bonus += DECK_DEF_BONUS_PER_CARD + gacha_cards[idx].defense / 10;
+    }
+  }
+  return bonus;
+}
+
+void drawDeckBuilderScreen() {
+  gfx->fillScreen(RGB565(2, 2, 5));
+  for (int y = 0; y < LCD_HEIGHT; y += 4) {
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+  }
+  
+  ThemeColors* theme = getCurrentTheme();
+  
+  // Retro header
+  gfx->fillRect(0, 0, LCD_WIDTH, 48, RGB565(10, 12, 18));
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, 46, 6, 3, COLOR_CYAN);
+  }
+  gfx->setTextSize(2);
+  gfx->setTextColor(RGB565(30, 35, 50));
+  gfx->setCursor(LCD_WIDTH/2 - 66 + 1, 14 + 1);
+  gfx->print("BATTLE DECK");
+  gfx->setTextColor(COLOR_CYAN);
+  gfx->setCursor(LCD_WIDTH/2 - 66, 14);
+  gfx->print("BATTLE DECK");
+  
+  // === CURRENT DECK (top section) ===
+  gfx->setTextColor(RGB565(100, 105, 120));
+  gfx->setTextSize(1);
+  gfx->setCursor(15, 56);
+  gfx->printf("YOUR DECK (%d/%d)", system_state.deck_size, MAX_DECK_SIZE);
+  
+  // Deck slots - 5 pixel card slots
+  int slotW = 60, slotH = 80;
+  int slotSpacing = 5;
+  int slotStartX = (LCD_WIDTH - (MAX_DECK_SIZE * slotW + (MAX_DECK_SIZE - 1) * slotSpacing)) / 2;
+  int slotY = 70;
+  
+  for (int i = 0; i < MAX_DECK_SIZE; i++) {
+    int sx = slotStartX + i * (slotW + slotSpacing);
+    
+    if (i < system_state.deck_size && system_state.battle_deck[i] >= 0) {
+      int cardIdx = system_state.battle_deck[i];
+      // Filled slot - retro card
+      gfx->fillRect(sx, slotY, slotW, slotH, gacha_cards[cardIdx].card_color);
+      gfx->drawRect(sx, slotY, slotW, slotH, getEvolutionColor(gacha_cards[cardIdx].evolution_level));
+      // CRT lines
+      for (int sy = slotY + 1; sy < slotY + slotH - 1; sy += 3) {
+        gfx->drawFastHLine(sx + 1, sy, slotW - 2, RGB565(0, 0, 0));
+      }
+      // Initial
+      gfx->setTextColor(COLOR_WHITE);
+      gfx->setTextSize(2);
+      char init[2] = {gacha_cards[cardIdx].character_name[0], 0};
+      gfx->setCursor(sx + slotW/2 - 6, slotY + 10);
+      gfx->print(init);
+      // Power
+      gfx->setTextSize(1);
+      gfx->setTextColor(COLOR_GOLD);
+      gfx->setCursor(sx + 5, slotY + 40);
+      gfx->printf("%d", gacha_cards[cardIdx].power_rating);
+      // Evolution badge
+      gfx->setTextColor(getEvolutionColor(gacha_cards[cardIdx].evolution_level));
+      gfx->setCursor(sx + 5, slotY + 55);
+      gfx->print(getEvolutionName(gacha_cards[cardIdx].evolution_level));
+      // Remove X
+      gfx->fillRect(sx + slotW - 14, slotY + 2, 12, 12, RGB565(60, 15, 15));
+      gfx->drawRect(sx + slotW - 14, slotY + 2, 12, 12, COLOR_RED);
+      gfx->setTextColor(COLOR_RED);
+      gfx->setCursor(sx + slotW - 12, slotY + 4);
+      gfx->print("X");
+    } else {
+      // Empty slot
+      gfx->fillRect(sx, slotY, slotW, slotH, RGB565(8, 10, 14));
+      gfx->drawRect(sx, slotY, slotW, slotH, RGB565(30, 35, 50));
+      gfx->setTextColor(RGB565(40, 45, 60));
+      gfx->setTextSize(2);
+      gfx->setCursor(sx + slotW/2 - 6, slotY + slotH/2 - 8);
+      gfx->print("+");
+    }
+  }
+  
+  // === DECK STATS ===
+  int statsY = slotY + slotH + 8;
+  gfx->fillRect(15, statsY, LCD_WIDTH - 30, 40, RGB565(10, 12, 18));
+  gfx->drawRect(15, statsY, LCD_WIDTH - 30, 40, RGB565(30, 35, 50));
+  gfx->fillRect(15, statsY, 4, 4, COLOR_CYAN);
+  
+  gfx->setTextSize(1);
+  gfx->setTextColor(COLOR_GOLD);
+  gfx->setCursor(25, statsY + 6);
+  gfx->printf("TOTAL PWR: %d", getDeckTotalPower());
+  
+  gfx->setTextColor(COLOR_RED);
+  gfx->setCursor(25, statsY + 22);
+  gfx->printf("+%d ATK", getDeckBonusATK());
+  gfx->setTextColor(COLOR_GREEN);
+  gfx->setCursor(120, statsY + 22);
+  gfx->printf("+%d HP", getDeckBonusHP());
+  gfx->setTextColor(COLOR_BLUE);
+  gfx->setCursor(210, statsY + 22);
+  gfx->printf("+%d DEF", getDeckBonusDEF());
+  
+  // === AVAILABLE CARDS (bottom section) ===
+  int listY = statsY + 50;
+  gfx->setTextColor(RGB565(100, 105, 120));
+  gfx->setCursor(15, listY);
+  gfx->print("AVAILABLE CARDS:");
+  listY += 14;
+  
+  int shown = 0;
+  for (int i = 0; i < GACHA_TOTAL_CARDS && shown < 3; i++) {
+    if (!cards_owned[i]) continue;
+    
+    // Skip if already in deck
+    bool inDeck = false;
+    for (int d = 0; d < system_state.deck_size; d++) {
+      if (system_state.battle_deck[d] == i) { inDeck = true; break; }
+    }
+    if (inDeck) continue;
+    
+    if (shown < deck_scroll_offset) { shown++; continue; }
+    
+    int cy = listY + (shown - deck_scroll_offset) * 50;
+    
+    // Card row
+    gfx->fillRect(15, cy, LCD_WIDTH - 30, 42, RGB565(12, 14, 20));
+    gfx->drawRect(15, cy, LCD_WIDTH - 30, 42, RGB565(40, 45, 60));
+    gfx->fillRect(15, cy, 4, 4, gacha_cards[i].card_color);
+    
+    // Mini color swatch
+    gfx->fillRect(22, cy + 5, 30, 32, gacha_cards[i].card_color);
+    for (int sy = cy + 6; sy < cy + 36; sy += 3) {
+      gfx->drawFastHLine(23, sy, 28, RGB565(0, 0, 0));
+    }
+    
+    // Info
+    gfx->setTextColor(RGB565(200, 205, 220));
+    gfx->setTextSize(1);
+    gfx->setCursor(60, cy + 8);
+    gfx->print(gacha_cards[i].character_name);
+    
+    gfx->setTextColor(getEvolutionColor(gacha_cards[i].evolution_level));
+    gfx->setCursor(60, cy + 22);
+    gfx->printf("[%s] PWR:%d", getEvolutionName(gacha_cards[i].evolution_level), 
+                gacha_cards[i].power_rating);
+    
+    // Add button
+    if (system_state.deck_size < MAX_DECK_SIZE) {
+      gfx->fillRect(LCD_WIDTH - 70, cy + 8, 45, 26, RGB565(10, 25, 20));
+      gfx->drawRect(LCD_WIDTH - 70, cy + 8, 45, 26, COLOR_CYAN);
+      gfx->fillRect(LCD_WIDTH - 70, cy + 8, 3, 3, COLOR_CYAN);
+      gfx->setTextColor(COLOR_CYAN);
+      gfx->setCursor(LCD_WIDTH - 62, cy + 17);
+      gfx->print("ADD");
+    }
+    
+    shown++;
+  }
+  
+  if (shown == 0) {
+    gfx->setTextColor(RGB565(80, 85, 100));
+    gfx->setCursor(LCD_WIDTH/2 - 50, listY + 30);
+    gfx->print("No more cards available");
+  }
+  
+  // Back button
+  gfx->fillRect(LCD_WIDTH/2 - 35, 430, 70, 28, RGB565(15, 18, 25));
+  gfx->drawRect(LCD_WIDTH/2 - 35, 430, 70, 28, RGB565(40, 45, 60));
+  gfx->setTextColor(RGB565(180, 185, 200));
+  gfx->setTextSize(1);
+  gfx->setCursor(LCD_WIDTH/2 - 12, 439);
+  gfx->print("Back");
+}
+
+void handleDeckBuilderTap(int x, int y) {
+  // Check deck slot remove buttons (X buttons)
+  int slotW = 60, slotH = 80;
+  int slotSpacing = 5;
+  int slotStartX = (LCD_WIDTH - (MAX_DECK_SIZE * slotW + (MAX_DECK_SIZE - 1) * slotSpacing)) / 2;
+  int slotY = 70;
+  
+  for (int i = 0; i < system_state.deck_size; i++) {
+    int sx = slotStartX + i * (slotW + slotSpacing);
+    // X button: top-right of slot
+    if (x >= sx + slotW - 14 && x < sx + slotW && y >= slotY && y < slotY + 16) {
+      removeCardFromDeck(i);
+      drawDeckBuilderScreen();
+      return;
+    }
+  }
+  
+  // Check add buttons in available cards list
+  int statsY = slotY + slotH + 8 + 40 + 50;
+  int listY = statsY + 14;
+  
+  int shown = 0;
+  for (int i = 0; i < GACHA_TOTAL_CARDS && shown < 3; i++) {
+    if (!cards_owned[i]) continue;
+    
+    bool inDeck = false;
+    for (int d = 0; d < system_state.deck_size; d++) {
+      if (system_state.battle_deck[d] == i) { inDeck = true; break; }
+    }
+    if (inDeck) continue;
+    
+    if (shown < deck_scroll_offset) { shown++; continue; }
+    
+    int cy = listY + (shown - deck_scroll_offset) * 50;
+    
+    // Add button hit
+    if (x >= LCD_WIDTH - 70 && x < LCD_WIDTH - 25 && y >= cy + 8 && y < cy + 34) {
+      if (addCardToDeck(i)) {
+        drawDeckBuilderScreen();
+        return;
+      }
+    }
+    
+    shown++;
+  }
+  
+  // Back button
+  if (y >= 430 && y < 458 && x >= LCD_WIDTH/2 - 35 && x < LCD_WIDTH/2 + 35) {
+    system_state.current_screen = SCREEN_GACHA;
+    drawGachaScreen();
+    return;
   }
 }

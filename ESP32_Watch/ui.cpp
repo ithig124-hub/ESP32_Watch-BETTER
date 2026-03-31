@@ -145,10 +145,10 @@ void drawSplashScreen() {
   int barY = centerY + 55;
   int barW = 140;
   int barH = 6;
-  gfx->drawRoundRect(barX, barY, barW, barH, 3, RGB565(40, 42, 55));
+  gfx->drawRect(barX, barY, barW, barH, RGB565(40, 42, 55));
   
   for (int i = 0; i <= barW - 4; i += 3) {
-    gfx->fillRoundRect(barX + 2, barY + 1, i, barH - 2, 2, RGB565(100, 200, 150));
+    gfx->fillRect(barX + 2, barY + 1, i, barH - 2, RGB565(100, 200, 150));
     delay(12);
   }
   
@@ -167,7 +167,7 @@ void drawAboutScreen() {
   ThemeColors* theme = getCurrentTheme();
   
   // Header
-  gfx->fillRoundRect(0, 0, LCD_WIDTH, 55, 0, RGB565(16, 18, 24));
+  gfx->fillRect(0, 0, LCD_WIDTH, 55, RGB565(16, 18, 24));
   gfx->drawFastHLine(0, 55, LCD_WIDTH, theme->primary);
   gfx->setTextColor(theme->primary);
   gfx->setTextSize(2);
@@ -175,8 +175,8 @@ void drawAboutScreen() {
   gfx->print("About");
   
   // Info card
-  gfx->fillRoundRect(20, 70, LCD_WIDTH - 40, 130, 16, RGB565(22, 24, 32));
-  gfx->drawRoundRect(20, 70, LCD_WIDTH - 40, 130, 16, RGB565(50, 52, 65));
+  gfx->fillRect(20, 70, LCD_WIDTH - 40, 130, RGB565(22, 24, 32));
+  gfx->drawRect(20, 70, LCD_WIDTH - 40, 130, RGB565(50, 52, 65));
   
   gfx->setTextColor(COLOR_WHITE);
   gfx->setTextSize(2);
@@ -197,8 +197,8 @@ void drawAboutScreen() {
   gfx->print("Gacha + Training + Boss Rush");
   
   // Hardware card
-  gfx->fillRoundRect(20, 215, LCD_WIDTH - 40, 90, 16, RGB565(22, 24, 32));
-  gfx->drawRoundRect(20, 215, LCD_WIDTH - 40, 90, 16, RGB565(50, 52, 65));
+  gfx->fillRect(20, 215, LCD_WIDTH - 40, 90, RGB565(22, 24, 32));
+  gfx->drawRect(20, 215, LCD_WIDTH - 40, 90, RGB565(50, 52, 65));
   
   gfx->setTextColor(theme->primary);
   gfx->setTextSize(1);
@@ -222,8 +222,8 @@ void drawAboutScreen() {
 
 void drawButton(UIComponent& button) {
   uint16_t bg = button.pressed ? getCurrentTheme()->accent : button.color;
-  gfx->fillRoundRect(button.x, button.y, button.width, button.height, 10, bg);
-  gfx->drawRoundRect(button.x, button.y, button.width, button.height, 10, COLOR_WHITE);
+  gfx->fillRect(button.x, button.y, button.width, button.height, bg);
+  gfx->drawRect(button.x, button.y, button.width, button.height, COLOR_WHITE);
   
   gfx->setTextColor(COLOR_WHITE);
   gfx->setTextSize(1);
@@ -240,11 +240,11 @@ void drawLabel(UIComponent& label) {
 
 void drawSlider(UIComponent& slider) {
   // Track
-  gfx->fillRoundRect(slider.x, slider.y + slider.height/2 - 3, slider.width, 6, 3, RGB565(60, 60, 60));
+  gfx->fillRect(slider.x, slider.y + slider.height/2 - 3, slider.width, 6, RGB565(60, 60, 60));
   
   // Fill based on value (stored in color as percentage)
   int fillW = (slider.width * slider.color) / 100;
-  gfx->fillRoundRect(slider.x, slider.y + slider.height/2 - 3, fillW, 6, 3, getCurrentTheme()->primary);
+  gfx->fillRect(slider.x, slider.y + slider.height/2 - 3, fillW, 6, getCurrentTheme()->primary);
   
   // Knob
   int knobX = slider.x + fillW;
@@ -255,7 +255,7 @@ void drawToggle(UIComponent& toggle) {
   bool on = toggle.pressed;
   uint16_t bg = on ? getCurrentTheme()->primary : RGB565(60, 60, 60);
   
-  gfx->fillRoundRect(toggle.x, toggle.y, toggle.width, toggle.height, toggle.height/2, bg);
+  gfx->fillRect(toggle.x, toggle.y, toggle.width, toggle.height, bg);
   
   int knobX = on ? toggle.x + toggle.width - toggle.height/2 : toggle.x + toggle.height/2;
   gfx->fillCircle(knobX, toggle.y + toggle.height/2, toggle.height/2 - 4, COLOR_WHITE);
@@ -365,7 +365,7 @@ void drawNotificationDot(int x, int y, uint16_t color) {
 // =============================================================================
 
 void drawListItem(int x, int y, int width, const char* title, const char* subtitle, uint16_t color) {
-  gfx->fillRoundRect(x, y, width, 50, 8, RGB565(40, 40, 40));
+  gfx->fillRect(x, y, width, 50, RGB565(40, 40, 40));
   
   gfx->setTextColor(color);
   gfx->setTextSize(1);
@@ -400,8 +400,8 @@ void showAlert(const char* title, const char* message) {
   int x = (LCD_WIDTH - w) / 2;
   int y = (LCD_HEIGHT - h) / 2;
   
-  gfx->fillRoundRect(x, y, w, h, 15, RGB565(30, 30, 30));
-  gfx->drawRoundRect(x, y, w, h, 15, getCurrentTheme()->primary);
+  gfx->fillRect(x, y, w, h, RGB565(30, 30, 30));
+  gfx->drawRect(x, y, w, h, getCurrentTheme()->primary);
   
   gfx->setTextColor(getCurrentTheme()->primary);
   gfx->setTextSize(2);
@@ -421,8 +421,8 @@ void showConfirm(const char* title, const char* message, void (*yes_callback)(vo
   int x = (LCD_WIDTH - w) / 2;
   int y = (LCD_HEIGHT - h) / 2;
   
-  gfx->fillRoundRect(x, y, w, h, 15, RGB565(30, 30, 30));
-  gfx->drawRoundRect(x, y, w, h, 15, getCurrentTheme()->primary);
+  gfx->fillRect(x, y, w, h, RGB565(30, 30, 30));
+  gfx->drawRect(x, y, w, h, getCurrentTheme()->primary);
   
   gfx->setTextColor(getCurrentTheme()->primary);
   gfx->setTextSize(2);
@@ -465,11 +465,11 @@ void updateLoadingProgress(int percentage) {
   int x = (LCD_WIDTH - 200) / 2;
   int y = LCD_HEIGHT / 2 + 40;
   
-  gfx->fillRoundRect(x, y, 200, 20, 10, RGB565(60, 60, 60));
+  gfx->fillRect(x, y, 200, 20, RGB565(60, 60, 60));
   
   int fillW = (percentage * 196) / 100;
   if (fillW > 0) {
-    gfx->fillRoundRect(x + 2, y + 2, fillW, 16, 8, getCurrentTheme()->primary);
+    gfx->fillRect(x + 2, y + 2, fillW, 16, getCurrentTheme()->primary);
   }
 }
 
@@ -478,7 +478,7 @@ void updateLoadingProgress(int percentage) {
 // =============================================================================
 
 void drawComplicationSlot(int x, int y, int w, int h, const char* data, uint16_t color) {
-  gfx->fillRoundRect(x, y, w, h, 8, RGB565(30, 30, 30));
+  gfx->fillRect(x, y, w, h, RGB565(30, 30, 30));
   gfx->setTextColor(color);
   gfx->setTextSize(1);
   gfx->setCursor(x + 5, y + h / 2 - 4);

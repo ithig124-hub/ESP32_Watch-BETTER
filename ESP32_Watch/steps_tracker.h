@@ -32,6 +32,7 @@ struct ActivityThresholds {
 // Function declarations
 void initStepsTracker();
 void drawStepsCard();
+void drawRetroStatCard(int x, int y, int w, int h, const char* label, float value, const char* unit, uint16_t color, bool showDecimal);
 void handleStepsCardTouch(TouchGesture& gesture);
 void updateStepCount();
 void resetStepsToday();  // Renamed to avoid conflict with hardware.cpp

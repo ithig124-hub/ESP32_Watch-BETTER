@@ -221,6 +221,10 @@ struct GachaCard {
   bool owned;
   int duplicates;
   int duplicate_count;
+  int evolution_level;     // 0=base, 1=evolved, 2=awakened, 3=transcended
+  int hp;
+  int attack;
+  int defense;
 };
 
 // Training score - FIXED: Added missing members

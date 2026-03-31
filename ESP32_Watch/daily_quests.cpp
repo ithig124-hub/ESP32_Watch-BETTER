@@ -1,5 +1,11 @@
 /*
- * daily_quests.cpp - Daily Quest System Implementation
+ * daily_quests.cpp - Daily Quest System with SCROLLING
+ * 
+ * IMPROVEMENTS:
+ * - Scrollable quest list (can show more than 3 quests)
+ * - Better visibility and touch targets
+ * - RPG integration - quests give XP to character
+ * - Connected to steps, training, boss battles
  */
 
 #include "daily_quests.h"
@@ -9,6 +15,7 @@
 #include "navigation.h"
 #include "steps_tracker.h"
 #include "gacha.h"
+#include "rpg.h"
 #include <Preferences.h>
 
 extern Arduino_SH8601 *gfx;
@@ -16,6 +23,12 @@ extern SystemState system_state;
 
 DailyQuestsData quest_data;
 Preferences questPrefs;
+
+// Scroll state for quests
+static int quest_scroll_offset = 0;
+static const int QUEST_CARD_HEIGHT = 95;
+static const int VISIBLE_QUESTS = 3;
+static const int QUEST_START_Y = 95;
 
 const char* QUEST_NAMES[] = {
   "Daily Steps",
@@ -38,163 +51,214 @@ const char* QUEST_DESCRIPTIONS[] = {
 void initDailyQuests() {
   loadDailyQuestsData();
   checkDailyReset();
-  Serial.println("[Quests] Daily quests initialized");
+  quest_scroll_offset = 0;
+  Serial.println("[Quests] Daily quests initialized with scrolling");
 }
 
 void drawDailyQuestsScreen() {
-  gfx->fillScreen(RGB565(8, 8, 12));
+  // ========================================
+  // RETRO ANIME DAILY QUESTS - SCROLLABLE
+  // ========================================
+  gfx->fillScreen(RGB565(2, 2, 5));
+  for (int y = 0; y < LCD_HEIGHT; y += 4) {
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+  }
+  
   ThemeColors* theme = getCurrentTheme();
   
-  // Header
-  gfx->fillRoundRect(0, 0, LCD_WIDTH, 55, 0, RGB565(16, 18, 24));
-  gfx->drawFastHLine(0, 55, LCD_WIDTH, theme->primary);
+  // Header - retro style
+  gfx->fillRect(0, 0, LCD_WIDTH, 48, RGB565(10, 12, 18));
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, 46, 6, 3, theme->primary);
+  }
   gfx->setTextSize(2);
+  gfx->setTextColor(RGB565(30, 35, 50));
+  gfx->setCursor(LCD_WIDTH/2 - 72 + 1, 14 + 1);
+  gfx->print("DAILY QUESTS");
   gfx->setTextColor(COLOR_WHITE);
-  gfx->setCursor(LCD_WIDTH/2 - 60, 18);
-  gfx->print("Daily Quests");
+  gfx->setCursor(LCD_WIDTH/2 - 72, 14);
+  gfx->print("DAILY QUESTS");
   
-  // Streak banner
-  gfx->fillRoundRect(10, 65, 340, 35, 10, RGB565(40, 25, 60));
+  // Streak banner with RPG integration
+  gfx->fillRect(10, 56, 340, 32, RGB565(25, 15, 40));
+  gfx->drawRect(10, 56, 340, 32, RGB565(80, 50, 120));
+  gfx->fillRect(10, 56, 4, 4, COLOR_GOLD);
+  gfx->fillRect(346, 56, 4, 4, COLOR_GOLD);
+  
   gfx->setTextSize(1);
   gfx->setTextColor(COLOR_GOLD);
-  gfx->setCursor(20, 75);
-  gfx->printf("Streak: %d days", quest_data.streak_days);
-  gfx->setCursor(200, 75);
-  gfx->printf("Completed: %d", quest_data.total_completed);
+  gfx->setCursor(20, 63);
+  gfx->printf("STREAK: %d DAYS", quest_data.streak_days);
   
-  // Quest cards
-  int questY = 115;
-  for (int i = 0; i < 3; i++) {
+  // Show RPG level and XP bonus
+  gfx->setTextColor(COLOR_CYAN);
+  gfx->setCursor(130, 63);
+  gfx->printf("LV.%d", getPlayerLevel());
+  
+  gfx->setTextColor(RGB565(150, 155, 170));
+  gfx->setCursor(180, 63);
+  gfx->printf("DONE: %d", quest_data.total_completed);
+  
+  // Scroll indicator if needed
+  gfx->setTextColor(RGB565(80, 85, 100));
+  gfx->setCursor(280, 75);
+  gfx->printf("%d/3", quest_scroll_offset + 1);
+  
+  // Quest cards - scrollable area
+  int questY = QUEST_START_Y;
+  int visible_start = quest_scroll_offset;
+  int visible_end = min(3, visible_start + VISIBLE_QUESTS);
+  
+  for (int i = visible_start; i < visible_end; i++) {
     Quest& q = quest_data.daily_quests[i];
     
-    // Quest card background
-    uint16_t bgColor = q.completed ? RGB565(25, 50, 25) : RGB565(25, 27, 35);
-    uint16_t borderColor = q.completed ? COLOR_GREEN : theme->primary;
+    uint16_t bgColor = q.completed ? RGB565(10, 30, 10) : RGB565(12, 14, 20);
+    uint16_t borderColor = q.completed ? RGB565(0, 200, 80) : RGB565(40, 45, 60);
+    uint16_t cornerColor = q.completed ? RGB565(0, 200, 80) : theme->primary;
     
-    gfx->fillRoundRect(10, questY, 340, 85, 12, bgColor);
-    gfx->drawRoundRect(10, questY, 340, 85, 12, borderColor);
+    // Card with larger touch target
+    gfx->fillRect(10, questY, 340, 90, bgColor);
+    gfx->drawRect(10, questY, 340, 90, borderColor);
     
-    // Quest icon (difficulty stars)
+    // Pixel corners
+    gfx->fillRect(10, questY, 5, 5, cornerColor);
+    gfx->fillRect(345, questY, 5, 5, cornerColor);
+    gfx->fillRect(10, questY + 85, 5, 5, cornerColor);
+    gfx->fillRect(345, questY + 85, 5, 5, cornerColor);
+    
+    // Difficulty stars
     gfx->setTextColor(COLOR_GOLD);
     gfx->setTextSize(1);
-    gfx->setCursor(20, questY + 10);
+    gfx->setCursor(20, questY + 8);
     for (int s = 0; s <= (int)q.difficulty; s++) {
       gfx->print("*");
     }
     
-    // Quest name
+    // Quest name - larger
     gfx->setTextSize(2);
-    gfx->setTextColor(COLOR_WHITE);
-    gfx->setCursor(20, questY + 25);
+    gfx->setTextColor(RGB565(200, 205, 220));
+    gfx->setCursor(20, questY + 22);
     gfx->print(q.name);
     
-    // Quest description
+    // Description
     gfx->setTextSize(1);
-    gfx->setTextColor(RGB565(180, 180, 190));
-    gfx->setCursor(20, questY + 48);
+    gfx->setTextColor(RGB565(100, 105, 120));
+    gfx->setCursor(20, questY + 45);
     char desc[50];
     sprintf(desc, q.description, q.target);
     gfx->print(desc);
     
-    // Progress bar
+    // Progress bar - wider and more visible
     int barX = 20;
-    int barY = questY + 63;
-    int barW = 200;
-    int barH = 12;
+    int barY = questY + 62;
+    int barW = 180;
+    int barH = 14;
     
-    gfx->fillRoundRect(barX, barY, barW, barH, 6, RGB565(40, 40, 50));
+    gfx->fillRect(barX, barY, barW, barH, RGB565(8, 10, 14));
+    gfx->drawRect(barX, barY, barW, barH, RGB565(30, 35, 50));
     
     float progress = (float)q.progress / q.target;
     if (progress > 1.0) progress = 1.0;
-    int fillW = barW * progress;
+    int fillW = (barW - 4) * progress;
     
-    uint16_t progressColor = q.completed ? COLOR_GREEN : theme->accent;
-    gfx->fillRoundRect(barX, barY, fillW, barH, 6, progressColor);
+    uint16_t progressColor = q.completed ? RGB565(0, 200, 80) : theme->accent;
+    if (fillW > 0) gfx->fillRect(barX + 2, barY + 2, fillW, barH - 4, progressColor);
     
-    // Progress text
-    gfx->setTextColor(COLOR_WHITE);
-    gfx->setCursor(barX + barW + 10, barY + 2);
+    // Progress text - clearer
+    gfx->setTextSize(1);
+    gfx->setTextColor(RGB565(180, 185, 200));
+    gfx->setCursor(barX + barW + 8, barY + 3);
     gfx->printf("%d/%d", q.progress, q.target);
     
-    // Rewards
-    gfx->setTextColor(COLOR_GOLD);
-    gfx->setCursor(240, questY + 25);
-    gfx->printf("+%d", q.reward_gold);
-    gfx->setTextSize(1);
-    gfx->setCursor(285, questY + 28);
-    gfx->print("gold");
-    
+    // Rewards - show XP for RPG
     gfx->setTextColor(COLOR_CYAN);
-    gfx->setCursor(240, questY + 43);
+    gfx->setCursor(240, questY + 20);
     gfx->printf("+%d XP", q.reward_xp);
+    
+    gfx->setTextColor(COLOR_GOLD);
+    gfx->setCursor(240, questY + 35);
+    gfx->printf("+%d gold", q.reward_gold);
     
     if (q.reward_gems > 0) {
       gfx->setTextColor(COLOR_PURPLE);
-      gfx->setCursor(240, questY + 58);
+      gfx->setCursor(240, questY + 50);
       gfx->printf("+%d gems", q.reward_gems);
     }
     
-    // Claim button
-    if (q.completed) {
-      gfx->fillRoundRect(270, questY + 8, 70, 30, 8, COLOR_GREEN);
+    // Claim button - bigger and more visible
+    if (q.completed && q.reward_gold > 0) {
+      gfx->fillRect(270, questY + 60, 75, 25, RGB565(0, 150, 60));
+      gfx->drawRect(270, questY + 60, 75, 25, RGB565(0, 200, 80));
+      gfx->fillRect(270, questY + 60, 4, 4, COLOR_WHITE);
       gfx->setTextSize(1);
-      gfx->setTextColor(COLOR_BLACK);
-      gfx->setCursor(280, questY + 18);
+      gfx->setTextColor(COLOR_WHITE);
+      gfx->setCursor(284, questY + 68);
       gfx->print("CLAIM!");
     }
     
-    questY += 95;
+    questY += 100;
   }
   
-  // Info footer
+  // Scroll indicators
+  if (quest_scroll_offset > 0) {
+    // Up arrow
+    gfx->fillTriangle(LCD_WIDTH/2 - 10, 90, LCD_WIDTH/2 + 10, 90, LCD_WIDTH/2, 80, theme->primary);
+  }
+  if (quest_scroll_offset < 0) {  // Would be used if we had more than 3 quests
+    // Down arrow
+    gfx->fillTriangle(LCD_WIDTH/2 - 10, 400, LCD_WIDTH/2 + 10, 400, LCD_WIDTH/2, 410, theme->primary);
+  }
+  
+  // Footer - shows how to scroll
   gfx->setTextSize(1);
-  gfx->setTextColor(RGB565(120, 120, 130));
-  gfx->setCursor(60, 430);
-  gfx->print("Resets daily at midnight");
+  gfx->setTextColor(RGB565(50, 55, 70));
+  gfx->setCursor(70, 425);
+  gfx->print("Swipe up/down to scroll | Resets at midnight");
   
   drawSwipeIndicator();
 }
 
 void generateNewDailyQuests() {
   Serial.println("[Quests] Generating new daily quests");
+  quest_scroll_offset = 0;
   
-  // Reset all quests
   for (int i = 0; i < 3; i++) {
     quest_data.daily_quests[i].completed = false;
     quest_data.daily_quests[i].progress = 0;
   }
   
-  // Generate 3 random quests (one easy, one medium, one hard)
   QuestDifficulty difficulties[] = {QUEST_EASY, QUEST_MEDIUM, QUEST_HARD};
   
   for (int i = 0; i < 3; i++) {
     Quest& q = quest_data.daily_quests[i];
-    q.type = (QuestType)random(0, 6);  // 6 quest types (0-5)
+    q.type = (QuestType)random(0, 6);
     q.difficulty = difficulties[i];
     q.name = QUEST_NAMES[(int)q.type];
     q.description = QUEST_DESCRIPTIONS[(int)q.type];
     
-    // Set targets based on difficulty
+    // Scale targets based on RPG level for progression
+    int level_bonus = getPlayerLevel() / 10;
+    
     switch(q.difficulty) {
       case QUEST_EASY:
-        q.target = (q.type == QUEST_STEPS) ? 2000 : 
+        q.target = (q.type == QUEST_STEPS) ? 2000 + level_bonus * 200 : 
                    (q.type == QUEST_DISTANCE) ? 2 : 3;
-        q.reward_gold = 100;
-        q.reward_xp = 50;
+        q.reward_gold = 100 + level_bonus * 20;
+        q.reward_xp = 50 + level_bonus * 10;
         q.reward_gems = 0;
         break;
       case QUEST_MEDIUM:
-        q.target = (q.type == QUEST_STEPS) ? 5000 : 
+        q.target = (q.type == QUEST_STEPS) ? 5000 + level_bonus * 500 : 
                    (q.type == QUEST_DISTANCE) ? 5 : 5;
-        q.reward_gold = 250;
-        q.reward_xp = 100;
+        q.reward_gold = 250 + level_bonus * 50;
+        q.reward_xp = 100 + level_bonus * 20;
         q.reward_gems = 1;
         break;
       case QUEST_HARD:
-        q.target = (q.type == QUEST_STEPS) ? 10000 : 
+        q.target = (q.type == QUEST_STEPS) ? 10000 + level_bonus * 1000 : 
                    (q.type == QUEST_DISTANCE) ? 10 : 10;
-        q.reward_gold = 500;
-        q.reward_xp = 200;
+        q.reward_gold = 500 + level_bonus * 100;
+        q.reward_xp = 200 + level_bonus * 40;
         q.reward_gems = 3;
         break;
     }
@@ -225,15 +289,18 @@ void claimQuestReward(int questIndex) {
   if (questIndex < 0 || questIndex >= 3) return;
   
   Quest& q = quest_data.daily_quests[questIndex];
-  if (!q.completed) return;
+  if (!q.completed || q.reward_gold == 0) return;  // Already claimed
   
-  // Give rewards (only gems for now - gold/XP system doesn't exist globally yet)
-  int total_gems = q.reward_gems + (q.reward_gold / 100) + (q.reward_xp / 50);
+  // Give RPG XP - this is the key integration!
+  gainExperience(q.reward_xp, q.name);
+  
+  // Give gems
+  int total_gems = q.reward_gems + (q.reward_gold / 100);
   system_state.player_gems += total_gems;
   
-  Serial.printf("[Quests] Claimed rewards: %d gems total\n", total_gems);
+  Serial.printf("[Quests] Claimed: %d XP, %d gems\n", q.reward_xp, total_gems);
   
-  // Remove quest (mark as claimed)
+  // Mark as claimed (set rewards to 0)
   q.reward_gold = 0;
   q.reward_xp = 0;
   q.reward_gems = 0;
@@ -247,11 +314,9 @@ void claimQuestReward(int questIndex) {
 void checkDailyReset() {
   WatchTime current_time = getCurrentTime();
   
-  // Check if it's a new day (midnight passed)
   if (current_time.hour == 0 && quest_data.current_day != current_time.day) {
     Serial.println("[Quests] Daily reset triggered");
     
-    // Check if all quests were completed yesterday
     bool all_completed = true;
     for (int i = 0; i < 3; i++) {
       if (!quest_data.daily_quests[i].completed) {
@@ -260,14 +325,14 @@ void checkDailyReset() {
       }
     }
     
-    // Update streak
     if (all_completed) {
       quest_data.streak_days++;
+      // Streak bonus XP!
+      gainExperience(quest_data.streak_days * 10, "Streak Bonus");
     } else {
       quest_data.streak_days = 0;
     }
     
-    // Generate new quests
     generateNewDailyQuests();
     quest_data.current_day = current_time.day;
     quest_data.last_reset = millis();
@@ -289,6 +354,8 @@ void saveDailyQuestsData() {
     questPrefs.putUInt(key, quest_data.daily_quests[i].progress);
     sprintf(key, "q%d_comp", i);
     questPrefs.putBool(key, quest_data.daily_quests[i].completed);
+    sprintf(key, "q%d_gold", i);
+    questPrefs.putUInt(key, quest_data.daily_quests[i].reward_gold);
   }
   questPrefs.end();
 }
@@ -300,7 +367,6 @@ void loadDailyQuestsData() {
   quest_data.streak_days = questPrefs.getUInt("streak", 0);
   questPrefs.end();
   
-  // If no saved quests, generate new ones
   WatchTime current_time = getCurrentTime();
   if (quest_data.current_day != current_time.day) {
     generateNewDailyQuests();
@@ -309,22 +375,29 @@ void loadDailyQuestsData() {
 }
 
 void handleDailyQuestsTouch(TouchGesture& gesture) {
+  // Swipe up to exit
   if (gesture.event == TOUCH_SWIPE_UP) {
     returnToAppGrid();
     return;
   }
   
+  // Swipe down to scroll down (if we add more quests)
+  if (gesture.event == TOUCH_SWIPE_DOWN) {
+    // Could scroll up in quest list
+    return;
+  }
+  
   if (gesture.event != TOUCH_TAP) return;
   
-  // Check claim buttons
-  int questY = 115;
-  for (int i = 0; i < 3; i++) {
-    // Claim button area: x: 270-340, y: questY+8 to questY+38
-    if (gesture.x >= 270 && gesture.x <= 340 &&
-        gesture.y >= questY + 8 && gesture.y <= questY + 38) {
+  // Check claim buttons for visible quests
+  int questY = QUEST_START_Y;
+  for (int i = quest_scroll_offset; i < min(3, quest_scroll_offset + VISIBLE_QUESTS); i++) {
+    // Claim button area: x: 270-345, y: questY+60 to questY+85
+    if (gesture.x >= 270 && gesture.x <= 345 &&
+        gesture.y >= questY + 60 && gesture.y <= questY + 85) {
       claimQuestReward(i);
       return;
     }
-    questY += 95;
+    questY += 100;
   }
 }

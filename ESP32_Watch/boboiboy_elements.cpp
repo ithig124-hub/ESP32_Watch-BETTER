@@ -113,48 +113,58 @@ void initBoboiboyElements() {
 // =============================================================================
 
 void drawElementTree() {
-  gfx->fillScreen(RGB565(8, 10, 15));
+  // ======================================================
+  // BOBOIBOY POWER BAND STYLE - Like the actual show watch!
+  // ======================================================
+  
+  // Dark background like the power band interface
+  gfx->fillScreen(RGB565(5, 5, 10));
   
   int centerX = LCD_WIDTH / 2;
+  int centerY = LCD_HEIGHT / 2;
   
-  // Header with gradient
-  for (int y = 0; y < 50; y++) {
-    uint8_t alpha = 30 - (y * 25 / 50);
-    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(alpha, alpha/2, 0));
+  // Draw power band outer ring (like Ochobot's power band)
+  for (int r = 170; r >= 155; r--) {
+    gfx->drawCircle(centerX, centerY, r, RGB565(50, 30, 10));
+  }
+  gfx->drawCircle(centerX, centerY, 175, BBB_BAND_ORANGE);
+  gfx->drawCircle(centerX, centerY, 176, BBB_BAND_GLOW);
+  
+  // Inner glowing ring
+  for (int r = 150; r >= 140; r--) {
+    uint8_t glow = 20 + (150 - r) * 3;
+    gfx->drawCircle(centerX, centerY, r, RGB565(glow, glow/2, 0));
   }
   
-  // Title
-  gfx->setTextColor(BBB_BAND_ORANGE);
+  // Power band center - OCHOBOT style
+  gfx->fillCircle(centerX, centerY, 55, RGB565(20, 15, 10));
+  gfx->drawCircle(centerX, centerY, 55, BBB_BAND_ORANGE);
+  gfx->drawCircle(centerX, centerY, 53, RGB565(80, 50, 20));
+  
+  // Ochobot eye style in center
+  gfx->fillCircle(centerX, centerY, 25, RGB565(0, 150, 200));
+  gfx->fillCircle(centerX, centerY, 18, RGB565(100, 200, 255));
+  gfx->fillCircle(centerX - 5, centerY - 5, 6, COLOR_WHITE);
+  
+  // Page indicator at top
+  gfx->fillRect(0, 0, LCD_WIDTH, 35, RGB565(15, 10, 5));
+  gfx->drawFastHLine(0, 34, LCD_WIDTH, BBB_BAND_ORANGE);
+  
+  const char* pageNames[] = {"KUASA 7", "EVOLVED", "FUSION"};
+  gfx->setTextColor(BBB_BAND_GLOW);
   gfx->setTextSize(2);
-  gfx->setCursor(70, 12);
-  gfx->print("ELEMENT TREE");
+  int textW = strlen(pageNames[element_tree_page]) * 12;
+  gfx->setCursor(centerX - textW/2, 8);
+  gfx->print(pageNames[element_tree_page]);
   
-  // Page tabs
-  const char* tabs[] = {"BASE", "EVOLVED", "FUSION"};
-  uint16_t tabColors[] = {BBB_LIGHTNING_YELLOW, BBB_THUNDERSTORM_RED, BBB_FROSTFIRE_PINK};
-  
+  // Page dots
   for (int i = 0; i < 3; i++) {
-    int tabX = 20 + i * 115;
-    int tabY = 50;
-    int tabW = 105;
-    int tabH = 28;
-    
+    int dotX = centerX - 20 + i * 20;
     if (i == element_tree_page) {
-      // Active tab
-      gfx->fillRoundRect(tabX, tabY, tabW, tabH, 8, RGB565(30, 32, 40));
-      gfx->drawRoundRect(tabX, tabY, tabW, tabH, 8, tabColors[i]);
-      gfx->setTextColor(tabColors[i]);
+      gfx->fillCircle(dotX, 28, 4, BBB_BAND_ORANGE);
     } else {
-      // Inactive tab
-      gfx->fillRoundRect(tabX, tabY, tabW, tabH, 8, RGB565(20, 22, 28));
-      gfx->drawRoundRect(tabX, tabY, tabW, tabH, 8, RGB565(60, 60, 70));
-      gfx->setTextColor(RGB565(100, 100, 110));
+      gfx->drawCircle(dotX, 28, 3, RGB565(80, 50, 20));
     }
-    
-    gfx->setTextSize(1);
-    int textW = strlen(tabs[i]) * 6;
-    gfx->setCursor(tabX + (tabW - textW) / 2, tabY + 10);
-    gfx->print(tabs[i]);
   }
   
   // Draw elements based on current page
@@ -166,214 +176,221 @@ void drawElementTree() {
     drawFusionElements();
   }
   
-  // Bottom instruction
-  gfx->setTextColor(RGB565(80, 85, 95));
+  // Bottom instruction bar
+  gfx->fillRect(0, LCD_HEIGHT - 35, LCD_WIDTH, 35, RGB565(15, 10, 5));
+  gfx->drawFastHLine(0, LCD_HEIGHT - 35, LCD_WIDTH, BBB_BAND_ORANGE);
+  gfx->setTextColor(RGB565(120, 90, 50));
   gfx->setTextSize(1);
-  gfx->setCursor(centerX - 55, 415);
-  gfx->print("Tap element for details");
+  gfx->setCursor(centerX - 75, LCD_HEIGHT - 23);
+  gfx->print("< SWIPE L/R FOR PAGES >");
   
-  // Back button
-  drawBackButtonElement(10, 405);
+  drawSwipeIndicator();
 }
 
 void drawBackButtonElement(int x, int y) {
-  gfx->fillRoundRect(x, y, 70, 30, 10, RGB565(30, 32, 40));
-  gfx->drawRoundRect(x, y, 70, 30, 10, BBB_BAND_ORANGE);
-  gfx->setTextColor(COLOR_WHITE);
-  gfx->setTextSize(1);
-  gfx->setCursor(x + 18, y + 10);
-  gfx->print("Back");
+  // Removed - now using swipe navigation
 }
 
 // =============================================================================
-// BASE ELEMENTS (7) - Circular Layout
+// BASE ELEMENTS (7) - Power Band Circular Layout like the show
 // =============================================================================
 
 void drawBaseElements() {
   int centerX = LCD_WIDTH / 2;
-  int centerY = 230;
-  int radius = 100;
+  int centerY = LCD_HEIGHT / 2;
+  int radius = 115;
   
-  // Center - BoBoiBoy icon
-  gfx->fillCircle(centerX, centerY, 35, RGB565(30, 32, 40));
-  gfx->drawCircle(centerX, centerY, 35, BBB_BAND_ORANGE);
-  gfx->drawCircle(centerX, centerY, 33, BBB_BAND_GLOW);
+  // Draw 7 elements in a circle around the power band
+  // Element colors from the show
+  uint16_t elemColors[] = {
+    BBB_LIGHTNING_YELLOW,  // Halilintar
+    BBB_WIND_CYAN,         // Taufan
+    BBB_EARTH_BROWN,       // Gempa
+    BBB_FIRE_RED,          // Blaze
+    BBB_WATER_CYAN,        // Ice
+    BBB_LEAF_GREEN,        // Thorn
+    BBB_LIGHT_GOLD         // Solar
+  };
   
-  gfx->setTextColor(BBB_BAND_ORANGE);
-  gfx->setTextSize(1);
-  gfx->setCursor(centerX - 24, centerY - 10);
-  gfx->print("BOBOIBOY");
-  gfx->setCursor(centerX - 18, centerY + 2);
-  gfx->print("KUASA 7");
+  const char* elemIcons[] = {"H", "T", "G", "B", "I", "Th", "S"};
   
-  // Draw 7 elements in a circle
   for (int i = 0; i < 7; i++) {
-    float angle = (i * 51.43 - 90) * PI / 180.0;  // 360/7 = 51.43
+    float angle = (i * 51.43 - 90) * PI / 180.0;  // 360/7 = 51.43, start at top
     int nodeX = centerX + cos(angle) * radius;
     int nodeY = centerY + sin(angle) * radius;
     
-    // Connection line to center
-    gfx->drawLine(centerX, centerY, nodeX, nodeY, RGB565(40, 42, 50));
+    // Connection line to center (energy beam style)
+    for (int w = -1; w <= 1; w++) {
+      gfx->drawLine(centerX, centerY, nodeX, nodeY, RGB565(40, 30, 15));
+    }
     
-    // Draw element node
-    bool isSelected = (selected_element == i);
-    drawElementNode(nodeX, nodeY, (BoBoiBoyForm)i, isSelected, true);
-  }
-  
-  // Element info card at bottom
-  if (selected_element >= 0 && selected_element < 7) {
-    drawElementInfoCard(boboiboy_elements[selected_element], 330);
+    // Outer glow
+    gfx->fillCircle(nodeX, nodeY, 28, RGB565(30, 25, 15));
+    
+    // Element circle with color
+    gfx->fillCircle(nodeX, nodeY, 22, elemColors[i]);
+    gfx->drawCircle(nodeX, nodeY, 22, COLOR_WHITE);
+    gfx->drawCircle(nodeX, nodeY, 24, RGB565(60, 45, 20));
+    
+    // Highlight
+    gfx->fillCircle(nodeX - 6, nodeY - 6, 5, COLOR_WHITE);
+    
+    // Element initial
+    gfx->setTextColor(RGB565(30, 20, 10));
+    gfx->setTextSize(2);
+    int txtW = strlen(elemIcons[i]) * 12;
+    gfx->setCursor(nodeX - txtW/2, nodeY - 7);
+    gfx->print(elemIcons[i]);
+    
+    // Element name below (small)
+    gfx->setTextColor(RGB565(150, 120, 80));
+    gfx->setTextSize(1);
+    gfx->setCursor(nodeX - strlen(boboiboy_elements[i].name) * 3, nodeY + 30);
+    gfx->print(boboiboy_elements[i].name);
   }
 }
 
 // =============================================================================
-// EVOLVED ELEMENTS (7) - With Evolution Arrows
+// EVOLVED ELEMENTS (7) - Power Band Style
 // =============================================================================
 
 void drawEvolvedElements() {
-  int startY = 95;
-  int spacing = 85;
+  int centerX = LCD_WIDTH / 2;
+  int centerY = LCD_HEIGHT / 2;
+  int radius = 115;
   
-  // Draw 7 base -> evolved pairs
+  // Evolved element colors (darker/more intense versions)
+  uint16_t evolvedColors[] = {
+    BBB_THUNDERSTORM_BLACK,  // Thunderstorm (evolved Halilintar)
+    BBB_CYCLONE_DARK_BLUE,   // Cyclone (evolved Taufan)
+    BBB_QUAKE_DARK,          // Quake (evolved Gempa)
+    BBB_BLAZE_CRIMSON,       // Inferno (evolved Blaze)
+    BBB_ICE_LIGHT,           // Glacier (evolved Ice)
+    BBB_THORN_DARK,          // Darkwood (evolved Thorn)
+    BBB_SOLAR_ORANGE         // Supernova (evolved Solar)
+  };
+  
+  const char* evolvedIcons[] = {"Ts", "Cy", "Qu", "In", "Gl", "Dw", "Sn"};
+  
   for (int i = 0; i < 7; i++) {
-    int row = i / 2;
-    int col = i % 2;
-    int baseX = 50 + col * 180;
-    int evolvedX = baseX + 90;
-    int y = startY + row * spacing;
+    float angle = (i * 51.43 - 90) * PI / 180.0;
+    int nodeX = centerX + cos(angle) * radius;
+    int nodeY = centerY + sin(angle) * radius;
     
-    // Special case for 7th element (centered)
-    if (i == 6) {
-      baseX = LCD_WIDTH / 2 - 45;
-      evolvedX = baseX + 90;
-      y = startY + 3 * spacing;
+    int elemIdx = i + 7;  // Evolved forms start at index 7
+    bool unlocked = elements_unlocked[elemIdx];
+    
+    // Connection line
+    for (int w = -1; w <= 1; w++) {
+      gfx->drawLine(centerX, centerY, nodeX, nodeY, RGB565(50, 20, 20));
     }
     
-    // Base element (small)
-    uint16_t baseColor = boboiboy_elements[i].primary_color;
-    gfx->fillCircle(baseX, y, 18, baseColor);
-    gfx->drawCircle(baseX, y, 18, COLOR_WHITE);
-    
-    // Arrow
-    gfx->drawLine(baseX + 22, y, evolvedX - 22, y, RGB565(100, 100, 110));
-    gfx->fillTriangle(evolvedX - 22, y - 5, evolvedX - 22, y + 5, evolvedX - 12, y, RGB565(100, 100, 110));
-    
-    // Evolved element
-    int evolvedIdx = i + 7;
-    bool unlocked = elements_unlocked[evolvedIdx];
-    bool isSelected = (selected_element == evolvedIdx);
+    // Outer glow (red for evolved)
+    gfx->fillCircle(nodeX, nodeY, 28, RGB565(40, 15, 15));
     
     if (unlocked) {
-      uint16_t evolvedColor = boboiboy_elements[evolvedIdx].primary_color;
-      gfx->fillCircle(evolvedX, y, 25, evolvedColor);
-      if (isSelected) {
-        gfx->drawCircle(evolvedX, y, 27, COLOR_WHITE);
-        gfx->drawCircle(evolvedX, y, 29, boboiboy_elements[evolvedIdx].secondary_color);
-      } else {
-        gfx->drawCircle(evolvedX, y, 25, RGB565(80, 80, 90));
-      }
-    } else {
-      gfx->fillCircle(evolvedX, y, 25, RGB565(30, 30, 35));
-      gfx->drawCircle(evolvedX, y, 25, RGB565(50, 50, 55));
-      gfx->setTextColor(RGB565(60, 60, 65));
+      // Element circle with color
+      gfx->fillCircle(nodeX, nodeY, 22, evolvedColors[i]);
+      gfx->drawCircle(nodeX, nodeY, 22, BBB_THUNDERSTORM_RED);
+      gfx->drawCircle(nodeX, nodeY, 24, RGB565(80, 30, 30));
+      
+      // Highlight
+      gfx->fillCircle(nodeX - 6, nodeY - 6, 4, COLOR_WHITE);
+      
+      // Element initial
+      gfx->setTextColor(COLOR_WHITE);
       gfx->setTextSize(2);
-      gfx->setCursor(evolvedX - 6, y - 8);
+      int txtW = strlen(evolvedIcons[i]) * 12;
+      gfx->setCursor(nodeX - txtW/2, nodeY - 7);
+      gfx->print(evolvedIcons[i]);
+    } else {
+      // Locked - dark circle with lock
+      gfx->fillCircle(nodeX, nodeY, 22, RGB565(25, 20, 20));
+      gfx->drawCircle(nodeX, nodeY, 22, RGB565(60, 40, 40));
+      gfx->setTextColor(RGB565(80, 60, 60));
+      gfx->setTextSize(2);
+      gfx->setCursor(nodeX - 5, nodeY - 7);
       gfx->print("?");
     }
     
-    // Labels
+    // Element name below
+    gfx->setTextColor(unlocked ? RGB565(180, 100, 80) : RGB565(80, 60, 60));
     gfx->setTextSize(1);
-    gfx->setTextColor(RGB565(150, 150, 160));
-    
-    // Base name
-    const char* baseName = boboiboy_elements[i].name;
-    int baseNameW = strlen(baseName) * 6;
-    gfx->setCursor(baseX - baseNameW/2, y + 25);
-    gfx->print(baseName);
-    
-    // Evolved name
-    if (unlocked) {
-      gfx->setTextColor(boboiboy_elements[evolvedIdx].primary_color);
-      const char* evolvedName = boboiboy_elements[evolvedIdx].name;
-      int evolvedNameW = strlen(evolvedName) * 6;
-      gfx->setCursor(evolvedX - evolvedNameW/2, y + 32);
-      gfx->print(evolvedName);
-    }
+    gfx->setCursor(nodeX - strlen(boboiboy_elements[elemIdx].name) * 3, nodeY + 30);
+    gfx->print(boboiboy_elements[elemIdx].name);
   }
 }
 
 // =============================================================================
-// FUSION ELEMENTS (6) - With Combination Diagram
+// FUSION ELEMENTS (6) - Power Band Style Hexagonal Layout
 // =============================================================================
 
 void drawFusionElements() {
-  int startY = 105;
-  int spacing = 95;
+  int centerX = LCD_WIDTH / 2;
+  int centerY = LCD_HEIGHT / 2;
   
-  // Draw 6 fusions with their parent elements
+  // Fusion element data
+  uint16_t fusionColors[] = {
+    BBB_FROSTFIRE_PINK,   // FrostFire
+    BBB_GLACIER_BLUE,     // Glacier  
+    BBB_SUPRA_GOLD,       // Supra
+    BBB_LIGHT_GOLD,       // Sori
+    BBB_EARTH_ORANGE,     // Rumble
+    BBB_WIND_CYAN         // Sopan
+  };
+  
+  const char* fusionNames[] = {"FrostFire", "Glacier", "Supra", "Sori", "Rumble", "Sopan"};
+  
+  // Draw 6 fusions in hexagonal pattern
+  int positions[][2] = {
+    {centerX - 80, centerY - 60},   // Top left
+    {centerX + 80, centerY - 60},   // Top right
+    {centerX - 120, centerY + 30},  // Middle left
+    {centerX + 120, centerY + 30},  // Middle right
+    {centerX - 80, centerY + 120},  // Bottom left
+    {centerX + 80, centerY + 120}   // Bottom right
+  };
+  
   for (int i = 0; i < 6; i++) {
     int fusionIdx = 14 + i;  // Fusions start at index 14
-    int row = i / 2;
-    int col = i % 2;
-    
-    int x = 90 + col * 190;
-    int y = startY + row * spacing;
-    
-    ElementData& fusion = boboiboy_elements[fusionIdx];
+    int nodeX = positions[i][0];
+    int nodeY = positions[i][1];
     bool unlocked = elements_unlocked[fusionIdx];
-    bool isSelected = (selected_element == fusionIdx);
     
-    // Parent elements (small circles)
-    int parent1 = fusion.parent1;
-    int parent2 = fusion.parent2;
+    // Energy lines connecting to center
+    gfx->drawLine(centerX, centerY, nodeX, nodeY, RGB565(60, 30, 50));
     
-    // Left parent
-    gfx->fillCircle(x - 40, y - 15, 12, boboiboy_elements[parent1].primary_color);
-    gfx->drawCircle(x - 40, y - 15, 12, RGB565(60, 60, 70));
+    // Fusion glow (pink/purple for fusions)
+    gfx->fillCircle(nodeX, nodeY, 32, RGB565(40, 20, 35));
     
-    // Right parent
-    gfx->fillCircle(x + 40, y - 15, 12, boboiboy_elements[parent2].primary_color);
-    gfx->drawCircle(x + 40, y - 15, 12, RGB565(60, 60, 70));
-    
-    // Plus sign
-    gfx->setTextColor(RGB565(100, 100, 110));
-    gfx->setTextSize(2);
-    gfx->setCursor(x - 6, y - 22);
-    gfx->print("+");
-    
-    // Arrow down
-    gfx->drawLine(x, y - 5, x, y + 10, RGB565(100, 100, 110));
-    gfx->fillTriangle(x - 5, y + 10, x + 5, y + 10, x, y + 18, RGB565(100, 100, 110));
-    
-    // Fusion result
     if (unlocked) {
-      gfx->fillCircle(x, y + 35, 28, fusion.primary_color);
-      if (isSelected) {
-        gfx->drawCircle(x, y + 35, 30, COLOR_WHITE);
-        gfx->drawCircle(x, y + 35, 32, fusion.secondary_color);
-      } else {
-        gfx->drawCircle(x, y + 35, 28, RGB565(80, 80, 90));
-      }
+      // Dual-color gradient effect for fusion
+      gfx->fillCircle(nodeX, nodeY, 26, fusionColors[i]);
+      gfx->drawCircle(nodeX, nodeY, 26, BBB_FROSTFIRE_PINK);
+      gfx->drawCircle(nodeX, nodeY, 28, RGB565(100, 50, 80));
       
-      // Fusion name
-      gfx->setTextColor(fusion.primary_color);
-      gfx->setTextSize(1);
-      int nameW = strlen(fusion.name) * 6;
-      gfx->setCursor(x - nameW/2, y + 70);
-      gfx->print(fusion.name);
+      // Inner highlight
+      gfx->fillCircle(nodeX - 7, nodeY - 7, 5, COLOR_WHITE);
+      
+      // Fusion symbol (two halves)
+      gfx->drawLine(nodeX - 8, nodeY - 10, nodeX + 8, nodeY + 10, COLOR_WHITE);
+      gfx->fillCircle(nodeX - 8, nodeY - 10, 3, COLOR_WHITE);
+      gfx->fillCircle(nodeX + 8, nodeY + 10, 3, COLOR_WHITE);
     } else {
-      gfx->fillCircle(x, y + 35, 28, RGB565(25, 25, 30));
-      gfx->drawCircle(x, y + 35, 28, RGB565(50, 50, 55));
-      gfx->setTextColor(RGB565(60, 60, 65));
+      gfx->fillCircle(nodeX, nodeY, 26, RGB565(30, 20, 25));
+      gfx->drawCircle(nodeX, nodeY, 26, RGB565(60, 40, 50));
+      gfx->setTextColor(RGB565(80, 50, 60));
       gfx->setTextSize(2);
-      gfx->setCursor(x - 6, y + 27);
+      gfx->setCursor(nodeX - 5, nodeY - 7);
       gfx->print("?");
-      
-      gfx->setTextColor(RGB565(80, 80, 85));
-      gfx->setTextSize(1);
-      gfx->setCursor(x - 18, y + 70);
-      gfx->print("LOCKED");
     }
+    
+    // Fusion name
+    gfx->setTextColor(unlocked ? BBB_FROSTFIRE_PINK : RGB565(80, 50, 60));
+    gfx->setTextSize(1);
+    int nameW = strlen(fusionNames[i]) * 6;
+    gfx->setCursor(nodeX - nameW/2, nodeY + 35);
+    gfx->print(fusionNames[i]);
   }
 }
 
@@ -398,7 +415,7 @@ void drawElementNode(int x, int y, BoBoiBoyForm form, bool selected, bool unlock
     }
     
     // Element initial
-    gfx->setTextColor(COLOR_WHITE);
+    gfx->setTextColor(RGB565(200, 205, 220));
     gfx->setTextSize(2);
     char initial[2] = {elem.name[0], '\0'};
     gfx->setCursor(x - 6, y - 8);
@@ -425,11 +442,11 @@ void drawElementInfoCard(ElementData& elem, int y) {
   int cardH = 70;
   
   // Card background
-  gfx->fillRoundRect(cardX, y, cardW, cardH, 12, RGB565(25, 27, 35));
-  gfx->drawRoundRect(cardX, y, cardW, cardH, 12, elem.primary_color);
+  gfx->fillRect(cardX, y, cardW, cardH, RGB565(25, 27, 35));
+  gfx->drawRect(cardX, y, cardW, cardH, elem.primary_color);
   
   // Color stripe
-  gfx->fillRoundRect(cardX, y, 8, cardH, 12, elem.primary_color);
+  gfx->fillRect(cardX, y, 8, cardH, elem.primary_color);
   gfx->fillRect(cardX + 4, y, 4, cardH, elem.primary_color);
   
   // Element name

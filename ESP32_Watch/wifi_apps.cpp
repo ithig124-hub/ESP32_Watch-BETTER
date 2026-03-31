@@ -284,20 +284,25 @@ void handleWifiManagerTouch(TouchGesture& gesture) {
 }
 
 void drawNetworkListScreen() {
-  gfx->fillScreen(RGB565(8, 8, 12));
+  gfx->fillScreen(RGB565(2, 2, 5));
+  for (int y = 0; y < LCD_HEIGHT; y += 4) {
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+  }
   
   ThemeColors* theme = getCurrentTheme();
+  uint16_t wifiBlue = RGB565(80, 180, 255);
   
-  // Header
-  gfx->fillRoundRect(0, 0, LCD_WIDTH, 50, 0, RGB565(16, 18, 24));
-  gfx->drawFastHLine(0, 50, LCD_WIDTH, RGB565(80, 180, 255));
-  gfx->setTextColor(RGB565(80, 180, 255));
+  gfx->fillRect(0, 0, LCD_WIDTH, 48, RGB565(10, 12, 18));
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, 46, 6, 3, wifiBlue);
+  }
+  gfx->setTextColor(wifiBlue);
   gfx->setTextSize(2);
-  gfx->setCursor(LCD_WIDTH/2 - 24, 16);
+  gfx->setCursor(LCD_WIDTH/2 - 24, 14);
   gfx->print("WiFi");
   
   if (wifi_state == WIFI_SCANNING) {
-    gfx->setTextColor(RGB565(120, 120, 130));
+    gfx->setTextColor(RGB565(80, 85, 100));
     gfx->setTextSize(1);
     gfx->setCursor(LCD_WIDTH/2 - 30, 200);
     gfx->print("Scanning...");
@@ -305,29 +310,32 @@ void drawNetworkListScreen() {
     network_count = getAvailableNetworks(available_networks, 20);
     
     for (int i = 0; i < min(network_count, 6); i++) {
-      int y = 62 + i * 55;
-      gfx->fillRoundRect(20, y, LCD_WIDTH - 40, 48, 14, RGB565(22, 24, 32));
-      gfx->drawRoundRect(20, y, LCD_WIDTH - 40, 48, 14, RGB565(42, 44, 55));
-      gfx->setTextColor(COLOR_WHITE);
+      int y = 58 + i * 52;
+      gfx->fillRect(20, y, LCD_WIDTH - 40, 44, RGB565(12, 14, 20));
+      gfx->drawRect(20, y, LCD_WIDTH - 40, 44, RGB565(40, 45, 60));
+      gfx->fillRect(20, y, 4, 4, wifiBlue);
+      gfx->setTextColor(RGB565(200, 205, 220));
       gfx->setTextSize(1);
       gfx->setCursor(35, y + 10);
       gfx->print(available_networks[i].ssid);
-      gfx->setTextColor(RGB565(100, 100, 110));
+      gfx->setTextColor(RGB565(80, 85, 100));
       gfx->setCursor(35, y + 28);
       gfx->printf("%d dBm %s", available_networks[i].rssi, 
                  available_networks[i].encrypted ? "Secured" : "Open");
     }
     
     if (network_count == 0) {
-      gfx->setTextColor(RGB565(100, 100, 110));
+      gfx->setTextColor(RGB565(80, 85, 100));
       gfx->setTextSize(1);
       gfx->setCursor(LCD_WIDTH/2 - 50, 200);
       gfx->print("No networks found");
     }
   }
   
-  // Scan button
-  gfx->fillRoundRect(LCD_WIDTH/2 - 50, 385, 100, 38, 19, theme->primary);
+  // Scan button - retro
+  gfx->fillRect(LCD_WIDTH/2 - 50, 385, 100, 38, theme->primary);
+  gfx->drawRect(LCD_WIDTH/2 - 50, 385, 100, 38, COLOR_WHITE);
+  gfx->fillRect(LCD_WIDTH/2 - 50, 385, 4, 4, COLOR_WHITE);
   gfx->setTextColor(COLOR_WHITE);
   gfx->setTextSize(2);
   gfx->setCursor(LCD_WIDTH/2 - 24, 396);
@@ -337,35 +345,42 @@ void drawNetworkListScreen() {
 }
 
 void drawPasswordEntryScreen() {
-  gfx->fillScreen(RGB565(8, 8, 12));
+  gfx->fillScreen(RGB565(2, 2, 5));
+  for (int y = 0; y < LCD_HEIGHT; y += 4) {
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+  }
   
   ThemeColors* theme = getCurrentTheme();
   
-  // Header
-  gfx->fillRoundRect(0, 0, LCD_WIDTH, 50, 0, RGB565(16, 18, 24));
-  gfx->drawFastHLine(0, 50, LCD_WIDTH, theme->primary);
+  gfx->fillRect(0, 0, LCD_WIDTH, 48, RGB565(10, 12, 18));
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, 46, 6, 3, theme->primary);
+  }
   gfx->setTextColor(theme->primary);
   gfx->setTextSize(2);
-  gfx->setCursor(LCD_WIDTH/2 - 48, 16);
-  gfx->print("Password");
+  gfx->setCursor(LCD_WIDTH/2 - 48, 14);
+  gfx->print("PASSWORD");
   
-  gfx->setTextColor(RGB565(160, 160, 170));
+  gfx->setTextColor(RGB565(130, 135, 150));
   gfx->setTextSize(1);
-  gfx->setCursor(30, 70);
+  gfx->setCursor(30, 65);
   gfx->printf("Network: %s", available_networks[selected_network].ssid.c_str());
   
-  // Password field
-  gfx->fillRoundRect(20, 100, LCD_WIDTH - 40, 45, 14, RGB565(22, 24, 32));
-  gfx->drawRoundRect(20, 100, LCD_WIDTH - 40, 45, 14, RGB565(50, 52, 65));
-  gfx->setTextColor(COLOR_WHITE);
+  // Password field - retro terminal
+  gfx->fillRect(20, 95, LCD_WIDTH - 40, 40, RGB565(8, 10, 14));
+  gfx->drawRect(20, 95, LCD_WIDTH - 40, 40, RGB565(40, 45, 60));
+  gfx->fillRect(20, 95, 4, 4, theme->primary);
+  gfx->setTextColor(RGB565(0, 200, 80));
   gfx->setTextSize(1);
-  gfx->setCursor(35, 118);
+  gfx->setCursor(35, 112);
   String masked = "";
   for (int i = 0; i < password_input.length(); i++) masked += "*";
-  gfx->print(masked.length() > 0 ? masked : "Tap to enter");
+  gfx->print(masked.length() > 0 ? masked : "> Tap to enter");
   
-  // Connect button
-  gfx->fillRoundRect(LCD_WIDTH/2 - 55, 380, 110, 40, 20, theme->primary);
+  // Connect button - retro
+  gfx->fillRect(LCD_WIDTH/2 - 55, 380, 110, 40, theme->primary);
+  gfx->drawRect(LCD_WIDTH/2 - 55, 380, 110, 40, COLOR_WHITE);
+  gfx->fillRect(LCD_WIDTH/2 - 55, 380, 4, 4, COLOR_WHITE);
   gfx->setTextColor(COLOR_WHITE);
   gfx->setTextSize(2);
   gfx->setCursor(LCD_WIDTH/2 - 36, 391);
@@ -402,79 +417,107 @@ void initWeatherApp() {
 }
 
 void drawWeatherApp() {
-  gfx->fillScreen(RGB565(8, 8, 12));
+  gfx->fillScreen(RGB565(2, 2, 5));
+  for (int y = 0; y < LCD_HEIGHT; y += 4) {
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+  }
   
   ThemeColors* theme = getCurrentTheme();
+  uint16_t weatherBlue = RGB565(80, 180, 255);
   
-  // Header
-  gfx->fillRoundRect(0, 0, LCD_WIDTH, 50, 0, RGB565(16, 18, 24));
-  gfx->drawFastHLine(0, 50, LCD_WIDTH, RGB565(80, 180, 255));
-  gfx->setTextColor(RGB565(80, 180, 255));
+  gfx->fillRect(0, 0, LCD_WIDTH, 48, RGB565(10, 12, 18));
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, 46, 6, 3, weatherBlue);
+  }
+  gfx->setTextColor(weatherBlue);
   gfx->setTextSize(2);
-  gfx->setCursor(LCD_WIDTH/2 - 42, 16);
-  gfx->print("Weather");
+  gfx->setCursor(LCD_WIDTH/2 - 42, 14);
+  gfx->print("WEATHER");
+  
+  // Auto-refresh if not valid yet
+  if (!cached_weather.valid && isWiFiConnected()) {
+    refreshWeatherData();
+  }
   
   if (!cached_weather.valid) {
-    gfx->fillRoundRect(30, 150, LCD_WIDTH - 60, 70, 16, RGB565(22, 24, 32));
-    gfx->drawRoundRect(30, 150, LCD_WIDTH - 60, 70, 16, RGB565(42, 44, 55));
-    gfx->setTextColor(RGB565(120, 120, 130));
-    gfx->setTextSize(1);
-    gfx->setCursor(LCD_WIDTH/2 - 50, 180);
-    gfx->print(isWiFiConnected() ? "Loading..." : "WiFi not connected");
+    gfx->fillRect(30, 150, LCD_WIDTH - 60, 80, RGB565(12, 14, 20));
+    gfx->drawRect(30, 150, LCD_WIDTH - 60, 80, RGB565(40, 45, 60));
+    gfx->setTextColor(RGB565(100, 105, 120));
+    gfx->setTextSize(2);
+    gfx->setCursor(LCD_WIDTH/2 - 60, 170);
+    if (isWiFiConnected()) {
+      gfx->print("Loading...");
+    } else {
+      gfx->print("No WiFi");
+      gfx->setTextSize(1);
+      gfx->setCursor(LCD_WIDTH/2 - 60, 200);
+      gfx->print("Connect to WiFi first");
+    }
   } else {
     // Location
-    gfx->setTextColor(RGB565(160, 160, 170));
+    gfx->setTextColor(RGB565(130, 135, 150));
     gfx->setTextSize(1);
-    gfx->setCursor(LCD_WIDTH/2 - 30, 65);
+    gfx->setCursor(LCD_WIDTH/2 - 30, 60);
     gfx->print(cached_weather.location);
     
-    // Temperature card
-    gfx->fillRoundRect(30, 85, LCD_WIDTH - 60, 120, 20, RGB565(18, 20, 28));
-    gfx->drawRoundRect(30, 85, LCD_WIDTH - 60, 120, 20, RGB565(42, 44, 55));
-    gfx->setTextColor(COLOR_WHITE);
+    // Temperature card - retro
+    gfx->fillRect(30, 80, LCD_WIDTH - 60, 110, RGB565(12, 14, 20));
+    gfx->drawRect(30, 80, LCD_WIDTH - 60, 110, RGB565(40, 45, 60));
+    gfx->fillRect(30, 80, 6, 6, weatherBlue);
+    gfx->fillRect(LCD_WIDTH - 36, 80, 6, 6, weatherBlue);
+    // CRT lines in temp area
+    for (int sy = 82; sy < 188; sy += 4) {
+      gfx->drawFastHLine(32, sy, LCD_WIDTH - 64, RGB565(6, 6, 10));
+    }
+    gfx->setTextColor(RGB565(220, 225, 240));
     gfx->setTextSize(7);
-    gfx->setCursor(65, 100);
+    gfx->setCursor(65, 95);
     gfx->printf("%.0f", cached_weather.temperature);
     gfx->setTextSize(2);
     gfx->setTextColor(theme->accent);
     gfx->print(" C");
     
     // Description
-    gfx->setTextColor(RGB565(180, 180, 190));
+    gfx->setTextColor(RGB565(150, 155, 170));
     gfx->setTextSize(2);
     int descLen = cached_weather.description.length() * 12;
-    gfx->setCursor((LCD_WIDTH - descLen) / 2, 225);
+    gfx->setCursor((LCD_WIDTH - descLen) / 2, 210);
     gfx->print(cached_weather.description);
     
-    // Details cards
-    gfx->fillRoundRect(20, 265, (LCD_WIDTH-50)/2, 55, 14, RGB565(22, 24, 32));
-    gfx->drawRoundRect(20, 265, (LCD_WIDTH-50)/2, 55, 14, RGB565(42, 44, 55));
+    // Details cards - retro
+    int halfW = (LCD_WIDTH - 50) / 2;
+    gfx->fillRect(20, 255, halfW, 50, RGB565(12, 14, 20));
+    gfx->drawRect(20, 255, halfW, 50, RGB565(40, 45, 60));
+    gfx->fillRect(20, 255, 4, 4, weatherBlue);
     gfx->setTextSize(1);
-    gfx->setTextColor(RGB565(100, 100, 110));
-    gfx->setCursor(32, 275);
+    gfx->setTextColor(RGB565(80, 85, 100));
+    gfx->setCursor(32, 263);
     gfx->print("Humidity");
-    gfx->setTextColor(COLOR_WHITE);
+    gfx->setTextColor(RGB565(200, 205, 220));
     gfx->setTextSize(2);
-    gfx->setCursor(32, 295);
+    gfx->setCursor(32, 283);
     gfx->printf("%.0f%%", cached_weather.humidity);
     
-    gfx->fillRoundRect(LCD_WIDTH/2 + 5, 265, (LCD_WIDTH-50)/2, 55, 14, RGB565(22, 24, 32));
-    gfx->drawRoundRect(LCD_WIDTH/2 + 5, 265, (LCD_WIDTH-50)/2, 55, 14, RGB565(42, 44, 55));
+    gfx->fillRect(LCD_WIDTH/2 + 5, 255, halfW, 50, RGB565(12, 14, 20));
+    gfx->drawRect(LCD_WIDTH/2 + 5, 255, halfW, 50, RGB565(40, 45, 60));
+    gfx->fillRect(LCD_WIDTH/2 + 5, 255, 4, 4, weatherBlue);
     gfx->setTextSize(1);
-    gfx->setTextColor(RGB565(100, 100, 110));
-    gfx->setCursor(LCD_WIDTH/2 + 17, 275);
+    gfx->setTextColor(RGB565(80, 85, 100));
+    gfx->setCursor(LCD_WIDTH/2 + 17, 263);
     gfx->print("Wind");
-    gfx->setTextColor(COLOR_WHITE);
+    gfx->setTextColor(RGB565(200, 205, 220));
     gfx->setTextSize(2);
-    gfx->setCursor(LCD_WIDTH/2 + 17, 295);
+    gfx->setCursor(LCD_WIDTH/2 + 17, 283);
     gfx->printf("%.1f", cached_weather.wind_speed);
   }
   
-  // Refresh button
-  gfx->fillRoundRect(LCD_WIDTH/2 - 50, 340, 100, 40, 20, theme->primary);
+  // Refresh button - retro
+  gfx->fillRect(LCD_WIDTH/2 - 50, 330, 100, 40, theme->primary);
+  gfx->drawRect(LCD_WIDTH/2 - 50, 330, 100, 40, COLOR_WHITE);
+  gfx->fillRect(LCD_WIDTH/2 - 50, 330, 4, 4, COLOR_WHITE);
   gfx->setTextColor(COLOR_WHITE);
   gfx->setTextSize(2);
-  gfx->setCursor(LCD_WIDTH/2 - 36, 351);
+  gfx->setCursor(LCD_WIDTH/2 - 36, 341);
   gfx->print("Refresh");
   
   drawSwipeIndicator();
@@ -520,41 +563,57 @@ void initNewsApp() {
 }
 
 void drawNewsApp() {
-  gfx->fillScreen(COLOR_BLACK);
+  gfx->fillScreen(RGB565(2, 2, 5));
+  for (int y = 0; y < LCD_HEIGHT; y += 4) {
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+  }
   
-  gfx->setTextColor(getCurrentTheme()->primary);
+  ThemeColors* theme = getCurrentTheme();
+  
+  gfx->fillRect(0, 0, LCD_WIDTH, 48, RGB565(10, 12, 18));
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, 46, 6, 3, theme->primary);
+  }
+  gfx->setTextColor(theme->primary);
   gfx->setTextSize(2);
-  gfx->setCursor(130, 20);
+  gfx->setCursor(LCD_WIDTH/2 - 24, 14);
   gfx->print("NEWS");
   
   if (news_count == 0) {
-    gfx->setTextColor(COLOR_WHITE);
+    gfx->setTextColor(RGB565(80, 85, 100));
     gfx->setTextSize(1);
     gfx->setCursor(100, 200);
     gfx->print(isWiFiConnected() ? "No news available" : "WiFi not connected");
   } else {
     NewsArticle& article = cached_news[current_article];
     
-    gfx->setTextColor(COLOR_WHITE);
+    // Article card - retro
+    gfx->fillRect(15, 60, LCD_WIDTH - 30, 280, RGB565(12, 14, 20));
+    gfx->drawRect(15, 60, LCD_WIDTH - 30, 280, RGB565(40, 45, 60));
+    gfx->fillRect(15, 60, 5, 5, theme->primary);
+    gfx->fillRect(LCD_WIDTH - 20, 60, 5, 5, theme->primary);
+    
+    gfx->setTextColor(RGB565(200, 205, 220));
     gfx->setTextSize(2);
-    gfx->setCursor(20, 70);
-    // Word wrap title
+    gfx->setCursor(25, 75);
     String title = article.title;
     if (title.length() > 25) title = title.substring(0, 22) + "...";
     gfx->print(title);
     
     gfx->setTextSize(1);
-    gfx->setCursor(20, 120);
+    gfx->setTextColor(theme->accent);
+    gfx->setCursor(25, 105);
     gfx->print(article.source);
     
-    gfx->setCursor(20, 150);
-    // FIXED: Use summary field correctly
+    gfx->setTextColor(RGB565(130, 135, 150));
+    gfx->setCursor(25, 130);
     String summaryText = article.summary;
     if (summaryText.length() > 150) summaryText = summaryText.substring(0, 150);
     gfx->print(summaryText);
     
-    // Navigation
-    gfx->setCursor(150, 320);
+    // Navigation counter
+    gfx->setTextColor(RGB565(80, 85, 100));
+    gfx->setCursor(150, 310);
     gfx->printf("%d/%d", current_article + 1, news_count);
   }
   
@@ -641,18 +700,30 @@ void showNetworkTools() {
 }
 
 void drawNetworkDiagnostics() {
-  gfx->fillScreen(COLOR_BLACK);
+  gfx->fillScreen(RGB565(2, 2, 5));
+  for (int y = 0; y < LCD_HEIGHT; y += 4) {
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+  }
+  
+  gfx->fillRect(0, 0, LCD_WIDTH, 48, RGB565(10, 12, 18));
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, 46, 6, 3, getCurrentTheme()->primary);
+  }
   gfx->setTextColor(getCurrentTheme()->primary);
   gfx->setTextSize(2);
-  gfx->setCursor(50, 20);
+  gfx->setCursor(50, 14);
   gfx->print("NETWORK TOOLS");
   
-  gfx->setTextColor(COLOR_WHITE);
+  gfx->fillRect(20, 70, LCD_WIDTH - 40, 60, RGB565(12, 14, 20));
+  gfx->drawRect(20, 70, LCD_WIDTH - 40, 60, RGB565(40, 45, 60));
+  gfx->fillRect(20, 70, 4, 4, getCurrentTheme()->primary);
+  
+  gfx->setTextColor(RGB565(0, 200, 80));
   gfx->setTextSize(1);
-  gfx->setCursor(20, 80);
-  gfx->printf("WiFi: %s", isWiFiConnected() ? "Connected" : "Disconnected");
-  gfx->setCursor(20, 100);
-  gfx->printf("Internet: %s", checkInternetConnectivity() ? "Available" : "Unavailable");
+  gfx->setCursor(30, 82);
+  gfx->printf("> WiFi: %s", isWiFiConnected() ? "Connected" : "Disconnected");
+  gfx->setCursor(30, 102);
+  gfx->printf("> Internet: %s", checkInternetConnectivity() ? "Available" : "Unavailable");
 }
 
 void runSpeedTest() {

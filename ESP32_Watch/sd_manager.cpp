@@ -1399,7 +1399,7 @@ void drawWiFiManagerScreen() {
     int y = 160 + i * 40;
     bool isConnected = (i == connectedNetworkIndex && wifiConnected);
     
-    gfx->fillRoundRect(20, y, 320, 35, 8, isConnected ? RGB565(0, 60, 0) : RGB565(40, 40, 40));
+    gfx->fillRect(20, y, 320, 35, isConnected ? RGB565(0, 60, 0) : RGB565(40, 40, 40));
     
     gfx->setTextColor(COLOR_WHITE);
     gfx->setCursor(30, y + 10);
@@ -1512,13 +1512,13 @@ void handleBackupTouch(TouchGesture& gesture) {
 
 void drawUpdateProgressBar(int x, int y, int w, int h, int progress) {
   // Background
-  gfx->fillRoundRect(x, y, w, h, h/2, RGB565(40, 40, 40));
+  gfx->fillRect(x, y, w, h, RGB565(40, 40, 40));
   
   // Progress fill
   int fillWidth = (w * progress) / 100;
   if (fillWidth > 0) {
     uint16_t color = progress < 100 ? getCurrentTheme()->primary : COLOR_GREEN;
-    gfx->fillRoundRect(x, y, fillWidth, h, h/2, color);
+    gfx->fillRect(x, y, fillWidth, h, color);
   }
   
   // Progress text

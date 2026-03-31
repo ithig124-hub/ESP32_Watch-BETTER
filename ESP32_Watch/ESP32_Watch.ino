@@ -1,22 +1,24 @@
 /*
- * ESP32_Watch_IMPROVED.ino - Main Firmware
+ * ESP32_Watch.ino - Main Firmware with Power Management
  * Modern Anime Gaming Smartwatch - Enhanced Edition
  * 
- * IMPROVEMENTS OVER ORIGINAL:
- * - Better swipe navigation with lower thresholds
- * - All apps are now accessible via tap
- * - Modern glass morphism UI throughout
- * - Improved touch responsiveness
- * - 11 anime character themes with unique visuals (including BoBoiBoy!)
- * - BoBoiBoy Element Tree with 20 forms
- * - Better visual hierarchy and contrast
+ * POWER MANAGEMENT FEATURES:
+ * - 3-second screen timeout (display off)
+ * - Touch to wake (display on)
+ * - Power button (GPIO 0) to toggle screen on/off
+ * - Watchdog timer (30 sec) for system stability
+ * 
+ * NO LIGHT SLEEP / NO DEEP SLEEP - Simple screen on/off only
  * 
  * Hardware: ESP32-S3-Touch-AMOLED-1.8"
  * Display: 368x448 SH8601 AMOLED (QSPI)
  * Touch: FT3168 Capacitive (I2C)
- * 
- * Free to modify and distribute!
+ * PMU: AXP2101
+ * RTC: PCF85063
+ * IMU: QMI8658
  */
+
+#include <esp_task_wdt.h>
 
 #include "config.h"
 #include "display.h"
@@ -42,15 +44,36 @@
 #include "ui.h"
 #include "sd_manager.h"
 
-// Display - MUST be properly allocated (not nullptr!)
+// =============================================================================
+// POWER MANAGEMENT DEFINES
+// =============================================================================
+#define PWR_BUTTON              0       // Power/boot button GPIO
+#define BUTTON_DEBOUNCE_MS      50      // Button debounce time
+#define SCREEN_OFF_TIMEOUT_MS   3000    // 3 seconds to turn screen off
+#define WATCHDOG_TIMEOUT_SEC    30      // Watchdog timeout in seconds
+
+// =============================================================================
+// DISPLAY SETUP
+// =============================================================================
 Arduino_DataBus *bus = new Arduino_ESP32QSPI(
-    LCD_CS /* CS */, LCD_SCLK /* SCK */, LCD_SDIO0 /* SDIO0 */, LCD_SDIO1 /* SDIO1 */,
-    LCD_SDIO2 /* SDIO2 */, LCD_SDIO3 /* SDIO3 */);
+    LCD_CS, LCD_SCLK, LCD_SDIO0, LCD_SDIO1, LCD_SDIO2, LCD_SDIO3);
 
 Arduino_SH8601 *gfx = new Arduino_SH8601(
-    bus, GFX_NOT_DEFINED /* RST */, 0 /* rotation */, LCD_WIDTH /* width */, LCD_HEIGHT /* height */);
+    bus, GFX_NOT_DEFINED, 0, LCD_WIDTH, LCD_HEIGHT);
 
-// Global state
+// =============================================================================
+// POWER MANAGEMENT STATE
+// =============================================================================
+volatile bool screenOn = true;
+volatile bool touchWakeFlag = false;
+volatile bool buttonWakeFlag = false;
+volatile unsigned long lastActivityMs = 0;
+static bool lastPwrButtonState = HIGH;
+static unsigned long lastPwrButtonChange = 0;
+
+// =============================================================================
+// GLOBAL SYSTEM STATE
+// =============================================================================
 SystemState system_state = {
   .current_screen = SCREEN_SPLASH,
   .current_theme = THEME_LUFFY_GEAR5,
@@ -86,8 +109,138 @@ SystemState system_state = {
 
 // Touch interrupt flag
 volatile bool touch_interrupt = false;
-// sdCardInitialized and wifiConnected are defined in sd_manager.cpp
-// and declared extern in sd_manager.h
+
+// =============================================================================
+// INTERRUPT SERVICE ROUTINES
+// =============================================================================
+
+void IRAM_ATTR touchWakeISR() {
+    touchWakeFlag = true;
+    lastActivityMs = millis();
+}
+
+void IRAM_ATTR powerButtonISR() {
+    buttonWakeFlag = true;
+}
+
+// =============================================================================
+// WATCHDOG FUNCTIONS
+// =============================================================================
+
+void initWatchdog() {
+    Serial.println("[WDT] Initializing watchdog timer...");
+    
+    // ESP-IDF 5.x / Arduino Core 3.x requires config struct
+    esp_task_wdt_config_t wdt_config = {
+        .timeout_ms = WATCHDOG_TIMEOUT_SEC * 1000,  // Convert to milliseconds
+        .idle_core_mask = (1 << portNUM_PROCESSORS) - 1,  // Watch all cores
+        .trigger_panic = true  // Reset on timeout
+    };
+    
+    esp_task_wdt_reconfigure(&wdt_config);
+    esp_task_wdt_add(xTaskGetCurrentTaskHandle());
+    
+    Serial.printf("[WDT] Watchdog initialized: %d sec timeout\n", WATCHDOG_TIMEOUT_SEC);
+}
+
+void feedWatchdog() {
+    esp_task_wdt_reset();
+}
+
+// =============================================================================
+// SCREEN CONTROL FUNCTIONS
+// =============================================================================
+
+void screenOff() {
+    if (!screenOn) return;
+    
+    Serial.println("[POWER] Screen OFF (3s timeout)");
+    screenOn = false;
+    
+    // Turn off display backlight and display
+    gfx->setBrightness(0);
+    gfx->displayOff();
+}
+
+void screenOnFunc() {
+    if (screenOn) return;
+    
+    Serial.println("[POWER] Screen ON");
+    screenOn = true;
+    lastActivityMs = millis();
+    
+    // Turn on display
+    gfx->displayOn();
+    gfx->setBrightness(system_state.brightness);
+    
+    // Refresh current screen
+    drawCurrentScreen();
+}
+
+void checkScreenTimeout() {
+    // Only check if screen is on
+    if (!screenOn) return;
+    
+    // Check if 3 second timeout elapsed
+    unsigned long elapsed = millis() - lastActivityMs;
+    if (elapsed >= SCREEN_OFF_TIMEOUT_MS) {
+        screenOff();
+    }
+}
+
+void checkPowerButton() {
+    bool currentState = digitalRead(PWR_BUTTON);
+    
+    // Debounce
+    if (currentState != lastPwrButtonState) {
+        if (millis() - lastPwrButtonChange > BUTTON_DEBOUNCE_MS) {
+            lastPwrButtonChange = millis();
+            lastPwrButtonState = currentState;
+            
+            // Button pressed (LOW because of pullup)
+            if (currentState == LOW) {
+                Serial.println("[POWER] Power button pressed");
+                
+                // Toggle screen
+                if (screenOn) {
+                    screenOff();
+                } else {
+                    screenOnFunc();
+                }
+                
+                // Reset activity timer
+                lastActivityMs = millis();
+            }
+        }
+    }
+    
+    // Also check button wake flag from ISR
+    if (buttonWakeFlag) {
+        buttonWakeFlag = false;
+        if (!screenOn) {
+            screenOnFunc();
+        }
+        lastActivityMs = millis();
+    }
+}
+
+void checkTouchWake() {
+    // Check if touch occurred while screen was off
+    if (touchWakeFlag) {
+        touchWakeFlag = false;
+        if (!screenOn) {
+            screenOnFunc();
+        }
+        lastActivityMs = millis();
+    }
+}
+
+// =============================================================================
+// FORWARD DECLARATIONS
+// =============================================================================
+void updateCurrentScreen();
+void handleTouchGesture(TouchGesture& gesture);
+void saveAllData();
 
 // =============================================================================
 // SETUP
@@ -99,42 +252,63 @@ void setup() {
   
   Serial.println("\n===================================");
   Serial.println(" ESP32 Anime Gaming Watch IMPROVED");
-  Serial.println(" Modern UI | Better Navigation");
+  Serial.println(" With Watchdog & Screen Timeout");
   Serial.println("===================================\n");
+  
+  // Initialize watchdog FIRST
+  initWatchdog();
+  feedWatchdog();
   
   // Initialize hardware
   initializeHardware();
+  feedWatchdog();
   
   // Initialize display
   initDisplay();
+  feedWatchdog();
   
   // Show splash screen
   drawSplashScreen();
   delay(2000);
+  feedWatchdog();
   
   // Initialize touch
   if (initTouch()) {
     Serial.println("[INIT] Touch initialized");
     system_state.touch_available = true;
     
-    // Attach touch interrupt
+    // Attach touch interrupt for normal touch AND wake
     attachInterrupt(digitalPinToInterrupt(TP_INT), touchISR, FALLING);
+    attachInterrupt(digitalPinToInterrupt(TP_INT), touchWakeISR, FALLING);
   }
+  
+  // Initialize power button
+  pinMode(PWR_BUTTON, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(PWR_BUTTON), powerButtonISR, FALLING);
+  Serial.println("[INIT] Power button: GPIO 0");
   
   // Initialize themes
   initializeThemes();
+  feedWatchdog();
+  
+  // LOAD SAVED GAME DATA FROM NVS (gems, level, XP, theme, etc.)
+  loadAllGameData();
+  feedWatchdog();
   
   // Initialize navigation system
   initNavigation();
   
   // Initialize apps
   initializeApps();
+  feedWatchdog();
   
   // Initialize games
   initializeGames();
+  feedWatchdog();
   
   // Initialize gacha
   initGachaSystem();
+  feedWatchdog();
   
   // Initialize training
   initTrainingSystem();
@@ -144,65 +318,85 @@ void setup() {
   
   // Initialize RPG
   initRPGSystem();
+  feedWatchdog();
   
   // Initialize filesystem
   initFilesystem();
+  feedWatchdog();
   
-  // Initialize WiFi apps (with auto-connect)
+  // Initialize WiFi apps
   initWifiApps();
+  feedWatchdog();
   
   // Initialize new features
   initStepsTracker();
   initDailyQuests();
+  feedWatchdog();
+  
+  // Initialize power management timing
+  lastActivityMs = millis();
+  screenOn = true;
   
   // Go to watch face
   system_state.current_screen = SCREEN_WATCHFACE;
   drawWatchFace();
   drawNavigationIndicators();
   
-  Serial.println("\n[INIT] Ready! Swipe or tap to navigate");
-  Serial.println("       LEFT/RIGHT: Main screens");
-  Serial.println("       TAP: Open apps");
-  Serial.println("       UP/DOWN: App pages (on grid)");
+  Serial.println("\n[INIT] Ready!");
+  Serial.println("       - Screen timeout: 3 seconds");
+  Serial.println("       - Touch or Button to wake");
+  Serial.println("       - Watchdog: 30 seconds");
 }
-
-// touchISR() is defined in touch.cpp
-
-// =============================================================================
-// SPLASH SCREEN - defined in ui.cpp
-// =============================================================================
-
-// Forward declarations for functions defined after loop()
-void updateCurrentScreen();
-void handleTouchGesture(TouchGesture& gesture);
 
 // =============================================================================
 // MAIN LOOP
 // =============================================================================
 
 void loop() {
-  // Process touch input
-  TouchGesture gesture = handleTouchInput();
+  // Feed watchdog at start of each loop
+  feedWatchdog();
   
-  if (gesture.is_valid && gesture.event != TOUCH_NONE && gesture.event != TOUCH_PRESS) {
-    handleTouchGesture(gesture);
-  }
+  // Check power button (toggle screen)
+  checkPowerButton();
   
-  // Update dynamic content based on screen
-  updateCurrentScreen();
+  // Check for touch wake
+  checkTouchWake();
   
-  // Update step counter (background)
-  static unsigned long lastStepUpdate = 0;
-  if (millis() - lastStepUpdate > 500) {  // Update every 500ms
-    updateStepCount();
-    lastStepUpdate = millis();
-  }
-  
-  // Check daily quest reset
-  static unsigned long lastQuestCheck = 0;
-  if (millis() - lastQuestCheck > 60000) {  // Check every minute
-    checkDailyReset();
-    lastQuestCheck = millis();
+  // Only process touch and updates when screen is on
+  if (screenOn) {
+    // Process touch input
+    TouchGesture gesture = handleTouchInput();
+    
+    // CRITICAL: Reset activity timer on ANY touch input (including press/move)
+    // This ensures the 3-second timeout resets whenever user touches the screen
+    if (gesture.is_valid && gesture.event != TOUCH_NONE) {
+      lastActivityMs = millis();  // Reset timeout on ANY touch
+      
+      if (gesture.event != TOUCH_PRESS && gesture.event != TOUCH_MOVE) {
+        // Only handle completed gestures (tap, swipe, release)
+        handleTouchGesture(gesture);
+      }
+    }
+    
+    // Update dynamic content based on screen
+    updateCurrentScreen();
+    
+    // Update step counter (background)
+    static unsigned long lastStepUpdate = 0;
+    if (millis() - lastStepUpdate > 500) {
+      updateStepCount();
+      lastStepUpdate = millis();
+    }
+    
+    // Check daily quest reset
+    static unsigned long lastQuestCheck = 0;
+    if (millis() - lastQuestCheck > 60000) {
+      checkDailyReset();
+      lastQuestCheck = millis();
+    }
+    
+    // Check screen timeout (3 seconds)
+    checkScreenTimeout();
   }
   
   // Reduce CPU usage
@@ -216,48 +410,50 @@ void loop() {
 void handleTouchGesture(TouchGesture& gesture) {
   Serial.printf("[MAIN] Gesture: %d at (%d, %d)\n", gesture.event, gesture.x, gesture.y);
   
-  // ==========================================================
-  // SWIPE UP = EXIT from any app back to app grid (Apple Watch style)
-  // EXCEPTION: Game screens handle their own swipe gestures
-  // ==========================================================
+  // Reset activity timer on any gesture
+  lastActivityMs = millis();
+  
+  // SWIPE UP = EXIT from any app back to app grid
   if (gesture.event == TOUCH_SWIPE_UP) {
-    // Games need swipe inputs for gameplay - don't intercept!
     if (system_state.current_screen == SCREEN_CHARACTER_GAME ||
         system_state.current_screen == SCREEN_BOSS_RUSH ||
         system_state.current_screen == SCREEN_GAMES) {
-      // Pass through to game handler below
+      // Pass through to game handler
     }
     else {
       switch (system_state.current_screen) {
-        // Main navigation screens - swipe up changes page or navigates
         case SCREEN_WATCHFACE:
-        case SCREEN_CHARACTER_STATS:
+        case SCREEN_STEPS_TRACKER:    // FIX: Added - allows swipe navigation from Activity screen
           handleSwipeNavigation(gesture.dx, gesture.dy);
           break;
         
-        // App grid - swipe up goes to page 2, or exits if already on page 2
+        case SCREEN_CHARACTER_STATS:
+          // Swipe UP from character stats goes to progression screen
+          system_state.current_screen = SCREEN_PROGRESSION;
+          drawProgressionScreen();
+          break;
+        
         case SCREEN_APP_GRID:
-          if (navState.appGridPage == 0) {
-            navState.appGridPage = 1;
+          // Swipe UP on app grid - go to next page (0->1->2)
+          if (navState.appGridPage < APP_GRID_PAGES - 1) {
+            navState.appGridPage++;
             navState.lastNavigationMs = millis();
             drawCurrentScreen();
           }
-          // Already on page 2 - do nothing (swipe down goes back to page 1)
           break;
         
-        // Collection goes back to Gacha
         case SCREEN_COLLECTION:
+        case SCREEN_CARD_EVOLUTION:
+        case SCREEN_DECK_BUILDER:
           system_state.current_screen = SCREEN_GACHA;
           drawGachaScreen();
           break;
         
-        // Theme selector goes back to Settings
         case SCREEN_THEME_SELECTOR:
           system_state.current_screen = SCREEN_SETTINGS;
           drawSettingsApp();
           break;
         
-        // ALL other screens → exit to app grid
         default:
           returnToAppGrid();
           break;
@@ -266,15 +462,47 @@ void handleTouchGesture(TouchGesture& gesture) {
     }
   }
   
-  // ==========================================================
+  // SWIPE DOWN = Go to previous app grid page (when on app grid)
+  if (gesture.event == TOUCH_SWIPE_DOWN) {
+    if (system_state.current_screen == SCREEN_APP_GRID) {
+      // Swipe DOWN on app grid - go to previous page (2->1->0)
+      if (navState.appGridPage > 0) {
+        navState.appGridPage--;
+        navState.lastNavigationMs = millis();
+        drawCurrentScreen();
+      }
+      return;
+    }
+  }
+  
   // Handle other gestures per screen
-  // ==========================================================
   switch (system_state.current_screen) {
     case SCREEN_WATCHFACE:
     case SCREEN_APP_GRID:
-    case SCREEN_CHARACTER_STATS:
       if (gesture.event == TOUCH_TAP) {
         handleCurrentScreenTouch(gesture);
+      } else if (gesture.event >= TOUCH_SWIPE_LEFT && gesture.event <= TOUCH_SWIPE_DOWN) {
+        handleSwipeNavigation(gesture.dx, gesture.dy);
+      }
+      break;
+    
+    case SCREEN_CHARACTER_STATS:
+      // Handle taps and horizontal swipes only (up goes to progression)
+      if (gesture.event == TOUCH_TAP) {
+        handleCurrentScreenTouch(gesture);
+      } else if (gesture.event == TOUCH_SWIPE_LEFT || gesture.event == TOUCH_SWIPE_RIGHT) {
+        handleSwipeNavigation(gesture.dx, gesture.dy);
+      }
+      break;
+    
+    case SCREEN_PROGRESSION:
+      handleProgressionTouch(gesture);
+      break;
+    
+    case SCREEN_STEPS_TRACKER:
+      // Handle both taps (for steps card interaction) AND swipes (for navigation)
+      if (gesture.event == TOUCH_TAP) {
+        handleStepsCardTouch(gesture);
       } else if (gesture.event >= TOUCH_SWIPE_LEFT && gesture.event <= TOUCH_SWIPE_DOWN) {
         handleSwipeNavigation(gesture.dx, gesture.dy);
       }
@@ -304,10 +532,6 @@ void handleTouchGesture(TouchGesture& gesture) {
       handleDailyQuestsTouch(gesture);
       break;
     
-    case SCREEN_STEPS_TRACKER:
-      handleStepsCardTouch(gesture);
-      break;
-    
     case SCREEN_ELEMENT_TREE:
       handleElementTreeTouch(gesture);
       break;
@@ -332,16 +556,24 @@ void handleTouchGesture(TouchGesture& gesture) {
       handleMusicTouch(gesture);
       break;
     
-    case SCREEN_WEATHER_APP:
-      // Weather is display-only, taps ignored
-      break;
-    
     case SCREEN_WIFI_MANAGER:
       handleWifiManagerTouch(gesture);
       break;
     
     case SCREEN_COLLECTION:
       handleCollectionTouch(gesture);
+      break;
+    
+    case SCREEN_CARD_EVOLUTION:
+      if (gesture.event == TOUCH_TAP) {
+        handleCardEvolutionTap(gesture.x, gesture.y);
+      }
+      break;
+    
+    case SCREEN_DECK_BUILDER:
+      if (gesture.event == TOUCH_TAP) {
+        handleDeckBuilderTap(gesture.x, gesture.y);
+      }
       break;
     
     case SCREEN_FILE_BROWSER:
@@ -356,6 +588,26 @@ void handleTouchGesture(TouchGesture& gesture) {
       handleFlashlightTouch(gesture);
       break;
     
+    case SCREEN_TIMER:
+      handleTimerTouch(gesture);
+      break;
+    
+    case SCREEN_CONVERTER:
+      handleConverterTouch(gesture);
+      break;
+    
+    case SCREEN_ACHIEVEMENTS:
+      handleAchievementsTouch(gesture);
+      break;
+    
+    case SCREEN_SHOP:
+      handleShopTouch(gesture);
+      break;
+    
+    case SCREEN_GALLERY:
+      handleGalleryTouch(gesture);
+      break;
+    
     default:
       break;
   }
@@ -367,11 +619,21 @@ void handleTouchGesture(TouchGesture& gesture) {
 
 void updateCurrentScreen() {
   static unsigned long lastUpdate = 0;
+  static unsigned long lastTimerUpdate = 0;
   
-  // Update watchface - use PARTIAL update to avoid flicker
-  if (system_state.current_screen == SCREEN_WATCHFACE && millis() - lastUpdate > 1000) {
+  // Only update watchface time when on watchface
+  if (system_state.current_screen == SCREEN_WATCHFACE && 
+      navState.currentMain == MAIN_WATCHFACE &&
+      millis() - lastUpdate > 1000) {
     lastUpdate = millis();
-    updateWatchFaceTime();  // Only redraw time area, no fillScreen!
+    updateWatchFaceTime();
+  }
+  
+  // Update timer display while running (every 50ms for smooth centiseconds)
+  if (system_state.current_screen == SCREEN_TIMER &&
+      millis() - lastTimerUpdate > 50) {
+    lastTimerUpdate = millis();
+    updateTimerDisplay();
   }
   
   // Update games
@@ -380,13 +642,85 @@ void updateCurrentScreen() {
   }
 }
 
-// getCurrentTime() is defined in hardware.cpp
+// =============================================================================
+// SAVE ALL DATA - Persistent Storage using Preferences (NVS)
+// =============================================================================
+
+#include <Preferences.h>
+Preferences gamePrefs;
+
+void saveAllGameData() {
+  gamePrefs.begin("watchgame", false);  // Read-write mode
+  
+  // Save player stats
+  gamePrefs.putInt("gems", system_state.player_gems);
+  gamePrefs.putInt("level", system_state.player_level);
+  gamePrefs.putInt("xp", system_state.player_xp);
+  gamePrefs.putInt("theme", (int)system_state.current_theme);
+  
+  // Save game progress
+  gamePrefs.putInt("cards", system_state.gacha_cards_collected);
+  gamePrefs.putInt("bosses", system_state.bosses_defeated);
+  gamePrefs.putInt("streak", system_state.training_streak);
+  gamePrefs.putInt("logins", system_state.daily_login_count);
+  gamePrefs.putInt("pity", system_state.pity_counter);
+  gamePrefs.putInt("pityleg", system_state.pity_legendary_counter);
+  
+  // Save activity
+  gamePrefs.putInt("steps", system_state.steps_today);
+  
+  // Save brightness setting
+  gamePrefs.putInt("bright", system_state.brightness);
+  
+  gamePrefs.end();
+  
+  Serial.println("[SAVE] Game data saved to NVS");
+  Serial.printf("       Gems: %d, Level: %d, XP: %d, Theme: %d\n", 
+    system_state.player_gems, system_state.player_level, 
+    system_state.player_xp, system_state.current_theme);
+}
+
+void loadAllGameData() {
+  gamePrefs.begin("watchgame", true);  // Read-only mode
+  
+  // Load player stats with defaults
+  system_state.player_gems = gamePrefs.getInt("gems", 500);  // Default 500 gems
+  system_state.player_level = gamePrefs.getInt("level", 1);
+  system_state.player_xp = gamePrefs.getInt("xp", 0);
+  system_state.current_theme = (ThemeType)gamePrefs.getInt("theme", THEME_LUFFY_GEAR5);
+  
+  // Load game progress
+  system_state.gacha_cards_collected = gamePrefs.getInt("cards", 0);
+  system_state.bosses_defeated = gamePrefs.getInt("bosses", 0);
+  system_state.training_streak = gamePrefs.getInt("streak", 0);
+  system_state.daily_login_count = gamePrefs.getInt("logins", 0);
+  system_state.pity_counter = gamePrefs.getInt("pity", 0);
+  system_state.pity_legendary_counter = gamePrefs.getInt("pityleg", 0);
+  
+  // Load activity
+  system_state.steps_today = gamePrefs.getInt("steps", 0);
+  
+  // Load brightness
+  system_state.brightness = gamePrefs.getInt("bright", 200);
+  
+  gamePrefs.end();
+  
+  // Apply loaded theme
+  setTheme(system_state.current_theme);
+  
+  Serial.println("[LOAD] Game data loaded from NVS");
+  Serial.printf("       Gems: %d, Level: %d, XP: %d, Theme: %d\n", 
+    system_state.player_gems, system_state.player_level, 
+    system_state.player_xp, system_state.current_theme);
+}
 
 void saveAllData() {
+  saveAllGameData();
   saveGachaProgress();
   saveGameProgress();
   saveTrainingProgress();
   saveBossProgress();
   saveRPGProgress();
+  saveStepsData();
   Serial.println("[SAVE] All data saved");
 }

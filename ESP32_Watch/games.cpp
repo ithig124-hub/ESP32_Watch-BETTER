@@ -90,57 +90,101 @@ void launchGame(GameType game) {
 }
 
 void drawGameMenu() {
-  gfx->fillScreen(COLOR_BLACK);
+  // ========================================
+  // RETRO ANIME GAME MENU - CRT Style
+  // ========================================
+  gfx->fillScreen(RGB565(2, 2, 5));
+  for (int y = 0; y < LCD_HEIGHT; y += 4) {
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+  }
   
-  // Title
-  gfx->setTextColor(getCurrentTheme()->primary);
+  ThemeColors* theme = getCurrentTheme();
+  
+  // Retro header
+  gfx->fillRect(0, 0, LCD_WIDTH, 48, RGB565(10, 12, 18));
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, 46, 6, 3, theme->primary);
+  }
+  
   gfx->setTextSize(3);
-  gfx->setCursor(100, 20);
+  gfx->setTextColor(RGB565(30, 35, 50));
+  gfx->setCursor(101, 11);
+  gfx->print("GAMES");
+  gfx->setTextColor(theme->primary);
+  gfx->setCursor(100, 10);
   gfx->print("GAMES");
   
-  // Game buttons - 3 columns now to fit more
+  // Game buttons - retro pixel cards
   const char* games[] = {"Battle", "Snake", "Memory", "Gacha", "Training", "Boss Rush"};
   uint16_t colors[] = {COLOR_RED, COLOR_GREEN, COLOR_BLUE, COLOR_PURPLE, COLOR_ORANGE, COLOR_RED};
   
   for (int i = 0; i < 6; i++) {
     int x = (i % 3) * 115 + 15;
-    int y = (i / 3) * 100 + 80;
+    int y = (i / 3) * 100 + 70;
     
-    gfx->fillRoundRect(x, y, 105, 85, 12, colors[i]);
-    gfx->drawRoundRect(x, y, 105, 85, 12, COLOR_WHITE);
+    gfx->fillRect(x, y, 105, 85, RGB565(12, 14, 20));
+    gfx->drawRect(x, y, 105, 85, RGB565(40, 45, 60));
+    // Pixel corners with game color
+    gfx->fillRect(x, y, 5, 5, colors[i]);
+    gfx->fillRect(x + 100, y, 5, 5, colors[i]);
+    gfx->fillRect(x, y + 80, 5, 5, colors[i]);
+    gfx->fillRect(x + 100, y + 80, 5, 5, colors[i]);
+    // Color stripe at top
+    gfx->fillRect(x + 2, y + 2, 101, 4, colors[i]);
     
-    gfx->setTextColor(COLOR_WHITE);
+    gfx->setTextColor(RGB565(200, 205, 220));
     gfx->setTextSize(1);
     int textW = strlen(games[i]) * 6;
-    gfx->setCursor(x + (105 - textW)/2, y + 35);
+    gfx->setCursor(x + (105 - textW)/2, y + 40);
     gfx->print(games[i]);
   }
   
-  // Player stats at bottom
+  // Player stats - retro panel
+  gfx->fillRect(15, 290, 330, 30, RGB565(10, 12, 18));
+  gfx->drawRect(15, 290, 330, 30, RGB565(35, 40, 55));
   gfx->setTextColor(COLOR_GOLD);
   gfx->setTextSize(1);
-  gfx->setCursor(20, 300);
-  gfx->printf("Gems: %d | Level: %d", system_state.player_gems, system_state.player_level);
+  gfx->setCursor(25, 300);
+  gfx->printf("GEMS: %d | LVL: %d", system_state.player_gems, system_state.player_level);
   
-  gfx->setTextColor(COLOR_WHITE);
-  gfx->setCursor(20, 320);
+  gfx->fillRect(15, 325, 330, 20, RGB565(10, 12, 18));
+  gfx->drawRect(15, 325, 330, 20, RGB565(35, 40, 55));
+  gfx->setTextColor(RGB565(130, 135, 150));
+  gfx->setCursor(25, 330);
   gfx->printf("Cards: %d/100 | Bosses: %d/20", 
               system_state.gacha_cards_collected, system_state.bosses_defeated);
   
-  // Adventures section
-  gfx->setTextColor(getCurrentTheme()->accent);
+  // Adventures section - retro header
+  gfx->setTextColor(theme->accent);
   gfx->setTextSize(2);
-  gfx->setCursor(40, 350);
+  gfx->setCursor(40, 360);
   gfx->print("ADVENTURES");
+  // Pixel underline
+  for (int x = 40; x < 200; x += 6) {
+    gfx->fillRect(x, 380, 4, 2, theme->accent);
+  }
   
   const char* adv[] = {"Shadow", "Pirate", "Wakfu"};
   for (int i = 0; i < 3; i++) {
     int x = 30 + i * 110;
-    drawGlassButton(x, 380, 100, 35, adv[i], false);
+    gfx->fillRect(x, 390, 100, 35, RGB565(15, 18, 25));
+    gfx->drawRect(x, 390, 100, 35, RGB565(40, 45, 60));
+    gfx->fillRect(x, 390, 4, 4, theme->accent);
+    gfx->fillRect(x + 96, 390, 4, 4, theme->accent);
+    gfx->setTextColor(RGB565(180, 185, 200));
+    gfx->setTextSize(1);
+    int tw = strlen(adv[i]) * 6;
+    gfx->setCursor(x + (100 - tw)/2, 403);
+    gfx->print(adv[i]);
   }
   
-  // Back button
-  drawGlassButton(290, 420, 60, 25, "Back", false);
+  // Back button - retro
+  gfx->fillRect(290, 430, 60, 25, RGB565(15, 18, 25));
+  gfx->drawRect(290, 430, 60, 25, RGB565(40, 45, 60));
+  gfx->setTextColor(RGB565(120, 125, 140));
+  gfx->setTextSize(1);
+  gfx->setCursor(305, 438);
+  gfx->print("Back");
 }
 
 void handleGameMenuTouch(TouchGesture& gesture) {
@@ -194,49 +238,90 @@ void initBattleArena() {
 }
 
 void drawBattleArena() {
-  gfx->fillScreen(COLOR_BLACK);
+  // ========================================
+  // RETRO ANIME BATTLE ARENA - CRT Style
+  // ========================================
+  gfx->fillScreen(RGB565(2, 2, 5));
+  for (int y = 0; y < LCD_HEIGHT; y += 4) {
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+  }
   
-  // Title
-  gfx->setTextColor(getCurrentTheme()->primary);
+  ThemeColors* theme = getCurrentTheme();
+  
+  // Retro header
+  gfx->fillRect(0, 0, LCD_WIDTH, 40, RGB565(10, 12, 18));
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, 38, 6, 3, COLOR_RED);
+  }
   gfx->setTextSize(2);
-  gfx->setCursor(100, 10);
+  gfx->setTextColor(COLOR_RED);
+  gfx->setCursor(80, 10);
   gfx->print("BATTLE ARENA");
   
-  // Enemy
+  // Enemy panel - retro card
   BattleCreature& enemy = current_game_session.enemy_creature;
+  gfx->fillRect(15, 48, LCD_WIDTH - 30, 65, RGB565(12, 14, 20));
+  gfx->drawRect(15, 48, LCD_WIDTH - 30, 65, RGB565(40, 45, 60));
+  gfx->fillRect(15, 48, 5, 5, enemy.color);
+  gfx->fillRect(LCD_WIDTH - 20, 48, 5, 5, enemy.color);
+  
   gfx->setTextColor(enemy.color);
   gfx->setTextSize(2);
-  gfx->setCursor(20, 50);
+  gfx->setCursor(25, 55);
   gfx->print(enemy.name);
-  gfx->setCursor(20, 70);
+  gfx->setTextSize(1);
+  gfx->setCursor(25, 75);
   gfx->printf("Lv.%d", enemy.level);
-  drawHealthBar(20, 95, 200, 20, enemy.hp, enemy.max_hp, enemy.color);
+  drawHealthBar(25, 90, 200, 16, enemy.hp, enemy.max_hp, enemy.color);
   
-  // Player
+  // Battle log - retro terminal
+  gfx->fillRect(15, 120, LCD_WIDTH - 30, 50, RGB565(8, 10, 14));
+  gfx->drawRect(15, 120, LCD_WIDTH - 30, 50, RGB565(30, 35, 50));
+  gfx->setTextColor(RGB565(0, 200, 80));
+  gfx->setTextSize(1);
+  for (int i = 0; i < min(3, current_game_session.log_count); i++) {
+    gfx->setCursor(22, 128 + i * 14);
+    gfx->print(current_game_session.battle_log[i]);
+  }
+  
+  // Player panel - retro card
   BattleCreature& player = current_game_session.player_creature;
+  gfx->fillRect(15, 180, LCD_WIDTH - 30, 65, RGB565(12, 14, 20));
+  gfx->drawRect(15, 180, LCD_WIDTH - 30, 65, RGB565(40, 45, 60));
+  gfx->fillRect(15, 180, 5, 5, player.color);
+  gfx->fillRect(LCD_WIDTH - 20, 180, 5, 5, player.color);
+  
   gfx->setTextColor(player.color);
   gfx->setTextSize(2);
-  gfx->setCursor(20, 200);
+  gfx->setCursor(25, 188);
   gfx->print(player.name);
-  gfx->setCursor(20, 220);
+  gfx->setTextSize(1);
+  gfx->setCursor(25, 208);
   gfx->printf("Lv.%d", player.level);
-  drawHealthBar(20, 245, 200, 20, player.hp, player.max_hp, player.color);
+  drawHealthBar(25, 225, 200, 16, player.hp, player.max_hp, player.color);
   
-  // Move buttons
+  // Move buttons - retro pixel style
   for (int i = 0; i < 4; i++) {
     if (strlen(player.moves[i]) > 0) {
       int x = (i % 2) * 180 + 10;
-      int y = (i / 2) * 60 + 300;
-      drawGameButton(x, y, 170, 55, player.moves[i], current_game_session.selected_move == i);
+      int y = (i / 2) * 55 + 260;
+      bool selected = (current_game_session.selected_move == i);
+      uint16_t btnBg = selected ? theme->primary : RGB565(15, 18, 25);
+      gfx->fillRect(x, y, 170, 48, btnBg);
+      gfx->drawRect(x, y, 170, 48, selected ? theme->accent : RGB565(40, 45, 60));
+      gfx->fillRect(x, y, 4, 4, theme->primary);
+      gfx->fillRect(x + 166, y, 4, 4, theme->primary);
+      
+      gfx->setTextColor(selected ? COLOR_WHITE : RGB565(180, 185, 200));
+      gfx->setTextSize(1);
+      int tw = strlen(player.moves[i]) * 6;
+      gfx->setCursor(x + (170 - tw)/2, y + 15);
+      gfx->print(player.moves[i]);
+      
+      gfx->setTextColor(RGB565(80, 85, 100));
+      gfx->setCursor(x + 60, y + 32);
+      gfx->printf("PWR:%d", player.move_power[i]);
     }
-  }
-  
-  // Battle log
-  gfx->setTextColor(COLOR_WHITE);
-  gfx->setTextSize(1);
-  for (int i = 0; i < min(3, current_game_session.log_count); i++) {
-    gfx->setCursor(10, 130 + i * 12);
-    gfx->print(current_game_session.battle_log[i]);
   }
 }
 
@@ -347,30 +432,49 @@ void initShadowDungeon() {
 }
 
 void drawShadowDungeon() {
-  gfx->fillScreen(COLOR_BLACK);
+  // ========================================
+  // RETRO ANIME SHADOW DUNGEON - CRT Style
+  // ========================================
+  gfx->fillScreen(RGB565(2, 2, 5));
+  for (int y = 0; y < LCD_HEIGHT; y += 4) {
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+  }
   
-  gfx->setTextColor(JINWOO_PURPLE);
+  // Retro header
+  gfx->fillRect(0, 0, LCD_WIDTH, 48, RGB565(10, 12, 18));
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, 46, 6, 3, JINWOO_PURPLE);
+  }
+  gfx->setTextColor(RGB565(30, 35, 50));
   gfx->setTextSize(2);
-  gfx->setCursor(60, 10);
+  gfx->setCursor(61, 14 + 1);
+  gfx->print("SHADOW DUNGEON");
+  gfx->setTextColor(JINWOO_PURPLE);
+  gfx->setCursor(60, 14);
   gfx->print("SHADOW DUNGEON");
   
-  // Draw map grid
+  // Draw map grid - retro pixel style
   for (int y = 0; y < 10; y++) {
     for (int x = 0; x < 10; x++) {
       int px = x * 35 + 20;
       int py = y * 35 + 60;
-      gfx->drawRect(px, py, 32, 32, JINWOO_VOID_BLACK);
+      gfx->fillRect(px, py, 32, 32, RGB565(8, 10, 14));
+      gfx->drawRect(px, py, 32, 32, RGB565(25, 20, 40));
       
       if (x == current_game_session.player_x && y == current_game_session.player_y) {
-        gfx->fillCircle(px + 16, py + 16, 12, JINWOO_PURPLE);
+        // Player - pixel square with glow
+        gfx->fillRect(px + 4, py + 4, 24, 24, JINWOO_PURPLE);
+        gfx->drawRect(px + 2, py + 2, 28, 28, JINWOO_MONARCH_PURPLE);
       }
     }
   }
   
-  // Stats
-  gfx->setTextColor(COLOR_WHITE);
+  // Stats panel - retro
+  gfx->fillRect(15, 415, LCD_WIDTH - 30, 28, RGB565(10, 12, 18));
+  gfx->drawRect(15, 415, LCD_WIDTH - 30, 28, RGB565(35, 40, 55));
+  gfx->setTextColor(RGB565(130, 135, 150));
   gfx->setTextSize(1);
-  gfx->setCursor(20, 420);
+  gfx->setCursor(25, 424);
   gfx->printf("Floor: %d  Items: %d", current_game_session.map_level, current_game_session.items_collected);
 }
 
@@ -409,19 +513,48 @@ void initPirateAdventure() {
 }
 
 void drawPirateAdventure() {
-  gfx->fillScreen(COLOR_BLACK);
-  gfx->setTextColor(COLOR_ORANGE);
+  // ========================================
+  // RETRO ANIME PIRATE ADVENTURE - CRT Style
+  // ========================================
+  gfx->fillScreen(RGB565(2, 2, 5));
+  for (int y = 0; y < LCD_HEIGHT; y += 4) {
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+  }
+  
+  // Retro header
+  gfx->fillRect(0, 0, LCD_WIDTH, 48, RGB565(10, 12, 18));
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, 46, 6, 3, COLOR_ORANGE);
+  }
+  gfx->setTextColor(RGB565(30, 35, 50));
   gfx->setTextSize(2);
-  gfx->setCursor(50, 10);
+  gfx->setCursor(41, 14 + 1);
+  gfx->print("PIRATE ADVENTURE");
+  gfx->setTextColor(COLOR_ORANGE);
+  gfx->setCursor(40, 14);
   gfx->print("PIRATE ADVENTURE");
   
-  // Simple treasure hunt UI
-  gfx->setTextColor(COLOR_WHITE);
+  // Treasure counter - retro card
+  gfx->fillRect(60, 180, 240, 50, RGB565(12, 14, 20));
+  gfx->drawRect(60, 180, 240, 50, RGB565(40, 45, 60));
+  gfx->fillRect(60, 180, 5, 5, COLOR_GOLD);
+  gfx->fillRect(295, 180, 5, 5, COLOR_GOLD);
+  gfx->setTextColor(COLOR_GOLD);
   gfx->setTextSize(1);
-  gfx->setCursor(20, 200);
-  gfx->printf("Treasures Found: %d", current_game_session.items_collected);
+  gfx->setCursor(80, 200);
+  gfx->printf("TREASURES FOUND: %d", current_game_session.items_collected);
   
-  drawThemeButton(100, 300, 160, 50, "Explore", false);
+  // Explore button - retro
+  gfx->fillRect(100, 280, 160, 50, RGB565(15, 18, 25));
+  gfx->drawRect(100, 280, 160, 50, COLOR_ORANGE);
+  gfx->fillRect(100, 280, 5, 5, COLOR_ORANGE);
+  gfx->fillRect(255, 280, 5, 5, COLOR_ORANGE);
+  gfx->fillRect(100, 325, 5, 5, COLOR_ORANGE);
+  gfx->fillRect(255, 325, 5, 5, COLOR_ORANGE);
+  gfx->setTextColor(RGB565(200, 205, 220));
+  gfx->setTextSize(2);
+  gfx->setCursor(130, 296);
+  gfx->print("Explore");
 }
 
 void handlePirateTouch(TouchGesture& gesture) {
@@ -450,11 +583,36 @@ void initWakfuQuest() {
 }
 
 void drawWakfuQuest() {
-  gfx->fillScreen(COLOR_BLACK);
-  gfx->setTextColor(YUGO_TEAL);
+  // ========================================
+  // RETRO ANIME WAKFU QUEST - CRT Style
+  // ========================================
+  gfx->fillScreen(RGB565(2, 2, 5));
+  for (int y = 0; y < LCD_HEIGHT; y += 4) {
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+  }
+  
+  // Retro header
+  gfx->fillRect(0, 0, LCD_WIDTH, 48, RGB565(10, 12, 18));
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, 46, 6, 3, YUGO_TEAL);
+  }
+  gfx->setTextColor(RGB565(30, 35, 50));
   gfx->setTextSize(2);
-  gfx->setCursor(80, 10);
+  gfx->setCursor(81, 14 + 1);
   gfx->print("WAKFU QUEST");
+  gfx->setTextColor(YUGO_TEAL);
+  gfx->setCursor(80, 14);
+  gfx->print("WAKFU QUEST");
+  
+  // Placeholder content - retro styled
+  gfx->fillRect(60, 180, 240, 60, RGB565(12, 14, 20));
+  gfx->drawRect(60, 180, 240, 60, RGB565(40, 45, 60));
+  gfx->fillRect(60, 180, 5, 5, YUGO_TEAL);
+  gfx->fillRect(295, 180, 5, 5, YUGO_TEAL);
+  gfx->setTextColor(RGB565(130, 135, 150));
+  gfx->setTextSize(1);
+  gfx->setCursor(100, 205);
+  gfx->print("PORTAL AWAITS...");
 }
 
 void handleWakfuTouch(TouchGesture& gesture) {
@@ -492,88 +650,106 @@ void initSnakeGame() {
 }
 
 void drawSnakeGame() {
-  gfx->fillScreen(COLOR_BLACK);
+  // ========================================
+  // RETRO ANIME SNAKE - CRT Style
+  // ========================================
+  gfx->fillScreen(RGB565(2, 2, 5));
   
-  // Themed title
-  gfx->setTextColor(getCurrentTheme()->primary);
+  ThemeColors* theme = getCurrentTheme();
+  
+  // Retro header bar
+  gfx->fillRect(0, 0, LCD_WIDTH, 40, RGB565(10, 12, 18));
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, 38, 6, 2, theme->primary);
+  }
+  
+  // Title - shadow text
   gfx->setTextSize(2);
-  gfx->setCursor(130, 10);
+  gfx->setTextColor(RGB565(30, 35, 50));
+  gfx->setCursor(131, 9);
+  gfx->print("SNAKE");
+  gfx->setTextColor(theme->primary);
+  gfx->setCursor(130, 8);
   gfx->print("SNAKE");
   
-  // Speed indicator
+  // Speed indicator - retro
   const char* speeds[] = {"NORMAL", "FAST", "FASTER", "EXTREME"};
   gfx->setTextSize(1);
-  gfx->setTextColor(current_game_session.snake_speed_level >= 2 ? COLOR_RED : COLOR_WHITE);
+  uint16_t speedColor = current_game_session.snake_speed_level >= 2 ? COLOR_RED : RGB565(130, 135, 150);
+  gfx->setTextColor(speedColor);
   gfx->setCursor(280, 15);
   gfx->print(speeds[current_game_session.snake_speed_level]);
   
-  // Lives display
-  gfx->setTextColor(COLOR_GREEN);
+  // Lives display - pixel hearts
+  gfx->setTextColor(COLOR_RED);
   gfx->setCursor(20, 15);
   for (int i = 0; i < current_game_session.lives; i++) {
-    gfx->print("*");
+    gfx->print("* ");
   }
   
-  // Draw grid with themed border
-  gfx->drawRect(20, 50, 320, 320, getCurrentTheme()->primary);
-  gfx->drawRect(21, 51, 318, 318, getCurrentTheme()->accent);
+  // Game grid - retro pixel border
+  gfx->fillRect(20, 48, 320, 320, RGB565(4, 5, 8));
+  gfx->drawRect(20, 48, 320, 320, theme->primary);
+  gfx->drawRect(21, 49, 318, 318, RGB565(30, 35, 50));
   
-  // Draw snake with themed colors
-  uint16_t headColor = getCurrentTheme()->primary;
-  uint16_t bodyColor = getCurrentTheme()->accent;
+  // Subtle grid lines
+  for (int gx = 20; gx < 340; gx += 16) {
+    gfx->drawFastVLine(gx, 48, 320, RGB565(6, 7, 10));
+  }
+  for (int gy = 48; gy < 368; gy += 16) {
+    gfx->drawFastHLine(20, gy, 320, RGB565(6, 7, 10));
+  }
+  
+  // Draw snake - retro pixel blocks
+  uint16_t headColor = theme->primary;
+  uint16_t bodyColor = theme->accent;
   
   for (int i = 0; i < current_game_session.snake_length; i++) {
     int x = current_game_session.snake_x[i] * 16 + 20;
-    int y = current_game_session.snake_y[i] * 16 + 50;
+    int y = current_game_session.snake_y[i] * 16 + 48;
     
     if (i == 0) {
-      // Head with eyes
-      gfx->fillRoundRect(x, y, 14, 14, 3, headColor);
-      // Eyes based on direction
+      // Head - solid pixel block with eye dots
+      gfx->fillRect(x + 1, y + 1, 14, 14, headColor);
+      gfx->drawRect(x, y, 16, 16, RGB565(50, 55, 70));
+      // Eyes
       int ex1, ey1, ex2, ey2;
       switch (current_game_session.direction) {
-        case 0: ex1 = x+3; ey1 = y+3; ex2 = x+10; ey2 = y+3; break;  // up
-        case 1: ex1 = x+10; ey1 = y+3; ex2 = x+10; ey2 = y+10; break; // right
-        case 2: ex1 = x+3; ey1 = y+10; ex2 = x+10; ey2 = y+10; break; // down
-        case 3: ex1 = x+3; ey1 = y+3; ex2 = x+3; ey2 = y+10; break;   // left
+        case 0: ex1 = x+3; ey1 = y+3; ex2 = x+10; ey2 = y+3; break;
+        case 1: ex1 = x+10; ey1 = y+3; ex2 = x+10; ey2 = y+10; break;
+        case 2: ex1 = x+3; ey1 = y+10; ex2 = x+10; ey2 = y+10; break;
+        case 3: ex1 = x+3; ey1 = y+3; ex2 = x+3; ey2 = y+10; break;
       }
-      gfx->fillCircle(ex1, ey1, 2, COLOR_WHITE);
-      gfx->fillCircle(ex2, ey2, 2, COLOR_WHITE);
+      gfx->fillRect(ex1, ey1, 3, 3, COLOR_WHITE);
+      gfx->fillRect(ex2, ey2, 3, 3, COLOR_WHITE);
     } else {
-      // Body segments with gradient effect
-      uint8_t fade = 255 - (i * 10);
-      gfx->fillRoundRect(x, y, 14, 14, 2, bodyColor);
+      // Body - pixel blocks
+      gfx->fillRect(x + 1, y + 1, 13, 13, bodyColor);
     }
   }
   
-  // Draw food with pulsing effect
+  // Draw food - pixel style pulsing square
   int fx = current_game_session.food_x * 16 + 20;
-  int fy = current_game_session.food_y * 16 + 50;
+  int fy = current_game_session.food_y * 16 + 48;
+  gfx->fillRect(fx + 2, fy + 2, 12, 12, COLOR_RED);
+  gfx->drawRect(fx + 1, fy + 1, 14, 14, COLOR_ORANGE);
   
-  // Animate food
-  static uint8_t foodPulse = 0;
-  foodPulse = (foodPulse + 10) % 255;
-  int pulseSize = 14 + (sin(foodPulse * PI / 128) * 2);
-  
-  gfx->fillCircle(fx + 7, fy + 7, pulseSize/2, COLOR_RED);
-  gfx->fillCircle(fx + 7, fy + 7, pulseSize/2 - 3, COLOR_ORANGE);
-  
-  // Score and level
-  gfx->setTextColor(COLOR_WHITE);
+  // Score panel - retro
+  gfx->fillRect(15, 375, LCD_WIDTH - 30, 28, RGB565(10, 12, 18));
+  gfx->drawRect(15, 375, LCD_WIDTH - 30, 28, RGB565(35, 40, 55));
+  gfx->setTextColor(RGB565(130, 135, 150));
   gfx->setTextSize(1);
-  gfx->setCursor(20, 380);
+  gfx->setCursor(25, 384);
   gfx->printf("Score: %d", current_game_session.score);
+  gfx->setCursor(130, 384);
+  gfx->printf("Len: %d", current_game_session.snake_length);
+  gfx->setCursor(230, 384);
+  gfx->printf("Lvl: %d", current_game_session.snake_speed_level + 1);
   
-  gfx->setCursor(120, 380);
-  gfx->printf("Length: %d", current_game_session.snake_length);
-  
-  gfx->setCursor(220, 380);
-  gfx->printf("Level: %d", current_game_session.snake_speed_level + 1);
-  
-  // Swipe controls hint
-  gfx->setTextColor(COLOR_GRAY);
-  gfx->setCursor(80, 420);
-  gfx->print("Swipe to change direction");
+  // Controls hint - retro
+  gfx->setTextColor(RGB565(50, 55, 70));
+  gfx->setCursor(LCD_WIDTH/2 - 50, 415);
+  gfx->print("> SWIPE TO MOVE <");
 }
 
 void handleSnakeTouch(TouchGesture& gesture) {
@@ -716,11 +892,27 @@ void initMemoryGame() {
 }
 
 void drawMemoryGame() {
-  gfx->fillScreen(COLOR_BLACK);
+  // ========================================
+  // RETRO ANIME MEMORY MATCH - CRT Style
+  // ========================================
+  gfx->fillScreen(RGB565(2, 2, 5));
+  for (int y = 0; y < LCD_HEIGHT; y += 4) {
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+  }
   
-  gfx->setTextColor(getCurrentTheme()->primary);
+  ThemeColors* theme = getCurrentTheme();
+  
+  // Retro header
+  gfx->fillRect(0, 0, LCD_WIDTH, 48, RGB565(10, 12, 18));
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, 46, 6, 3, theme->primary);
+  }
   gfx->setTextSize(2);
-  gfx->setCursor(80, 10);
+  gfx->setTextColor(RGB565(30, 35, 50));
+  gfx->setCursor(71, 14 + 1);
+  gfx->print("MEMORY MATCH");
+  gfx->setTextColor(theme->primary);
+  gfx->setCursor(70, 14);
   gfx->print("MEMORY MATCH");
   
   uint16_t colors[] = {COLOR_RED, COLOR_GREEN, COLOR_BLUE, COLOR_YELLOW, 
@@ -731,16 +923,39 @@ void drawMemoryGame() {
     int y = (i / 4) * 85 + 60;
     
     if (memory_revealed[i]) {
-      gfx->fillRoundRect(x, y, 75, 75, 10, colors[memory_cards[i]]);
+      // Revealed card - retro pixel with color
+      gfx->fillRect(x, y, 75, 75, RGB565(12, 14, 20));
+      gfx->fillRect(x + 5, y + 5, 65, 65, colors[memory_cards[i]]);
+      gfx->drawRect(x, y, 75, 75, colors[memory_cards[i]]);
+      // Pixel corners
+      gfx->fillRect(x, y, 5, 5, colors[memory_cards[i]]);
+      gfx->fillRect(x + 70, y, 5, 5, colors[memory_cards[i]]);
+      gfx->fillRect(x, y + 70, 5, 5, colors[memory_cards[i]]);
+      gfx->fillRect(x + 70, y + 70, 5, 5, colors[memory_cards[i]]);
+      // CRT lines on card
+      for (int sy = y + 6; sy < y + 69; sy += 3) {
+        gfx->drawFastHLine(x + 6, sy, 63, RGB565(0, 0, 0));
+      }
     } else {
-      gfx->fillRoundRect(x, y, 75, 75, 10, RGB565(60, 60, 60));
-      gfx->drawRoundRect(x, y, 75, 75, 10, getCurrentTheme()->primary);
+      // Hidden card - retro dark
+      gfx->fillRect(x, y, 75, 75, RGB565(15, 18, 25));
+      gfx->drawRect(x, y, 75, 75, RGB565(40, 45, 60));
+      gfx->fillRect(x, y, 4, 4, theme->primary);
+      gfx->fillRect(x + 71, y, 4, 4, theme->primary);
+      // Question mark
+      gfx->setTextColor(RGB565(50, 55, 70));
+      gfx->setTextSize(2);
+      gfx->setCursor(x + 28, y + 28);
+      gfx->print("?");
     }
   }
   
-  gfx->setTextColor(COLOR_WHITE);
+  // Score panel - retro
+  gfx->fillRect(15, 410, LCD_WIDTH - 30, 28, RGB565(10, 12, 18));
+  gfx->drawRect(15, 410, LCD_WIDTH - 30, 28, RGB565(35, 40, 55));
+  gfx->setTextColor(RGB565(130, 135, 150));
   gfx->setTextSize(1);
-  gfx->setCursor(20, 420);
+  gfx->setCursor(25, 419);
   gfx->printf("Matches: %d/8  Score: %d", matches_found, current_game_session.score);
 }
 
@@ -791,14 +1006,20 @@ void checkMatch() {
 // =============================================================================
 
 void drawHealthBar(int x, int y, int w, int h, int current_hp, int max_hp, uint16_t color) {
-  gfx->drawRect(x, y, w, h, COLOR_WHITE);
+  gfx->fillRect(x, y, w, h, RGB565(8, 10, 14));
+  gfx->drawRect(x, y, w, h, RGB565(40, 45, 60));
   int fillW = (current_hp * (w - 4)) / max_hp;
   if (fillW > 0) gfx->fillRect(x + 2, y + 2, fillW, h - 4, color);
+  // Pixel notches
+  for (int nx = x + 2; nx < x + w - 2; nx += 20) {
+    gfx->drawFastVLine(nx, y + 1, h - 2, RGB565(20, 22, 30));
+  }
 }
 
 void drawProgressBar(int x, int y, int w, int h, float progress, uint16_t color) {
   progress = constrain(progress, 0.0f, 1.0f);
-  gfx->drawRect(x, y, w, h, COLOR_WHITE);
+  gfx->fillRect(x, y, w, h, RGB565(8, 10, 14));
+  gfx->drawRect(x, y, w, h, RGB565(40, 45, 60));
   int fillW = (int)(progress * (w - 4));
   if (fillW > 0) gfx->fillRect(x + 2, y + 2, fillW, h - 4, color);
 }

@@ -74,10 +74,10 @@
 #define STEP_TIME_WINDOW          250    // Minimum ms between steps
 
 // =============================================================================
-// NAVIGATION CONFIGURATION - IMPROVED
+// NAVIGATION CONFIGURATION - FIXED
 // =============================================================================
-#define MAIN_SCREEN_COUNT         3     // Watchface, App Grid, Character Stats
-#define APP_GRID_PAGES            3     // Three pages of apps
+#define APP_GRID_PAGES            3     // Three pages of apps (0, 1, 2)
+// NOTE: MAIN_SCREEN_COUNT is defined later with the MainScreen enum (= 4)
 
 // =============================================================================
 // COLOR DEFINITIONS - RGB565 FORMAT
@@ -288,6 +288,24 @@
 #define GACHA_TEN_PULL_COST     900
 #define GACHA_TOTAL_CARDS       100
 
+// Pity system thresholds
+#define PITY_EPIC_GUARANTEE     30    // Guaranteed Epic at 30 pulls
+#define PITY_LEGENDARY_GUARANTEE 90   // Guaranteed Legendary at 90 pulls
+
+// Card evolution costs (duplicates needed)
+#define EVOLVE_COST_LV1         3     // Base -> Evolved
+#define EVOLVE_COST_LV2         5     // Evolved -> Awakened
+#define EVOLVE_COST_LV3         10    // Awakened -> Transcended
+#define EVOLVE_POWER_MULT_LV1   1.3f  // 30% power boost
+#define EVOLVE_POWER_MULT_LV2   1.6f  // 60% power boost
+#define EVOLVE_POWER_MULT_LV3   2.0f  // 100% power boost
+
+// Battle deck
+#define MAX_DECK_SIZE           5
+#define DECK_ATK_BONUS_PER_CARD 5
+#define DECK_HP_BONUS_PER_CARD  10
+#define DECK_DEF_BONUS_PER_CARD 3
+
 // =============================================================================
 // ENUMERATIONS
 // =============================================================================
@@ -327,7 +345,7 @@ enum ScreenType {
   SCREEN_WATCHFACE,
   SCREEN_APP_GRID,
   SCREEN_CHARACTER_STATS,
-  SCREEN_STEPS_TRACKER,        // NEW: Steps card
+  SCREEN_STEPS_TRACKER,        // Steps card
   SCREEN_SETTINGS,
   SCREEN_THEME_SELECTOR,
   SCREEN_MUSIC,
@@ -348,10 +366,18 @@ enum ScreenType {
   SCREEN_TRAINING,
   SCREEN_BOSS_RUSH,
   SCREEN_QUESTS,
-  SCREEN_DAILY_QUESTS,         // NEW: Daily quests
+  SCREEN_DAILY_QUESTS,         // Daily quests
   SCREEN_ELEMENT_TREE,
   SCREEN_FUSION_GAME,
   SCREEN_CHARACTER_GAME,
+  SCREEN_CARD_EVOLUTION,       // Card evolution screen
+  SCREEN_DECK_BUILDER,         // Battle deck builder
+  SCREEN_TIMER,                // NEW: Timer/Stopwatch
+  SCREEN_CONVERTER,            // NEW: Unit Converter
+  SCREEN_ACHIEVEMENTS,         // NEW: Achievements
+  SCREEN_SHOP,                 // NEW: In-game Shop
+  SCREEN_GALLERY,              // NEW: Photo Gallery
+  SCREEN_PROGRESSION,          // NEW: Character Progression Tree
   SCREEN_SLEEP
 };
 
@@ -522,6 +548,14 @@ struct SystemState {
   int bosses_defeated;
   int training_streak;
   int daily_login_count;
+  
+  // Pity system
+  int pity_counter;           // Pulls since last Epic+
+  int pity_legendary_counter; // Pulls since last Legendary+
+  
+  // Battle deck (card IDs, -1 = empty slot)
+  int battle_deck[5];
+  int deck_size;
   
   // Music
   bool music_playing;

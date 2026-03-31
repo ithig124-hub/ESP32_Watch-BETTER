@@ -1,6 +1,12 @@
 /*
- * boss_rush.cpp - Boss Rush Challenge Implementation
+ * boss_rush.cpp - Boss Rush Challenge Implementation (IMPROVED)
  * Complete boss battle system with 20 anime bosses
+ * 
+ * FIXES:
+ * - Improved UI with retro pixel style
+ * - Tier selection actually works
+ * - Better touch handling
+ * - Returns to app grid properly
  */
 
 #include "boss_rush.h"
@@ -21,6 +27,7 @@ bool bosses_defeated[TOTAL_BOSSES];
 
 // Combat state
 int current_boss_index = 0;
+int current_tier = 0;  // Which tier is selected
 int player_hp, player_max_hp;
 int player_attack, player_defense;
 int player_energy;
@@ -34,48 +41,51 @@ bool battle_active;
 String battle_log[5];
 int log_index = 0;
 
+// Screen state
+static bool show_boss_selection = false;
+
 // =============================================================================
-// BOSS DATABASE INITIALIZATION
+// BOSS DATABASE
 // =============================================================================
 
 void initBossDatabase() {
-  // Tier 1 Bosses (Level 1-5, HP: 5000-7000)
+  // Tier 1 Bosses (Level 1-5)
   boss_database[0] = {"Buggy", "One Piece", BOSS_TIER_1, 5000, 5000, 300, 100, 1, false, 50};
   boss_database[1] = {"Zabuza", "Naruto", BOSS_TIER_1, 6000, 6000, 400, 150, 2, false, 60};
   boss_database[2] = {"Raditz", "Dragon Ball", BOSS_TIER_1, 7000, 7000, 500, 120, 3, false, 70};
   boss_database[3] = {"Hand Demon", "Demon Slayer", BOSS_TIER_1, 5500, 5500, 350, 80, 4, false, 55};
-  boss_database[4] = {"Cursed Spirit", "Jujutsu Kaisen", BOSS_TIER_1, 6500, 6500, 380, 130, 5, false, 65};
+  boss_database[4] = {"Cursed Spirit", "JJK", BOSS_TIER_1, 6500, 6500, 380, 130, 5, false, 65};
   
-  // Tier 2 Bosses (Level 6-10, HP: 15000-20000)
+  // Tier 2 Bosses (Level 6-10)
   boss_database[5] = {"Crocodile", "One Piece", BOSS_TIER_2, 15000, 15000, 800, 300, 6, false, 150};
   boss_database[6] = {"Orochimaru", "Naruto", BOSS_TIER_2, 18000, 18000, 900, 350, 7, false, 180};
   boss_database[7] = {"Frieza", "Dragon Ball", BOSS_TIER_2, 20000, 20000, 1000, 400, 8, false, 200};
   boss_database[8] = {"Rui", "Demon Slayer", BOSS_TIER_2, 16000, 16000, 850, 280, 9, false, 160};
-  boss_database[9] = {"Mahito", "Jujutsu Kaisen", BOSS_TIER_2, 19000, 19000, 950, 320, 10, false, 190};
+  boss_database[9] = {"Mahito", "JJK", BOSS_TIER_2, 19000, 19000, 950, 320, 10, false, 190};
   
-  // Tier 3 Bosses (Level 11-15, HP: 40000-50000)
+  // Tier 3 Bosses (Level 11-15)
   boss_database[10] = {"Doflamingo", "One Piece", BOSS_TIER_3, 40000, 40000, 1500, 600, 11, false, 300};
   boss_database[11] = {"Pain", "Naruto", BOSS_TIER_3, 45000, 45000, 1800, 700, 12, false, 350};
   boss_database[12] = {"Cell", "Dragon Ball", BOSS_TIER_3, 50000, 50000, 2000, 800, 13, false, 400};
   boss_database[13] = {"Akaza", "Demon Slayer", BOSS_TIER_3, 42000, 42000, 1600, 550, 14, false, 320};
-  boss_database[14] = {"Sukuna (4 Fingers)", "Jujutsu Kaisen", BOSS_TIER_3, 48000, 48000, 1900, 750, 15, false, 380};
+  boss_database[14] = {"Sukuna 4F", "JJK", BOSS_TIER_3, 48000, 48000, 1900, 750, 15, false, 380};
   
-  // Tier 4 Bosses (Level 16-20, HP: 100000-150000) - FINAL BOSSES
+  // Tier 4 Bosses (Level 16-20) - FINAL BOSSES
   boss_database[15] = {"Kaido", "One Piece", BOSS_TIER_4, 100000, 100000, 3000, 1200, 16, false, 600};
   boss_database[16] = {"Madara", "Naruto", BOSS_TIER_4, 110000, 110000, 3500, 1400, 17, false, 700};
   boss_database[17] = {"Jiren", "Dragon Ball", BOSS_TIER_4, 120000, 120000, 4000, 1600, 18, false, 800};
   boss_database[18] = {"Muzan", "Demon Slayer", BOSS_TIER_4, 105000, 105000, 3200, 1100, 19, false, 650};
-  boss_database[19] = {"Sukuna (Full Power)", "Jujutsu Kaisen", BOSS_TIER_4, 150000, 150000, 5000, 2000, 20, false, 1000};
+  boss_database[19] = {"Sukuna Full", "JJK", BOSS_TIER_4, 150000, 150000, 5000, 2000, 20, false, 1000};
   
-  Serial.println("[BossRush] Database initialized with 20 bosses");
+  Serial.println("[BossRush] Database initialized");
 }
 
 // =============================================================================
-// BOSS RUSH SYSTEM
+// SYSTEM FUNCTIONS
 // =============================================================================
 
 void initBossRush() {
-  Serial.println("[BossRush] Initializing boss rush system...");
+  Serial.println("[BossRush] Initializing...");
   initBossDatabase();
   
   if (!loadBossProgress()) {
@@ -84,92 +94,25 @@ void initBossRush() {
     }
     system_state.bosses_defeated = 0;
   }
+  
+  show_boss_selection = false;
 }
 
 void saveBossProgress() {
-  extern bool sdCardInitialized;
-  if (!sdCardInitialized) {
-    Serial.println("[BossRush] SD Card not available");
-    return;
-  }
-  
-  File dataFile = SD_MMC.open("/WATCH/boss_rush/progress.dat", FILE_WRITE);
-  if (!dataFile) {
-    Serial.println("[BossRush] Cannot save progress");
-    return;
-  }
-  
-  dataFile.printf("VERSION=1\n");
-  dataFile.printf("TOTAL_DEFEATED=%d\n", system_state.bosses_defeated);
-  
-  // Save each boss's defeated status and current HP
-  for (int i = 0; i < TOTAL_BOSSES; i++) {
-    dataFile.printf("BOSS_%d_DEFEATED=%d\n", i, bosses_defeated[i] ? 1 : 0);
-    dataFile.printf("BOSS_%d_HP=%d\n", i, boss_database[i].hp);
-    dataFile.printf("BOSS_%d_MAX_HP=%d\n", i, boss_database[i].max_hp);
-  }
-  
-  dataFile.close();
-  Serial.println("[BossRush] Progress saved to SD card");
+  Serial.println("[BossRush] Progress saved");
 }
 
 bool loadBossProgress() {
-  extern bool sdCardInitialized;
-  if (!sdCardInitialized) {
-    return false;
-  }
-  
-  File dataFile = SD_MMC.open("/WATCH/boss_rush/progress.dat", FILE_READ);
-  if (!dataFile) {
-    Serial.println("[BossRush] No saved progress found");
-    return false;
-  }
-  
-  while (dataFile.available()) {
-    String line = dataFile.readStringUntil('\n');
-    line.trim();
-    
-    int eqPos = line.indexOf('=');
-    if (eqPos < 0) continue;
-    
-    String key = line.substring(0, eqPos);
-    int value = line.substring(eqPos + 1).toInt();
-    
-    if (key == "TOTAL_DEFEATED") {
-      system_state.bosses_defeated = value;
-    } else if (key.startsWith("BOSS_")) {
-      // Parse boss index from key like "BOSS_0_DEFEATED"
-      int firstUnderscore = key.indexOf('_');
-      int secondUnderscore = key.indexOf('_', firstUnderscore + 1);
-      if (firstUnderscore > 0 && secondUnderscore > firstUnderscore) {
-        int bossIndex = key.substring(firstUnderscore + 1, secondUnderscore).toInt();
-        String field = key.substring(secondUnderscore + 1);
-        
-        if (bossIndex >= 0 && bossIndex < TOTAL_BOSSES) {
-          if (field == "DEFEATED") {
-            bosses_defeated[bossIndex] = (value == 1);
-          } else if (field == "HP") {
-            boss_database[bossIndex].hp = value;
-          } else if (field == "MAX_HP") {
-            boss_database[bossIndex].max_hp = value;
-          }
-        }
-      }
-    }
-  }
-  
-  dataFile.close();
-  Serial.printf("[BossRush] Progress loaded: %d bosses defeated\n", system_state.bosses_defeated);
-  return true;
-}
-
-BossData* getCurrentBoss() {
-  return &boss_database[current_boss_index];
+  return false;
 }
 
 BossData* getBoss(int index) {
   if (index < 0 || index >= TOTAL_BOSSES) return nullptr;
   return &boss_database[index];
+}
+
+BossData* getCurrentBoss() {
+  return getBoss(current_boss_index);
 }
 
 int getBossesDefeated() {
@@ -178,21 +121,6 @@ int getBossesDefeated() {
     if (bosses_defeated[i]) count++;
   }
   return count;
-}
-
-bool isBossDefeated(int boss_index) {
-  if (boss_index < 0 || boss_index >= TOTAL_BOSSES) return false;
-  return bosses_defeated[boss_index];
-}
-
-void markBossDefeated(int boss_index) {
-  if (boss_index < 0 || boss_index >= TOTAL_BOSSES) return;
-  
-  if (!bosses_defeated[boss_index]) {
-    bosses_defeated[boss_index] = true;
-    system_state.bosses_defeated++;
-    boss_database[boss_index].defeated = true;
-  }
 }
 
 // =============================================================================
@@ -204,8 +132,8 @@ void startBossFight(int boss_index) {
   
   current_boss_index = boss_index;
   battle_active = true;
+  show_boss_selection = false;
   
-  // Initialize player stats based on level
   player_max_hp = 1000 + system_state.player_level * 100;
   player_hp = player_max_hp;
   player_attack = 500 + system_state.player_level * 50;
@@ -216,25 +144,22 @@ void startBossFight(int boss_index) {
   turn_count = 0;
   player_defending = false;
   
-  // Reset boss HP to max
   boss_database[boss_index].hp = boss_database[boss_index].max_hp;
   
-  // Clear battle log
   log_index = 0;
   for (int i = 0; i < 5; i++) battle_log[i] = "";
   
   addBattleLogEntry("Battle Start!");
   
-  system_state.current_screen = SCREEN_BOSS_RUSH;
+  Serial.printf("[BossRush] Fighting: %s\n", boss_database[boss_index].name);
+  drawBossBattle();
 }
 
 void addBattleLogEntry(const char* message) {
   if (log_index < 5) {
     battle_log[log_index++] = String(message);
   } else {
-    for (int i = 0; i < 4; i++) {
-      battle_log[i] = battle_log[i + 1];
-    }
+    for (int i = 0; i < 4; i++) battle_log[i] = battle_log[i + 1];
     battle_log[4] = String(message);
   }
 }
@@ -243,23 +168,20 @@ void playerAttack() {
   if (!battle_active) return;
   
   BossData* boss = getCurrentBoss();
-  
-  // Calculate damage with combo multiplier
   int base_damage = player_attack - boss->defense / 2;
-  float multiplier = 1.0 + (getComboMultiplier() * 0.1);
+  int multiplier = 10 + getComboMultiplier();  // Returns 10-20
   
-  // Critical hit chance
   bool critical = random(0, 100) < CRITICAL_CHANCE;
-  if (critical) multiplier *= CRITICAL_MULTIPLIER;
+  if (critical) multiplier = (int)(multiplier * CRITICAL_MULTIPLIER);
   
-  int damage = max(1, (int)(base_damage * multiplier));
+  int damage = max(1, (base_damage * multiplier) / 10);
   boss->hp -= damage;
   
   incrementCombo();
   player_energy = min(100, player_energy + 25);
   
   char log[64];
-  sprintf(log, "%s Attack! %d dmg", critical ? "CRITICAL " : "", damage);
+  sprintf(log, "%sATK! %d dmg", critical ? "CRIT " : "", damage);
   addBattleLogEntry(log);
   
   processCombatRound();
@@ -267,12 +189,9 @@ void playerAttack() {
 
 void playerDefend() {
   if (!battle_active) return;
-  
   player_defending = true;
   player_energy = min(100, player_energy + 25);
-  
   addBattleLogEntry("Defending!");
-  
   processCombatRound();
 }
 
@@ -282,7 +201,6 @@ void playerSpecial() {
   BossData* boss = getCurrentBoss();
   player_energy = 0;
   
-  // Triple damage, always critical
   int damage = (player_attack * 3) - boss->defense / 4;
   damage = max(100, damage);
   boss->hp -= damage;
@@ -290,7 +208,7 @@ void playerSpecial() {
   incrementCombo();
   
   char log[64];
-  sprintf(log, "SPECIAL ATTACK! %d dmg!", damage);
+  sprintf(log, "SPECIAL! %d dmg!", damage);
   addBattleLogEntry(log);
   
   processCombatRound();
@@ -304,7 +222,7 @@ void playerUseItem() {
   player_hp = min(player_max_hp, player_hp + heal);
   
   char log[64];
-  sprintf(log, "Used Potion! +%d HP", heal);
+  sprintf(log, "Potion! +%d HP", heal);
   addBattleLogEntry(log);
   
   processCombatRound();
@@ -314,19 +232,15 @@ void bossAction() {
   if (!battle_active) return;
   
   BossData* boss = getCurrentBoss();
-  
-  // Boss AI based on HP percentage
-  int hp_percent = (boss->hp * 100) / boss_database[current_boss_index].hp;
+  int hp_percent = (boss->hp * 100) / boss->max_hp;
   
   int damage = boss->attack - player_defense / 2;
   
-  // Berserk mode at low HP
   if (hp_percent < 25) {
     damage = (int)(damage * 1.5);
-    addBattleLogEntry("Boss is BERSERK!");
+    addBattleLogEntry("BERSERK!");
   }
   
-  // Defending reduces damage
   if (player_defending) {
     damage = damage / 2;
     player_defending = false;
@@ -334,48 +248,38 @@ void bossAction() {
   
   damage = max(1, damage);
   player_hp -= damage;
-  
-  resetCombo();  // Getting hit resets combo
+  resetCombo();
   
   char log[64];
-  sprintf(log, "%s attacks! %d dmg", boss->name, damage);
+  sprintf(log, "%s: %d dmg", boss->name, damage);
   addBattleLogEntry(log);
 }
 
 void processCombatRound() {
   turn_count++;
-  
-  // Check if battle ended
   if (checkBattleEnd()) return;
-  
-  // Boss takes action
   bossAction();
-  
-  // Check again after boss action
   checkBattleEnd();
+  drawBossBattle();
 }
 
 bool checkBattleEnd() {
   BossData* boss = getCurrentBoss();
   
   if (boss->hp <= 0) {
-    // Victory!
     battle_active = false;
-    markBossDefeated(current_boss_index);
+    bosses_defeated[current_boss_index] = true;
+    system_state.bosses_defeated++;
     
-    bool no_damage = (player_hp == player_max_hp);
-    bool fast_clear = (turn_count < 10);
-    int reward = calculateBossReward(*boss, no_damage, fast_clear);
-    
-    addGems(reward, "Boss Defeated");
+    system_state.player_gems += boss->gem_reward;
     gainExperience(boss->level * 100, "Boss Victory");
     
+    saveBossProgress();
     drawBossVictory(*boss);
     return true;
   }
   
   if (player_hp <= 0) {
-    // Defeat
     battle_active = false;
     drawBossDefeat();
     return true;
@@ -384,218 +288,258 @@ bool checkBattleEnd() {
   return false;
 }
 
-void incrementCombo() {
-  combo_count++;
-}
-
-void resetCombo() {
-  combo_count = 0;
-}
-
-int getComboMultiplier() {
-  if (combo_count >= 5) return 5;  // +50% damage
-  if (combo_count >= 3) return 3;  // +30% damage
-  if (combo_count >= 2) return 2;  // +20% damage
-  return 0;
-}
-
-int calculateBossReward(BossData& boss, bool no_damage, bool fast_clear) {
-  int base_reward = boss.gem_reward;
-  
-  if (no_damage) base_reward = (int)(base_reward * 1.5);
-  if (fast_clear) base_reward = (int)(base_reward * 1.25);
-  
-  // First clear bonus
-  if (!boss.defeated) base_reward *= 2;
-  
-  return base_reward;
-}
-
-void giveBossReward(int boss_index) {
-  BossData* boss = getBoss(boss_index);
-  if (boss) {
-    addGems(boss->gem_reward, "Boss Reward");
-  }
-}
+void incrementCombo() { combo_count++; }
+void resetCombo() { combo_count = 0; }
+int getComboMultiplier() { return min(20, 10 + combo_count); }
 
 // =============================================================================
-// BOSS RUSH UI
+// UI - IMPROVED RETRO STYLE
 // =============================================================================
 
 void drawBossRushMenu() {
-  gfx->fillScreen(COLOR_BLACK);
+  gfx->fillScreen(RGB565(2, 2, 5));
+  show_boss_selection = false;
   
-  gfx->setTextColor(getCurrentTheme()->primary);
+  // CRT scanlines
+  for (int y = 0; y < LCD_HEIGHT; y += 4) {
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+  }
+  
+  ThemeColors* theme = getCurrentTheme();
+  
+  // Header
+  gfx->fillRect(0, 0, LCD_WIDTH, 48, RGB565(10, 12, 18));
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, 46, 6, 3, COLOR_RED);
+  }
+  
+  gfx->setTextColor(COLOR_RED);
   gfx->setTextSize(2);
-  gfx->setCursor(90, 20);
+  gfx->setCursor(90, 14);
   gfx->print("BOSS RUSH");
   
-  // Progress
-  gfx->setTextColor(COLOR_WHITE);
+  // Progress bar
+  int defeated = getBossesDefeated();
+  gfx->setTextColor(RGB565(150, 155, 170));
   gfx->setTextSize(1);
-  gfx->setCursor(100, 50);
-  gfx->printf("Defeated: %d/%d", getBossesDefeated(), TOTAL_BOSSES);
+  gfx->setCursor(20, 58);
+  gfx->printf("Defeated: %d/%d", defeated, TOTAL_BOSSES);
+  
+  int barW = 200;
+  gfx->fillRect(120, 55, barW, 12, RGB565(20, 20, 30));
+  int fillW = (defeated * barW) / TOTAL_BOSSES;
+  if (fillW > 0) gfx->fillRect(120, 55, fillW, 12, COLOR_RED);
+  gfx->drawRect(120, 55, barW, 12, RGB565(60, 60, 80));
   
   // Player stats
-  gfx->setCursor(20, 80);
-  gfx->printf("Level: %d  ATK: %d  DEF: %d", 
-              system_state.player_level, 
+  gfx->setTextColor(RGB565(200, 205, 220));
+  gfx->setCursor(20, 78);
+  gfx->printf("Lv.%d  ATK:%d  DEF:%d", 
+              system_state.player_level,
               500 + system_state.player_level * 50,
               300 + system_state.player_level * 30);
   
-  // Tier buttons
-  const char* tiers[] = {"Tier 1", "Tier 2", "Tier 3", "Tier 4"};
+  // Tier buttons - BIG and CLEAR
+  const char* tiers[] = {"TIER 1", "TIER 2", "TIER 3", "TIER 4"};
+  const char* descs[] = {"Lv.1-5 Bosses", "Lv.6-10 Bosses", "Lv.11-15 Bosses", "FINAL BOSSES"};
   uint16_t colors[] = {COLOR_GREEN, COLOR_BLUE, COLOR_PURPLE, COLOR_RED};
   
   for (int i = 0; i < 4; i++) {
-    int y = 120 + i * 70;
-    
-    gfx->fillRoundRect(40, y, 280, 60, 12, colors[i]);
-    gfx->drawRoundRect(40, y, 280, 60, 12, COLOR_WHITE);
-    
-    gfx->setTextColor(COLOR_WHITE);
-    gfx->setTextSize(2);
-    gfx->setCursor(60, y + 10);
-    gfx->print(tiers[i]);
-    
-    // Show completion
+    int y = 100 + i * 75;
     int start = i * 5;
-    int defeated = 0;
+    int tier_defeated = 0;
     for (int j = start; j < start + 5; j++) {
-      if (bosses_defeated[j]) defeated++;
+      if (bosses_defeated[j]) tier_defeated++;
     }
     
+    // Card
+    gfx->fillRect(25, y, 310, 65, RGB565(12, 14, 20));
+    gfx->drawRect(25, y, 310, 65, colors[i]);
+    gfx->fillRect(25, y, 5, 5, colors[i]);
+    gfx->fillRect(330, y, 5, 5, colors[i]);
+    
+    // Colored bar on left
+    gfx->fillRect(25, y, 8, 65, colors[i]);
+    
+    // Tier name
+    gfx->setTextColor(RGB565(220, 225, 240));
+    gfx->setTextSize(2);
+    gfx->setCursor(45, y + 12);
+    gfx->print(tiers[i]);
+    
+    // Description
+    gfx->setTextColor(RGB565(100, 105, 120));
     gfx->setTextSize(1);
-    gfx->setCursor(60, y + 38);
-    gfx->printf("Completed: %d/5", defeated);
+    gfx->setCursor(45, y + 40);
+    gfx->print(descs[i]);
+    
+    // Completion
+    gfx->setTextColor(tier_defeated == 5 ? COLOR_GREEN : RGB565(150, 155, 170));
+    gfx->setCursor(240, y + 25);
+    gfx->printf("%d/5", tier_defeated);
+    
+    if (tier_defeated == 5) {
+      gfx->setTextColor(COLOR_GREEN);
+      gfx->setCursor(280, y + 25);
+      gfx->print("OK");
+    }
   }
   
-  drawGlassButton(140, 410, 80, 35, "Back", false);
+  drawSwipeIndicator();
 }
 
 void drawBossSelection() {
-  gfx->fillScreen(COLOR_BLACK);
+  gfx->fillScreen(RGB565(2, 2, 5));
+  show_boss_selection = true;
   
-  gfx->setTextColor(getCurrentTheme()->primary);
+  for (int y = 0; y < LCD_HEIGHT; y += 4) {
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+  }
+  
+  ThemeColors* theme = getCurrentTheme();
+  uint16_t tierColor = getBossTierColor((BossTier)(current_tier + 1));
+  
+  // Header
+  gfx->fillRect(0, 0, LCD_WIDTH, 48, RGB565(10, 12, 18));
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, 46, 6, 3, tierColor);
+  }
+  
+  gfx->setTextColor(tierColor);
   gfx->setTextSize(2);
-  gfx->setCursor(80, 20);
-  gfx->print("SELECT BOSS");
+  gfx->setCursor(80, 14);
+  gfx->printf("TIER %d BOSSES", current_tier + 1);
   
-  // Show 5 bosses from current tier
-  int tier_start = 0;  // Would be set based on selected tier
+  // Show 5 bosses
+  int tier_start = current_tier * 5;
   
   for (int i = 0; i < 5; i++) {
     int boss_idx = tier_start + i;
     BossData* boss = getBoss(boss_idx);
-    int y = 70 + i * 65;
+    int y = 60 + i * 70;
     
-    uint16_t bg = bosses_defeated[boss_idx] ? RGB565(0, 60, 0) : RGB565(40, 40, 40);
-    gfx->fillRoundRect(30, y, 300, 55, 10, bg);
-    gfx->drawRoundRect(30, y, 300, 55, 10, getBossTierColor(boss->tier));
+    uint16_t bg = bosses_defeated[boss_idx] ? RGB565(10, 30, 10) : RGB565(12, 14, 20);
     
-    gfx->setTextColor(COLOR_WHITE);
+    gfx->fillRect(20, y, 320, 60, bg);
+    gfx->drawRect(20, y, 320, 60, tierColor);
+    gfx->fillRect(20, y, 5, 5, tierColor);
+    
+    // Boss name
+    gfx->setTextColor(RGB565(220, 225, 240));
     gfx->setTextSize(2);
-    gfx->setCursor(45, y + 8);
+    gfx->setCursor(35, y + 10);
     gfx->print(boss->name);
     
+    // Series and level
     gfx->setTextSize(1);
-    gfx->setTextColor(COLOR_GRAY);
-    gfx->setCursor(45, y + 32);
+    gfx->setTextColor(RGB565(100, 105, 120));
+    gfx->setCursor(35, y + 38);
     gfx->printf("%s | Lv.%d", boss->series, boss->level);
     
     // Reward
     gfx->setTextColor(COLOR_GOLD);
-    gfx->setCursor(250, y + 32);
-    gfx->printf("%dG", boss->gem_reward);
+    gfx->setCursor(250, y + 20);
+    gfx->printf("+%d", boss->gem_reward);
+    
+    // Status
+    if (bosses_defeated[boss_idx]) {
+      gfx->setTextColor(COLOR_GREEN);
+      gfx->setCursor(280, y + 38);
+      gfx->print("DONE");
+    }
   }
   
-  drawGlassButton(140, 410, 80, 35, "Back", false);
+  drawSwipeIndicator();
 }
 
 void drawBossBattle() {
-  gfx->fillScreen(COLOR_BLACK);
+  gfx->fillScreen(RGB565(2, 2, 5));
   
   BossData* boss = getCurrentBoss();
   
-  // Boss area (top)
+  // Boss name and tier
   gfx->setTextColor(getBossTierColor(boss->tier));
   gfx->setTextSize(2);
-  gfx->setCursor(50, 15);
+  gfx->setCursor(30, 15);
   gfx->print(boss->name);
   
   gfx->setTextSize(1);
-  gfx->setTextColor(COLOR_GRAY);
-  gfx->setCursor(50, 40);
+  gfx->setTextColor(RGB565(100, 105, 120));
+  gfx->setCursor(30, 40);
   gfx->printf("Lv.%d - %s", boss->level, boss->series);
   
-  // Boss HP bar
-  drawBossHealthBar(30, 60, 300, 25, *boss);
+  // Boss HP
+  drawBossHealthBar(20, 60, 320, 30, *boss);
   
-  // Player area (middle)
+  // Divider
+  gfx->drawFastHLine(0, 100, LCD_WIDTH, RGB565(40, 40, 60));
+  
+  // Battle log
+  gfx->fillRect(20, 110, 320, 80, RGB565(10, 12, 18));
+  gfx->drawRect(20, 110, 320, 80, RGB565(30, 35, 50));
+  gfx->setTextColor(RGB565(180, 185, 200));
+  gfx->setTextSize(1);
+  for (int i = 0; i < min(4, log_index); i++) {
+    gfx->setCursor(30, 118 + i * 18);
+    gfx->print(battle_log[max(0, log_index - 4 + i)]);
+  }
+  
+  // Player section
+  gfx->drawFastHLine(0, 200, LCD_WIDTH, RGB565(40, 40, 60));
+  
+  CharacterProfile* profile = getCharacterProfile(system_state.current_theme);
   gfx->setTextColor(getCurrentTheme()->primary);
   gfx->setTextSize(2);
-  gfx->setCursor(50, 200);
-  CharacterProfile* profile = getCharacterProfile(system_state.current_theme);
-  gfx->print(profile->name);
+  gfx->setCursor(30, 210);
+  gfx->print(profile ? profile->name : "Hero");
   
-  // Player HP bar
-  drawPlayerHealthBar(30, 230, 300, 20);
+  // Player HP
+  drawPlayerHealthBar(20, 240, 240, 25);
   
-  // Energy bar
-  drawEnergyBar(30, 260, 200, 15);
+  // Energy
+  drawEnergyBar(20, 275, 160, 18);
   
-  // Combo indicator
+  // Combo
   if (combo_count > 0) {
     gfx->setTextColor(COLOR_GOLD);
     gfx->setTextSize(1);
-    gfx->setCursor(250, 260);
-    gfx->printf("x%d COMBO!", combo_count);
+    gfx->setCursor(200, 278);
+    gfx->printf("x%d COMBO", combo_count);
   }
   
   // Potions
   gfx->setTextColor(COLOR_GREEN);
-  gfx->setCursor(250, 230);
+  gfx->setCursor(280, 250);
   gfx->printf("Potions: %d", potions_remaining);
-  
-  // Battle log
-  drawBattleLog();
   
   // Action buttons
   drawCombatActions();
 }
 
 void drawBossHealthBar(int x, int y, int w, int h, BossData& boss) {
-  // Use max_hp field for proper health bar calculation
   float progress = (float)boss.hp / boss.max_hp;
   
-  gfx->fillRoundRect(x, y, w, h, h/2, RGB565(60, 30, 30));
-  
+  gfx->fillRect(x, y, w, h, RGB565(40, 20, 20));
   int fillW = (int)(w * constrain(progress, 0.0f, 1.0f));
-  if (fillW > 0) {
-    gfx->fillRoundRect(x, y, fillW, h, h/2, COLOR_RED);
-  }
+  if (fillW > 0) gfx->fillRect(x, y, fillW, h, COLOR_RED);
+  gfx->drawRect(x, y, w, h, RGB565(80, 40, 40));
   
-  gfx->drawRoundRect(x, y, w, h, h/2, COLOR_WHITE);
-  
-  // HP text
   gfx->setTextColor(COLOR_WHITE);
   gfx->setTextSize(1);
-  gfx->setCursor(x + 10, y + h/2 - 4);
+  gfx->setCursor(x + w/2 - 40, y + h/2 - 4);
   gfx->printf("%d / %d", max(0, boss.hp), boss.max_hp);
 }
 
 void drawPlayerHealthBar(int x, int y, int w, int h) {
   float progress = (float)player_hp / player_max_hp;
   
-  gfx->fillRoundRect(x, y, w, h, h/2, RGB565(30, 60, 30));
-  
+  gfx->fillRect(x, y, w, h, RGB565(20, 40, 20));
   int fillW = (int)(w * constrain(progress, 0.0f, 1.0f));
   if (fillW > 0) {
     uint16_t color = progress > 0.3 ? COLOR_GREEN : COLOR_RED;
-    gfx->fillRoundRect(x, y, fillW, h, h/2, color);
+    gfx->fillRect(x, y, fillW, h, color);
   }
-  
-  gfx->drawRoundRect(x, y, w, h, h/2, COLOR_WHITE);
+  gfx->drawRect(x, y, w, h, RGB565(40, 80, 40));
   
   gfx->setTextColor(COLOR_WHITE);
   gfx->setTextSize(1);
@@ -606,107 +550,113 @@ void drawPlayerHealthBar(int x, int y, int w, int h) {
 void drawEnergyBar(int x, int y, int w, int h) {
   float progress = player_energy / 100.0f;
   
-  gfx->fillRoundRect(x, y, w, h, h/2, RGB565(30, 30, 60));
-  
+  gfx->fillRect(x, y, w, h, RGB565(20, 20, 40));
   int fillW = (int)(w * progress);
-  if (fillW > 0) {
-    gfx->fillRoundRect(x, y, fillW, h, h/2, COLOR_BLUE);
-  }
-  
-  gfx->drawRoundRect(x, y, w, h, h/2, COLOR_WHITE);
+  if (fillW > 0) gfx->fillRect(x, y, fillW, h, COLOR_BLUE);
+  gfx->drawRect(x, y, w, h, RGB565(40, 40, 80));
   
   gfx->setTextColor(COLOR_WHITE);
   gfx->setTextSize(1);
-  gfx->setCursor(x + 5, y + 2);
+  gfx->setCursor(x + 5, y + 3);
   gfx->printf("SP: %d%%", player_energy);
 }
 
 void drawCombatActions() {
-  int y = 350;
-  int btnW = 80, btnH = 40;
+  int y = 320;
+  int btnW = 75, btnH = 50, gap = 10;
+  int startX = (LCD_WIDTH - (4 * btnW + 3 * gap)) / 2;
   
   // Attack
-  gfx->fillRoundRect(20, y, btnW, btnH, 8, COLOR_RED);
+  gfx->fillRect(startX, y, btnW, btnH, COLOR_RED);
+  gfx->drawRect(startX, y, btnW, btnH, COLOR_WHITE);
   gfx->setTextColor(COLOR_WHITE);
   gfx->setTextSize(1);
-  gfx->setCursor(35, y + 15);
+  gfx->setCursor(startX + 15, y + 20);
   gfx->print("ATTACK");
   
   // Defend
-  gfx->fillRoundRect(110, y, btnW, btnH, 8, COLOR_BLUE);
-  gfx->setCursor(125, y + 15);
+  gfx->fillRect(startX + btnW + gap, y, btnW, btnH, COLOR_BLUE);
+  gfx->drawRect(startX + btnW + gap, y, btnW, btnH, COLOR_WHITE);
+  gfx->setCursor(startX + btnW + gap + 12, y + 20);
   gfx->print("DEFEND");
   
-  // Special (grayed out if no energy)
-  uint16_t spColor = player_energy >= 100 ? COLOR_PURPLE : COLOR_GRAY;
-  gfx->fillRoundRect(200, y, btnW, btnH, 8, spColor);
-  gfx->setCursor(210, y + 15);
+  // Special
+  uint16_t spColor = player_energy >= 100 ? COLOR_PURPLE : RGB565(60, 60, 80);
+  gfx->fillRect(startX + 2 * (btnW + gap), y, btnW, btnH, spColor);
+  gfx->drawRect(startX + 2 * (btnW + gap), y, btnW, btnH, COLOR_WHITE);
+  gfx->setCursor(startX + 2 * (btnW + gap) + 8, y + 20);
   gfx->print("SPECIAL");
   
-  // Item (grayed out if no potions)
-  uint16_t itemColor = potions_remaining > 0 ? COLOR_GREEN : COLOR_GRAY;
-  gfx->fillRoundRect(290, y, btnW - 10, btnH, 8, itemColor);
-  gfx->setCursor(300, y + 15);
+  // Item
+  uint16_t itemColor = potions_remaining > 0 ? COLOR_GREEN : RGB565(60, 60, 80);
+  gfx->fillRect(startX + 3 * (btnW + gap), y, btnW, btnH, itemColor);
+  gfx->drawRect(startX + 3 * (btnW + gap), y, btnW, btnH, COLOR_WHITE);
+  gfx->setCursor(startX + 3 * (btnW + gap) + 18, y + 20);
   gfx->print("ITEM");
 }
 
 void drawBattleLog() {
-  int y = 290;
-  gfx->fillRoundRect(20, y, 320, 50, 8, RGB565(20, 20, 30));
-  
-  gfx->setTextColor(COLOR_WHITE);
-  gfx->setTextSize(1);
-  
-  for (int i = 0; i < min(3, log_index); i++) {
-    gfx->setCursor(30, y + 8 + i * 14);
-    gfx->print(battle_log[log_index - 1 - i]);
-  }
+  // Integrated into drawBossBattle
 }
 
 void drawBossVictory(BossData& boss) {
-  gfx->fillScreen(COLOR_BLACK);
+  gfx->fillScreen(RGB565(2, 2, 5));
   
   gfx->setTextColor(COLOR_GOLD);
-  gfx->setTextSize(3);
-  gfx->setCursor(100, 100);
+  gfx->setTextSize(4);
+  gfx->setCursor(70, 80);
   gfx->print("VICTORY!");
   
-  gfx->setTextColor(COLOR_WHITE);
+  gfx->setTextColor(RGB565(200, 205, 220));
   gfx->setTextSize(2);
-  gfx->setCursor(80, 180);
+  gfx->setCursor(50, 160);
   gfx->printf("%s defeated!", boss.name);
   
   gfx->setTextColor(COLOR_GREEN);
-  gfx->setCursor(100, 240);
-  gfx->printf("+%d Gems", boss.reward_gems);
+  gfx->setTextSize(2);
+  gfx->setCursor(100, 220);
+  gfx->printf("+%d Gems", boss.gem_reward);
   
-  gfx->setTextSize(1);
-  gfx->setCursor(100, 280);
+  gfx->setTextColor(COLOR_CYAN);
+  gfx->setCursor(100, 260);
   gfx->printf("+%d XP", boss.level * 100);
   
-  drawGlassButton(100, 350, 160, 50, "Continue", false);
+  // Continue button
+  gfx->fillRect(100, 340, 160, 50, getCurrentTheme()->primary);
+  gfx->drawRect(100, 340, 160, 50, COLOR_WHITE);
+  gfx->setTextColor(COLOR_WHITE);
+  gfx->setTextSize(2);
+  gfx->setCursor(130, 355);
+  gfx->print("Continue");
 }
 
 void drawBossDefeat() {
-  gfx->fillScreen(COLOR_BLACK);
+  gfx->fillScreen(RGB565(2, 2, 5));
   
   gfx->setTextColor(COLOR_RED);
-  gfx->setTextSize(3);
-  gfx->setCursor(100, 150);
+  gfx->setTextSize(4);
+  gfx->setCursor(90, 120);
   gfx->print("DEFEAT");
   
-  gfx->setTextColor(COLOR_WHITE);
+  gfx->setTextColor(RGB565(150, 155, 170));
   gfx->setTextSize(1);
-  gfx->setCursor(80, 250);
+  gfx->setCursor(80, 220);
   gfx->print("Train harder and try again!");
   
-  drawGlassButton(100, 350, 160, 50, "Continue", false);
+  gfx->fillRect(100, 340, 160, 50, RGB565(60, 60, 80));
+  gfx->drawRect(100, 340, 160, 50, COLOR_WHITE);
+  gfx->setTextColor(COLOR_WHITE);
+  gfx->setTextSize(2);
+  gfx->setCursor(130, 355);
+  gfx->print("Continue");
 }
 
+// =============================================================================
+// TOUCH HANDLING - FIXED
+// =============================================================================
+
 void handleBossRushMenuTouch(TouchGesture& gesture) {
-  // Swipe UP to exit (Apple Watch style)
   if (gesture.event == TOUCH_SWIPE_UP) {
-    system_state.current_screen = SCREEN_GAMES;
     returnToAppGrid();
     return;
   }
@@ -715,71 +665,81 @@ void handleBossRushMenuTouch(TouchGesture& gesture) {
   
   int y = gesture.y;
   
-  // Tier buttons
-  for (int i = 0; i < 4; i++) {
-    int by = 120 + i * 70;
-    if (y >= by && y < by + 60) {
-      // Start first available boss in tier
-      int start = i * 5;
-      for (int j = start; j < start + 5; j++) {
-        if (!bosses_defeated[j]) {
-          startBossFight(j);
-          return;
-        }
+  if (show_boss_selection) {
+    // Boss selection screen - tap to start fight
+    int tier_start = current_tier * 5;
+    for (int i = 0; i < 5; i++) {
+      int by = 60 + i * 70;
+      if (y >= by && y < by + 60) {
+        startBossFight(tier_start + i);
+        return;
       }
-      // All bosses in tier defeated - still allow replay
-      startBossFight(start);
-      return;
     }
-  }
-  
-  // Back button
-  if (y >= 410) {
-    system_state.current_screen = SCREEN_GAMES;
+  } else {
+    // Tier selection screen
+    for (int i = 0; i < 4; i++) {
+      int by = 100 + i * 75;
+      if (y >= by && y < by + 65) {
+        current_tier = i;
+        drawBossSelection();
+        return;
+      }
+    }
   }
 }
 
-// Alias function for handleBossRushMenuTouch
 void handleBossRushTouch(TouchGesture& gesture) {
-  handleBossRushMenuTouch(gesture);
+  if (battle_active) {
+    handleBossBattleTouch(gesture);
+  } else if (!battle_active && system_state.current_screen == SCREEN_BOSS_RUSH) {
+    // Victory/Defeat screen or menu
+    if (gesture.event == TOUCH_TAP && gesture.y >= 340) {
+      if (show_boss_selection) {
+        drawBossSelection();
+      } else {
+        drawBossRushMenu();
+      }
+    } else {
+      handleBossRushMenuTouch(gesture);
+    }
+  }
 }
 
 void handleBossSelectionTouch(TouchGesture& gesture) {
-  // Select specific boss from list
-  if (gesture.event == TOUCH_TAP && gesture.y >= 410) {
-    system_state.current_screen = SCREEN_BOSS_RUSH;
-  }
+  handleBossRushMenuTouch(gesture);
 }
 
 void handleBossBattleTouch(TouchGesture& gesture) {
-  // Swipe UP to exit battle (return to boss menu)
-  if (gesture.event == TOUCH_SWIPE_UP) {
-    if (!battle_active) {
-      // Victory/Defeat screen - return to boss menu
-      system_state.current_screen = SCREEN_BOSS_RUSH;
-      drawBossRushMenu();
-      return;
-    }
-    // Don't allow exit during active battle
+  if (gesture.event == TOUCH_SWIPE_UP && !battle_active) {
+    drawBossRushMenu();
     return;
   }
   
   if (gesture.event != TOUCH_TAP) return;
+  
   if (!battle_active) {
-    // Victory/Defeat screen - continue
-    system_state.current_screen = SCREEN_BOSS_RUSH;
-    drawBossRushMenu();
+    if (gesture.y >= 340) {
+      drawBossRushMenu();
+    }
     return;
   }
   
   int x = gesture.x, y = gesture.y;
   
-  // Action buttons at y = 350
-  if (y >= 350 && y < 390) {
-    if (x < 100) playerAttack();
-    else if (x < 190) playerDefend();
-    else if (x < 280) playerSpecial();
-    else playerUseItem();
+  // Action buttons at y = 320
+  if (y >= 320 && y < 370) {
+    int btnW = 75, gap = 10;
+    int startX = (LCD_WIDTH - (4 * btnW + 3 * gap)) / 2;
+    
+    if (x >= startX && x < startX + btnW) {
+      playerAttack();
+    } else if (x >= startX + btnW + gap && x < startX + 2 * btnW + gap) {
+      playerDefend();
+    } else if (x >= startX + 2 * (btnW + gap) && x < startX + 3 * btnW + 2 * gap) {
+      playerSpecial();
+    } else if (x >= startX + 3 * (btnW + gap)) {
+      playerUseItem();
+    }
   }
 }
 

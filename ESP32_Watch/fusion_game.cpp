@@ -71,20 +71,29 @@ void initFusionGame() {
 // =============================================================================
 
 void drawFusionGame() {
-  // Background
-  gfx->fillScreen(RGB565(10, 12, 18));
+  // ========================================
+  // RETRO ANIME FUSION GAME - CRT Style
+  // ========================================
+  gfx->fillScreen(RGB565(2, 2, 5));
+  for (int y = 0; y < LCD_HEIGHT; y += 4) {
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+  }
   
-  // Header
-  gfx->fillRect(0, 0, LCD_WIDTH, 45, RGB565(20, 22, 28));
-  gfx->drawFastHLine(0, 45, LCD_WIDTH, BBB_BAND_ORANGE);
-  
-  gfx->setTextColor(BBB_BAND_ORANGE);
+  // Retro header
+  gfx->fillRect(0, 0, LCD_WIDTH, 48, RGB565(10, 12, 18));
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, 46, 6, 3, BBB_BAND_ORANGE);
+  }
   gfx->setTextSize(2);
-  gfx->setCursor(80, 12);
+  gfx->setTextColor(RGB565(30, 35, 50));
+  gfx->setCursor(61, 14 + 1);
+  gfx->print("ELEMENT FUSION");
+  gfx->setTextColor(BBB_BAND_ORANGE);
+  gfx->setCursor(60, 14);
   gfx->print("ELEMENT FUSION");
   
   // Instructions
-  gfx->setTextColor(RGB565(120, 125, 140));
+  gfx->setTextColor(RGB565(80, 85, 100));
   gfx->setTextSize(1);
   gfx->setCursor(60, 55);
   gfx->print("Drag elements to fusion zone!");
@@ -169,19 +178,20 @@ void drawFusionGame() {
       break;
   }
   
-  // Back button
-  gfx->fillRoundRect(10, 410, 70, 30, 10, RGB565(30, 32, 40));
-  gfx->drawRoundRect(10, 410, 70, 30, 10, BBB_BAND_ORANGE);
-  gfx->setTextColor(COLOR_WHITE);
+  // Back button - retro
+  gfx->fillRect(10, 410, 70, 30, RGB565(15, 18, 25));
+  gfx->drawRect(10, 410, 70, 30, BBB_BAND_ORANGE);
+  gfx->fillRect(10, 410, 4, 4, BBB_BAND_ORANGE);
+  gfx->setTextColor(RGB565(200, 205, 220));
   gfx->setTextSize(1);
-  gfx->setCursor(28, 420);
+  gfx->setCursor(28, 421);
   gfx->print("Back");
   
-  // Reset button
-  gfx->fillRoundRect(290, 410, 70, 30, 10, RGB565(30, 32, 40));
-  gfx->drawRoundRect(290, 410, 70, 30, 10, RGB565(100, 100, 110));
-  gfx->setTextColor(RGB565(150, 150, 160));
-  gfx->setCursor(305, 420);
+  // Reset button - retro
+  gfx->fillRect(290, 410, 70, 30, RGB565(15, 18, 25));
+  gfx->drawRect(290, 410, 70, 30, RGB565(50, 55, 70));
+  gfx->setTextColor(RGB565(100, 105, 120));
+  gfx->setCursor(305, 421);
   gfx->print("Reset");
 }
 
@@ -191,21 +201,30 @@ void drawElementOrb(int x, int y, int elementIndex, bool highlight, float scale)
   int radius = 25 * scale;
   uint16_t color = fusionElementColors[elementIndex];
   
-  // Glow effect if highlighted
+  // Retro pixel style - square orbs with pixel corners
+  int size = radius * 2;
+  int ox = x - radius;
+  int oy = y - radius;
+  
   if (highlight) {
-    for (int r = radius + 10; r > radius; r -= 2) {
-      uint8_t alpha = map(r, radius, radius + 10, 40, 10);
-      gfx->drawCircle(x, y, r, RGB565(alpha, alpha, alpha));
-    }
+    // Glow - pixel outline
+    gfx->drawRect(ox - 4, oy - 4, size + 8, size + 8, color);
+    gfx->drawRect(ox - 2, oy - 2, size + 4, size + 4, RGB565(40, 42, 50));
   }
   
-  // Main orb
-  gfx->fillCircle(x, y, radius, color);
-  gfx->drawCircle(x, y, radius, COLOR_WHITE);
+  // Main orb - pixel square
+  gfx->fillRect(ox, oy, size, size, color);
+  gfx->drawRect(ox, oy, size, size, COLOR_WHITE);
+  // Pixel corners
+  gfx->fillRect(ox, oy, 4, 4, COLOR_WHITE);
+  gfx->fillRect(ox + size - 4, oy, 4, 4, COLOR_WHITE);
+  gfx->fillRect(ox, oy + size - 4, 4, 4, COLOR_WHITE);
+  gfx->fillRect(ox + size - 4, oy + size - 4, 4, 4, COLOR_WHITE);
   
-  // Inner shine
-  gfx->fillCircle(x - radius/3, y - radius/3, radius/4, 
-                  RGB565(255, 255, 255));
+  // CRT scan lines on orb
+  for (int sy = oy + 2; sy < oy + size - 2; sy += 3) {
+    gfx->drawFastHLine(ox + 2, sy, size - 4, RGB565(0, 0, 0));
+  }
   
   // Element initial
   gfx->setTextColor(COLOR_WHITE);
@@ -215,66 +234,70 @@ void drawElementOrb(int x, int y, int elementIndex, bool highlight, float scale)
   gfx->setCursor(x - offset, y - offset);
   gfx->print(initial);
   
-  // Evolved indicator (star)
+  // Evolved indicator (pixel star)
   if (elementIndex >= 7) {
     gfx->setTextSize(1);
+    gfx->setTextColor(COLOR_GOLD);
     gfx->setCursor(x + radius - 5, y - radius);
     gfx->print("*");
   }
 }
 
 void drawFusionZone(int x, int y) {
-  // Outer ring
-  gfx->drawCircle(x, y, 100, RGB565(60, 65, 80));
-  gfx->drawCircle(x, y, 98, RGB565(40, 42, 50));
+  // Retro pixel fusion zone - square instead of circle
+  gfx->drawRect(x - 100, y - 80, 200, 160, RGB565(60, 65, 80));
+  gfx->drawRect(x - 98, y - 78, 196, 156, RGB565(40, 42, 50));
   
-  // Pulsing inner glow
-  float pulse = 0.5 + 0.5 * sin(millis() / 300.0);
-  uint8_t glowVal = 20 + pulse * 30;
-  gfx->fillCircle(x, y, 90, RGB565(glowVal, glowVal, glowVal + 10));
+  // Inner area
+  gfx->fillRect(x - 90, y - 70, 180, 140, RGB565(8, 10, 14));
+  // CRT lines inside zone
+  for (int sy = y - 68; sy < y + 68; sy += 4) {
+    gfx->drawFastHLine(x - 88, sy, 176, RGB565(6, 6, 10));
+  }
   
-  // Drop zone indicators
+  // Drop zone indicators - pixel squares
   drawDropZone(x - 60, y, dropZone1Element >= 0);
   drawDropZone(x + 60, y, dropZone2Element >= 0);
   
   // Plus sign in center
-  gfx->setTextColor(RGB565(100, 105, 120));
+  gfx->setTextColor(RGB565(80, 85, 100));
   gfx->setTextSize(3);
   gfx->setCursor(x - 9, y - 12);
   gfx->print("+");
   
   // "FUSION" label
-  gfx->setTextColor(RGB565(80, 85, 100));
+  gfx->setTextColor(RGB565(60, 65, 80));
   gfx->setTextSize(1);
   gfx->setCursor(x - 20, y + 50);
   gfx->print("FUSION");
 }
 
 void drawDropZone(int x, int y, bool active) {
-  uint16_t color = active ? BBB_BAND_ORANGE : RGB565(50, 52, 60);
-  
-  gfx->drawCircle(x, y, 35, color);
-  
+  uint16_t color = active ? BBB_BAND_ORANGE : RGB565(40, 42, 50);
+  // Pixel square drop zone
+  gfx->drawRect(x - 35, y - 35, 70, 70, color);
   if (!active) {
-    // Dashed circle effect
-    for (int i = 0; i < 360; i += 30) {
-      float angle = i * PI / 180.0;
-      int px = x + cos(angle) * 35;
-      int py = y + sin(angle) * 35;
-      gfx->fillCircle(px, py, 2, RGB565(60, 62, 70));
+    // Dashed pixel effect
+    for (int i = 0; i < 70; i += 8) {
+      gfx->fillRect(x - 35 + i, y - 35, 4, 2, RGB565(50, 52, 60));
+      gfx->fillRect(x - 35 + i, y + 33, 4, 2, RGB565(50, 52, 60));
     }
   }
 }
 
 void drawFusionButton(int x, int y) {
-  // Check if fusion is valid
   int fusionResult = checkFusion(dropZone1Element, dropZone2Element);
   bool validFusion = (fusionResult >= 0);
   
-  uint16_t btnColor = validFusion ? BBB_BAND_ORANGE : RGB565(80, 80, 90);
+  uint16_t btnColor = validFusion ? BBB_BAND_ORANGE : RGB565(40, 42, 55);
   
-  gfx->fillRoundRect(x - 50, y, 100, 40, 15, btnColor);
-  gfx->drawRoundRect(x - 50, y, 100, 40, 15, COLOR_WHITE);
+  // Retro pixel button
+  gfx->fillRect(x - 50, y, 100, 40, btnColor);
+  gfx->drawRect(x - 50, y, 100, 40, COLOR_WHITE);
+  gfx->fillRect(x - 50, y, 5, 5, COLOR_WHITE);
+  gfx->fillRect(x + 45, y, 5, 5, COLOR_WHITE);
+  gfx->fillRect(x - 50, y + 35, 5, 5, COLOR_WHITE);
+  gfx->fillRect(x + 45, y + 35, 5, 5, COLOR_WHITE);
   
   gfx->setTextColor(COLOR_WHITE);
   gfx->setTextSize(2);
@@ -287,53 +310,54 @@ void drawFusionButton(int x, int y) {
 // =============================================================================
 
 void drawFusionCombiningAnim(int x, int y) {
-  // Spinning particles
+  // Retro pixel combining effect
   animFrame = (animFrame + 1) % 60;
   
   for (int i = 0; i < 12; i++) {
-    float angle = (animFrame * 6 + i * 30) * PI / 180.0;
-    float radius = 70 - animFrame;
-    int px = x + cos(angle) * radius;
-    int py = y + sin(angle) * radius;
+    int offset = (animFrame + i * 5) % 60;
+    int px = x - 60 + (offset * 2);
+    int py = y - 30 + (i * 5);
     
     uint16_t color = (i % 2) ? fusionElementColors[dropZone1Element] 
                              : fusionElementColors[dropZone2Element];
-    gfx->fillCircle(px, py, 4, color);
+    gfx->fillRect(px, py, 6, 6, color);
   }
   
-  // Center glow growing
-  int glowRadius = animFrame / 2;
-  gfx->fillCircle(x, y, glowRadius, RGB565(255, 200, 100));
+  // Center glow - pixel square growing
+  int glowSize = animFrame / 2;
+  gfx->fillRect(x - glowSize, y - glowSize, glowSize * 2, glowSize * 2, RGB565(255, 200, 100));
 }
 
 void drawFusionSuccessAnim(int x, int y) {
-  // Explosion effect
+  // Retro pixel explosion
   for (int i = 0; i < 16; i++) {
-    float angle = i * 22.5 * PI / 180.0;
     int len = 30 + (millis() / 10) % 30;
-    int x1 = x + cos(angle) * 20;
-    int y1 = y + sin(angle) * 20;
-    int x2 = x + cos(angle) * len;
-    int y2 = y + sin(angle) * len;
-    
-    gfx->drawLine(x1, y1, x2, y2, BBB_BAND_GLOW);
+    int dx = (i % 4 - 2) * len / 2;
+    int dy = (i / 4 - 2) * len / 2;
+    gfx->fillRect(x + dx - 2, y + dy - 2, 5, 5, BBB_BAND_GLOW);
   }
   
-  // Success text
-  gfx->setTextColor(COLOR_WHITE);
+  // Success text - retro
+  gfx->fillRect(x - 55, y - 15, 110, 30, RGB565(10, 12, 18));
+  gfx->drawRect(x - 55, y - 15, 110, 30, COLOR_GOLD);
+  gfx->setTextColor(COLOR_GOLD);
   gfx->setTextSize(2);
   gfx->setCursor(x - 45, y - 8);
   gfx->print("SUCCESS!");
 }
 
 void drawFusionFailAnim(int x, int y) {
-  // Red X
-  gfx->drawLine(x - 30, y - 30, x + 30, y + 30, COLOR_RED);
-  gfx->drawLine(x + 30, y - 30, x - 30, y + 30, COLOR_RED);
+  // Red pixel X
+  for (int i = 0; i < 30; i++) {
+    gfx->fillRect(x - 30 + i * 2, y - 30 + i * 2, 4, 4, COLOR_RED);
+    gfx->fillRect(x + 28 - i * 2, y - 30 + i * 2, 4, 4, COLOR_RED);
+  }
   
+  gfx->fillRect(x - 50, y + 35, 100, 20, RGB565(10, 12, 18));
+  gfx->drawRect(x - 50, y + 35, 100, 20, COLOR_RED);
   gfx->setTextColor(COLOR_RED);
   gfx->setTextSize(1);
-  gfx->setCursor(x - 40, y + 40);
+  gfx->setCursor(x - 35, y + 41);
   gfx->print("Cannot fuse!");
 }
 

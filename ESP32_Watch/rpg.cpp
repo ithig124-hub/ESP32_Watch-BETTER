@@ -357,7 +357,7 @@ void selectYugoEndgamePath(YugoEndgamePath path) {
 // =============================================================================
 
 void drawRPGOverview() {
-  gfx->fillScreen(COLOR_BLACK);
+  gfx->fillScreen(RGB565(2, 2, 5));
   
   // Title
   gfx->setTextColor(getCurrentTheme()->primary);
@@ -366,7 +366,7 @@ void drawRPGOverview() {
   gfx->print("RPG STATUS");
   
   // Character name
-  gfx->setTextColor(COLOR_WHITE);
+  gfx->setTextColor(RGB565(200, 205, 220));
   gfx->setTextSize(2);
   gfx->setCursor(50, 70);
   gfx->print(getCharacterName(rpg_character.character_type));
@@ -389,7 +389,7 @@ void drawRPGOverview() {
   
   drawThemeProgressBar(40, 200, 280, 25, xp_progress, "Experience");
   
-  gfx->setTextColor(COLOR_WHITE);
+  gfx->setTextColor(RGB565(200, 205, 220));
   gfx->setTextSize(1);
   gfx->setCursor(40, 235);
   gfx->printf("%lld / %lld XP", current_xp, needed_xp);
@@ -402,7 +402,7 @@ void drawCharacterStats() {
   int startY = 280;
   int col1 = 40, col2 = 200;
   
-  gfx->setTextColor(COLOR_WHITE);
+  gfx->setTextColor(RGB565(200, 205, 220));
   gfx->setTextSize(1);
   
   gfx->setCursor(col1, startY);
@@ -443,7 +443,7 @@ void drawLevelUpAnimation() {
   for (int i = 0; i < 3; i++) {
     gfx->fillScreen(getCurrentTheme()->primary);
     delay(100);
-    gfx->fillScreen(COLOR_BLACK);
+    gfx->fillScreen(RGB565(2, 2, 5));
     delay(100);
   }
 }
@@ -532,7 +532,7 @@ bool completeQuest(int quest_id) {
 }
 
 void drawQuestScreen() {
-  gfx->fillScreen(COLOR_BLACK);
+  gfx->fillScreen(RGB565(2, 2, 5));
   
   gfx->setTextColor(getCurrentTheme()->primary);
   gfx->setTextSize(2);
@@ -572,8 +572,8 @@ void drawQuestCard(int x, int y, int w, int h, QuestData& quest) {
   uint16_t bg = quest.completed ? RGB565(0, 60, 0) : RGB565(40, 40, 40);
   if (quest.urgent) bg = RGB565(80, 0, 0);
   
-  gfx->fillRoundRect(x, y, w, h, 10, bg);
-  gfx->drawRoundRect(x, y, w, h, 10, getCurrentTheme()->primary);
+  gfx->fillRect(x, y, w, h, bg);
+  gfx->drawRect(x, y, w, h, getCurrentTheme()->primary);
   
   // Title
   gfx->setTextColor(quest.urgent ? COLOR_ORANGE : COLOR_WHITE);
@@ -582,21 +582,21 @@ void drawQuestCard(int x, int y, int w, int h, QuestData& quest) {
   gfx->print(quest.title);
   
   // Description
-  gfx->setTextColor(COLOR_GRAY);
+  gfx->setTextColor(RGB565(80, 85, 100));
   gfx->setCursor(x + 10, y + 28);
   gfx->print(quest.description);
   
   // Progress bar
   float progress = (float)quest.current_progress / max(1, quest.target_value);
   int barW = (int)((w - 20) * min(1.0f, progress));
-  gfx->fillRoundRect(x + 10, y + 50, w - 20, 15, 5, RGB565(60, 60, 60));
+  gfx->fillRect(x + 10, y + 50, w - 20, 15, RGB565(60, 60, 60));
   if (barW > 0) {
     uint16_t barColor = quest.completed ? COLOR_GREEN : getCurrentTheme()->primary;
-    gfx->fillRoundRect(x + 10, y + 50, barW, 15, 5, barColor);
+    gfx->fillRect(x + 10, y + 50, barW, 15, barColor);
   }
   
   // Progress text
-  gfx->setTextColor(COLOR_WHITE);
+  gfx->setTextColor(RGB565(200, 205, 220));
   gfx->setCursor(x + 10, y + 68);
   gfx->printf("%d/%d  +%dXP", quest.current_progress, quest.target_value, quest.reward_points);
 }

@@ -24,6 +24,13 @@ static bool stopwatch_mode = true;  // true = stopwatch, false = timer
 static unsigned long lap_times[10];
 static int lap_count = 0;
 
+// Timer state (moved here for early access)
+static unsigned long timer_start_ms = 0;
+static unsigned long timer_elapsed_ms = 0;
+static bool timer_running = false;
+static bool timer_mode_stopwatch = true;
+static unsigned long timer_countdown_set = 60000;
+
 // Calculator state
 static float calc_result = 0;
 static String calc_display = "0";
@@ -74,14 +81,21 @@ void exitCurrentApp() {
 }
 
 void drawAppGrid() {
-  gfx->fillScreen(COLOR_BLACK);
+  gfx->fillScreen(RGB565(2, 2, 5));
+  for (int y = 0; y < LCD_HEIGHT; y += 4) {
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+  }
   
-  gfx->setTextColor(getCurrentTheme()->primary);
+  ThemeColors* theme = getCurrentTheme();
+  gfx->fillRect(0, 0, LCD_WIDTH, 48, RGB565(10, 12, 18));
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, 46, 6, 3, theme->primary);
+  }
+  gfx->setTextColor(theme->primary);
   gfx->setTextSize(2);
-  gfx->setCursor(140, 10);
+  gfx->setCursor(LCD_WIDTH/2 - 24, 14);
   gfx->print("APPS");
   
-  // Draw app icons in a grid
   for (int i = 0; i < min(num_registered_apps, 9); i++) {
     int x = (i % 3) * 115 + 25;
     int y = (i / 3) * 115 + 60;
@@ -90,8 +104,13 @@ void drawAppGrid() {
 }
 
 void drawAppIcon(int x, int y, int size, WatchApp& app) {
-  gfx->fillRoundRect(x, y, size, size, 20, app.icon_color);
-  gfx->setTextColor(COLOR_BLACK);
+  gfx->fillRect(x, y, size, size, RGB565(12, 14, 20));
+  gfx->drawRect(x, y, size, size, RGB565(40, 45, 60));
+  gfx->fillRect(x, y, 5, 5, app.icon_color);
+  gfx->fillRect(x + size - 5, y, 5, 5, app.icon_color);
+  gfx->fillRect(x + 2, y + 2, size - 4, 4, app.icon_color);
+  
+  gfx->setTextColor(RGB565(200, 205, 220));
   gfx->setTextSize(1);
   int textW = app.name.length() * 6;
   gfx->setCursor(x + (size - textW) / 2, y + size / 2 - 4);
@@ -126,60 +145,85 @@ void initMusicApp() {
 }
 
 void drawMusicApp() {
-  gfx->fillScreen(RGB565(8, 8, 12));
+  // ========================================
+  // RETRO ANIME MUSIC PLAYER - CRT Style
+  // ========================================
+  gfx->fillScreen(RGB565(2, 2, 5));
+  for (int y = 0; y < LCD_HEIGHT; y += 4) {
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+  }
   
   ThemeColors* theme = getCurrentTheme();
   
-  // Header
-  gfx->fillRoundRect(0, 0, LCD_WIDTH, 50, 0, RGB565(16, 18, 24));
-  gfx->drawFastHLine(0, 50, LCD_WIDTH, theme->primary);
+  // Retro header
+  gfx->fillRect(0, 0, LCD_WIDTH, 48, RGB565(10, 12, 18));
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, 46, 6, 3, theme->primary);
+  }
+  gfx->setTextSize(2);
+  gfx->setTextColor(RGB565(30, 35, 50));
+  gfx->setCursor(LCD_WIDTH/2 - 30 + 1, 14 + 1);
+  gfx->print("MUSIC");
   gfx->setTextColor(theme->primary);
-  gfx->setTextSize(2);
-  gfx->setCursor(LCD_WIDTH/2 - 30, 16);
-  gfx->print("Music");
+  gfx->setCursor(LCD_WIDTH/2 - 30, 14);
+  gfx->print("MUSIC");
   
-  // Album art placeholder - rounded card
+  // Album art - retro pixel frame
   int artX = LCD_WIDTH/2 - 75;
-  gfx->fillRoundRect(artX, 70, 150, 150, 20, RGB565(22, 24, 32));
-  gfx->drawRoundRect(artX, 70, 150, 150, 20, RGB565(50, 52, 65));
-  gfx->fillCircle(LCD_WIDTH/2, 145, 30, theme->primary);
-  gfx->fillCircle(LCD_WIDTH/2, 145, 10, RGB565(22, 24, 32));
+  gfx->fillRect(artX, 60, 150, 150, RGB565(12, 14, 20));
+  gfx->drawRect(artX, 60, 150, 150, RGB565(40, 45, 60));
+  gfx->fillRect(artX, 60, 6, 6, theme->primary);
+  gfx->fillRect(artX + 144, 60, 6, 6, theme->primary);
+  gfx->fillRect(artX, 204, 6, 6, theme->primary);
+  gfx->fillRect(artX + 144, 204, 6, 6, theme->primary);
+  // Vinyl disc - pixel style
+  gfx->fillRect(LCD_WIDTH/2 - 28, 107, 56, 56, theme->primary);
+  gfx->fillRect(LCD_WIDTH/2 - 8, 127, 16, 16, RGB565(12, 14, 20));
+  // CRT lines on art
+  for (int sy = 62; sy < 208; sy += 4) {
+    gfx->drawFastHLine(artX + 2, sy, 146, RGB565(6, 6, 10));
+  }
   
-  // Track info
-  gfx->setTextColor(COLOR_WHITE);
+  // Track info - retro
+  gfx->setTextColor(RGB565(200, 205, 220));
   gfx->setTextSize(2);
-  int tw = 7 * 12;
-  gfx->setCursor(LCD_WIDTH/2 - tw/2, 240);
+  gfx->setCursor(LCD_WIDTH/2 - 42, 225);
   gfx->printf("Track %d", current_track + 1);
   
   gfx->setTextSize(1);
-  gfx->setTextColor(is_playing ? RGB565(100, 200, 100) : RGB565(120, 120, 130));
-  gfx->setCursor(LCD_WIDTH/2 - 18, 268);
-  gfx->print(is_playing ? "Playing" : "Paused");
+  gfx->setTextColor(is_playing ? RGB565(0, 200, 80) : RGB565(80, 85, 100));
+  gfx->setCursor(LCD_WIDTH/2 - 20, 250);
+  gfx->print(is_playing ? "PLAYING" : "PAUSED");
   
-  // Progress bar
-  gfx->fillRoundRect(40, 290, LCD_WIDTH - 80, 4, 2, RGB565(40, 42, 55));
-  gfx->fillRoundRect(40, 290, (LCD_WIDTH - 80) / 3, 4, 2, theme->primary);
+  // Progress bar - retro pixel
+  gfx->fillRect(40, 270, LCD_WIDTH - 80, 6, RGB565(15, 18, 25));
+  gfx->drawRect(40, 270, LCD_WIDTH - 80, 6, RGB565(30, 35, 50));
+  gfx->fillRect(42, 272, (LCD_WIDTH - 84) / 3, 2, theme->primary);
   
-  // Controls - pill buttons
-  int btnY = 320;
-  gfx->fillRoundRect(40, btnY, 75, 45, 22, RGB565(25, 27, 35));
-  gfx->drawRoundRect(40, btnY, 75, 45, 22, RGB565(50, 52, 65));
-  gfx->setTextColor(COLOR_WHITE);
+  // Controls - retro pixel buttons
+  int btnY = 295;
+  // Prev
+  gfx->fillRect(40, btnY, 75, 40, RGB565(15, 18, 25));
+  gfx->drawRect(40, btnY, 75, 40, RGB565(40, 45, 60));
+  gfx->fillRect(40, btnY, 4, 4, theme->accent);
+  gfx->setTextColor(RGB565(180, 185, 200));
   gfx->setTextSize(2);
-  gfx->setCursor(58, btnY + 13);
+  gfx->setCursor(58, btnY + 12);
   gfx->print("<<");
   
-  gfx->fillRoundRect(LCD_WIDTH/2 - 40, btnY, 80, 45, 22, theme->primary);
+  // Play/Pause
+  gfx->fillRect(LCD_WIDTH/2 - 40, btnY, 80, 40, theme->primary);
+  gfx->drawRect(LCD_WIDTH/2 - 40, btnY, 80, 40, RGB565(60, 65, 80));
   gfx->setTextColor(COLOR_WHITE);
-  gfx->setTextSize(2);
-  gfx->setCursor(LCD_WIDTH/2 - 18, btnY + 13);
+  gfx->setCursor(LCD_WIDTH/2 - 18, btnY + 12);
   gfx->print(is_playing ? "||" : " >");
   
-  gfx->fillRoundRect(LCD_WIDTH - 115, btnY, 75, 45, 22, RGB565(25, 27, 35));
-  gfx->drawRoundRect(LCD_WIDTH - 115, btnY, 75, 45, 22, RGB565(50, 52, 65));
-  gfx->setTextColor(COLOR_WHITE);
-  gfx->setCursor(LCD_WIDTH - 97, btnY + 13);
+  // Next
+  gfx->fillRect(LCD_WIDTH - 115, btnY, 75, 40, RGB565(15, 18, 25));
+  gfx->drawRect(LCD_WIDTH - 115, btnY, 75, 40, RGB565(40, 45, 60));
+  gfx->fillRect(LCD_WIDTH - 44, btnY, 4, 4, theme->accent);
+  gfx->setTextColor(RGB565(180, 185, 200));
+  gfx->setCursor(LCD_WIDTH - 97, btnY + 12);
   gfx->print(">>");
   
   drawSwipeIndicator();
@@ -215,28 +259,41 @@ void initNotesApp() {
 }
 
 void drawNotesApp() {
-  gfx->fillScreen(RGB565(8, 8, 12));
+  // ========================================
+  // RETRO ANIME NOTES - CRT Style
+  // ========================================
+  gfx->fillScreen(RGB565(2, 2, 5));
+  for (int y = 0; y < LCD_HEIGHT; y += 4) {
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+  }
   
   ThemeColors* theme = getCurrentTheme();
   
-  // Header
-  gfx->fillRoundRect(0, 0, LCD_WIDTH, 50, 0, RGB565(16, 18, 24));
-  gfx->drawFastHLine(0, 50, LCD_WIDTH, RGB565(255, 200, 60));
-  gfx->setTextColor(RGB565(255, 200, 60));
+  // Retro header
+  gfx->fillRect(0, 0, LCD_WIDTH, 48, RGB565(10, 12, 18));
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, 46, 6, 3, RGB565(255, 200, 60));
+  }
   gfx->setTextSize(2);
-  gfx->setCursor(LCD_WIDTH/2 - 30, 16);
-  gfx->print("Notes");
+  gfx->setTextColor(RGB565(30, 35, 50));
+  gfx->setCursor(LCD_WIDTH/2 - 30 + 1, 14 + 1);
+  gfx->print("NOTES");
+  gfx->setTextColor(RGB565(255, 200, 60));
+  gfx->setCursor(LCD_WIDTH/2 - 30, 14);
+  gfx->print("NOTES");
   
   for (int i = 0; i < 5; i++) {
-    int y = 62 + i * 62;
-    uint16_t bg = (i == selected_note) ? RGB565(30, 35, 48) : RGB565(22, 24, 32);
-    gfx->fillRoundRect(20, y, LCD_WIDTH - 40, 52, 14, bg);
-    if (i == selected_note) {
-      gfx->drawRoundRect(20, y, LCD_WIDTH - 40, 52, 14, theme->accent);
-    } else {
-      gfx->drawRoundRect(20, y, LCD_WIDTH - 40, 52, 14, RGB565(42, 44, 55));
-    }
-    gfx->setTextColor(COLOR_WHITE);
+    int y = 58 + i * 58;
+    bool sel = (i == selected_note);
+    uint16_t bg = sel ? RGB565(18, 22, 32) : RGB565(12, 14, 20);
+    gfx->fillRect(20, y, LCD_WIDTH - 40, 48, bg);
+    gfx->drawRect(20, y, LCD_WIDTH - 40, 48, sel ? RGB565(255, 200, 60) : RGB565(35, 40, 55));
+    // Pixel corner accents
+    uint16_t corner = sel ? RGB565(255, 200, 60) : RGB565(50, 55, 70);
+    gfx->fillRect(20, y, 4, 4, corner);
+    gfx->fillRect(LCD_WIDTH - 24, y, 4, 4, corner);
+    
+    gfx->setTextColor(sel ? RGB565(255, 200, 60) : RGB565(150, 155, 170));
     gfx->setTextSize(1);
     gfx->setCursor(35, y + 20);
     gfx->print(notes[i]);
@@ -272,44 +329,60 @@ void initFileBrowserApp() {
 }
 
 void drawFileBrowserApp() {
-  gfx->fillScreen(RGB565(8, 8, 12));
+  // ========================================
+  // RETRO ANIME FILE BROWSER - CRT Style
+  // ========================================
+  gfx->fillScreen(RGB565(2, 2, 5));
+  for (int y = 0; y < LCD_HEIGHT; y += 4) {
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+  }
   
   ThemeColors* theme = getCurrentTheme();
+  uint16_t fileBlue = RGB565(80, 180, 255);
   
-  // Header
-  gfx->fillRoundRect(0, 0, LCD_WIDTH, 50, 0, RGB565(16, 18, 24));
-  gfx->drawFastHLine(0, 50, LCD_WIDTH, RGB565(80, 180, 255));
-  gfx->setTextColor(RGB565(80, 180, 255));
+  // Retro header
+  gfx->fillRect(0, 0, LCD_WIDTH, 48, RGB565(10, 12, 18));
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, 46, 6, 3, fileBlue);
+  }
   gfx->setTextSize(2);
-  gfx->setCursor(LCD_WIDTH/2 - 30, 16);
-  gfx->print("Files");
+  gfx->setTextColor(RGB565(30, 35, 50));
+  gfx->setCursor(LCD_WIDTH/2 - 30 + 1, 14 + 1);
+  gfx->print("FILES");
+  gfx->setTextColor(fileBlue);
+  gfx->setCursor(LCD_WIDTH/2 - 30, 14);
+  gfx->print("FILES");
   
-  // SD card status card
-  gfx->fillRoundRect(20, 70, LCD_WIDTH - 40, 80, 16, RGB565(22, 24, 32));
-  gfx->drawRoundRect(20, 70, LCD_WIDTH - 40, 80, 16, RGB565(42, 44, 55));
+  // SD card status - retro card
+  gfx->fillRect(20, 60, LCD_WIDTH - 40, 70, RGB565(12, 14, 20));
+  gfx->drawRect(20, 60, LCD_WIDTH - 40, 70, RGB565(40, 45, 60));
+  gfx->fillRect(20, 60, 5, 5, fileBlue);
+  gfx->fillRect(LCD_WIDTH - 25, 60, 5, 5, fileBlue);
   
-  gfx->setTextColor(COLOR_WHITE);
+  gfx->setTextColor(RGB565(200, 205, 220));
   gfx->setTextSize(2);
-  gfx->setCursor(38, 88);
+  gfx->setCursor(35, 75);
   gfx->print("SD Card");
   
   gfx->setTextSize(1);
-  gfx->setTextColor(system_state.filesystem_available ? RGB565(100, 200, 100) : RGB565(200, 80, 80));
-  gfx->setCursor(38, 118);
-  gfx->print(system_state.filesystem_available ? "Connected" : "Not Found");
+  gfx->setTextColor(system_state.filesystem_available ? RGB565(0, 200, 80) : RGB565(200, 60, 60));
+  gfx->setCursor(35, 105);
+  gfx->print(system_state.filesystem_available ? "CONNECTED" : "NOT FOUND");
   
-  // File counts card
-  gfx->fillRoundRect(20, 170, LCD_WIDTH - 40, 80, 16, RGB565(22, 24, 32));
-  gfx->drawRoundRect(20, 170, LCD_WIDTH - 40, 80, 16, RGB565(42, 44, 55));
+  // File counts - retro card
+  gfx->fillRect(20, 145, LCD_WIDTH - 40, 80, RGB565(12, 14, 20));
+  gfx->drawRect(20, 145, LCD_WIDTH - 40, 80, RGB565(40, 45, 60));
+  gfx->fillRect(20, 145, 5, 5, theme->accent);
+  gfx->fillRect(LCD_WIDTH - 25, 145, 5, 5, theme->accent);
   
-  gfx->setTextColor(RGB565(120, 120, 130));
+  gfx->setTextColor(RGB565(130, 135, 150));
   gfx->setTextSize(1);
-  gfx->setCursor(38, 188);
-  gfx->printf("MP3 Files: %d", system_state.total_mp3_files);
-  gfx->setCursor(38, 210);
-  gfx->printf("PDF Files: %d", system_state.total_pdf_files);
-  gfx->setCursor(38, 232);
-  gfx->print("Images: --");
+  gfx->setCursor(35, 160);
+  gfx->printf("MP3 FILES: %d", system_state.total_mp3_files);
+  gfx->setCursor(35, 182);
+  gfx->printf("PDF FILES: %d", system_state.total_pdf_files);
+  gfx->setCursor(35, 204);
+  gfx->print("IMAGES:    --");
   
   drawSwipeIndicator();
 }
@@ -326,15 +399,26 @@ void initPDFReaderApp() {
 }
 
 void drawPDFReaderApp() {
-  gfx->fillScreen(COLOR_BLACK);
-  gfx->setTextColor(getCurrentTheme()->primary);
+  gfx->fillScreen(RGB565(2, 2, 5));
+  for (int y = 0; y < LCD_HEIGHT; y += 4) {
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+  }
+  
+  ThemeColors* theme = getCurrentTheme();
+  gfx->fillRect(0, 0, LCD_WIDTH, 48, RGB565(10, 12, 18));
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, 46, 6, 3, theme->primary);
+  }
+  gfx->setTextColor(theme->primary);
   gfx->setTextSize(2);
-  gfx->setCursor(100, 20);
+  gfx->setCursor(80, 14);
   gfx->print("PDF READER");
   
-  gfx->setTextColor(COLOR_WHITE);
+  gfx->fillRect(60, 180, 240, 40, RGB565(12, 14, 20));
+  gfx->drawRect(60, 180, 240, 40, RGB565(40, 45, 60));
+  gfx->setTextColor(RGB565(80, 85, 100));
   gfx->setTextSize(1);
-  gfx->setCursor(50, 200);
+  gfx->setCursor(110, 196);
   gfx->print("No PDF loaded");
   
   drawSwipeIndicator();
@@ -352,48 +436,66 @@ void initSettingsApp() {
 }
 
 void drawSettingsApp() {
-  gfx->fillScreen(RGB565(8, 8, 12));
+  // ========================================
+  // RETRO ANIME SETTINGS - CRT Style
+  // ========================================
+  gfx->fillScreen(RGB565(2, 2, 5));
+  for (int y = 0; y < LCD_HEIGHT; y += 4) {
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+  }
   
   ThemeColors* theme = getCurrentTheme();
   
-  // Header
-  gfx->fillRoundRect(0, 0, LCD_WIDTH, 50, 0, RGB565(16, 18, 24));
-  gfx->drawFastHLine(0, 50, LCD_WIDTH, theme->primary);
-  gfx->setTextColor(COLOR_WHITE);
+  // Retro header
+  gfx->fillRect(0, 0, LCD_WIDTH, 48, RGB565(10, 12, 18));
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, 46, 6, 3, theme->primary);
+  }
   gfx->setTextSize(2);
-  gfx->setCursor(LCD_WIDTH/2 - 48, 16);
-  gfx->print("Settings");
+  gfx->setTextColor(RGB565(30, 35, 50));
+  gfx->setCursor(LCD_WIDTH/2 - 48 + 1, 14 + 1);
+  gfx->print("SETTINGS");
+  gfx->setTextColor(COLOR_WHITE);
+  gfx->setCursor(LCD_WIDTH/2 - 48, 14);
+  gfx->print("SETTINGS");
   
-  // Settings cards
+  // Settings items - retro cards
   const char* options[] = {"Brightness", "Theme", "WiFi", "About"};
   const char* subtexts[] = {"Adjust display", "Change character", "Network setup", "Version info"};
-  uint16_t icons[] = {RGB565(255, 200, 60), theme->primary, RGB565(80, 180, 255), RGB565(150, 150, 160)};
+  uint16_t icons[] = {RGB565(255, 200, 60), theme->primary, RGB565(80, 180, 255), RGB565(130, 135, 150)};
   
   for (int i = 0; i < 4; i++) {
-    int y = 65 + i * 78;
+    int y = 60 + i * 72;
     
-    // Card background
-    gfx->fillRoundRect(20, y, LCD_WIDTH - 40, 68, 16, RGB565(22, 24, 32));
-    gfx->drawRoundRect(20, y, LCD_WIDTH - 40, 68, 16, RGB565(42, 44, 55));
+    // Retro card
+    gfx->fillRect(20, y, LCD_WIDTH - 40, 62, RGB565(12, 14, 20));
+    gfx->drawRect(20, y, LCD_WIDTH - 40, 62, RGB565(40, 45, 60));
+    // Pixel corner with icon color
+    gfx->fillRect(20, y, 5, 5, icons[i]);
+    gfx->fillRect(LCD_WIDTH - 25, y, 5, 5, icons[i]);
+    // Color stripe at left
+    gfx->fillRect(20, y + 2, 4, 58, icons[i]);
     
-    // Icon circle
-    gfx->fillCircle(52, y + 34, 14, icons[i]);
+    // Icon pixel square
+    gfx->fillRect(34, y + 16, 28, 28, RGB565(15, 18, 25));
+    gfx->drawRect(34, y + 16, 28, 28, icons[i]);
+    gfx->fillRect(40, y + 22, 16, 16, icons[i]);
     
     // Text
-    gfx->setTextColor(COLOR_WHITE);
+    gfx->setTextColor(RGB565(200, 205, 220));
     gfx->setTextSize(2);
-    gfx->setCursor(78, y + 15);
+    gfx->setCursor(74, y + 12);
     gfx->print(options[i]);
     
     gfx->setTextSize(1);
-    gfx->setTextColor(RGB565(100, 102, 115));
-    gfx->setCursor(78, y + 42);
+    gfx->setTextColor(RGB565(80, 85, 100));
+    gfx->setCursor(74, y + 38);
     gfx->print(subtexts[i]);
     
-    // Arrow indicator
-    gfx->setTextColor(RGB565(60, 62, 75));
+    // Arrow - retro
+    gfx->setTextColor(RGB565(50, 55, 70));
     gfx->setTextSize(2);
-    gfx->setCursor(LCD_WIDTH - 52, y + 22);
+    gfx->setCursor(LCD_WIDTH - 50, y + 20);
     gfx->print(">");
   }
   
@@ -452,80 +554,120 @@ void updateStopwatchApp() {
 }
 
 void drawStopwatchMode() {
-  gfx->fillScreen(RGB565(8, 8, 12));
+  // ========================================
+  // RETRO ANIME STOPWATCH - CRT Style
+  // ========================================
+  gfx->fillScreen(RGB565(2, 2, 5));
+  for (int y = 0; y < LCD_HEIGHT; y += 4) {
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+  }
   
   ThemeColors* theme = getCurrentTheme();
   
-  // Header
-  gfx->fillRoundRect(0, 0, LCD_WIDTH, 50, 0, RGB565(16, 18, 24));
-  gfx->drawFastHLine(0, 50, LCD_WIDTH, theme->accent);
-  gfx->setTextColor(theme->accent);
+  // Retro header
+  gfx->fillRect(0, 0, LCD_WIDTH, 48, RGB565(10, 12, 18));
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, 46, 6, 3, theme->accent);
+  }
   gfx->setTextSize(2);
-  gfx->setCursor(LCD_WIDTH/2 - 54, 16);
-  gfx->print("Stopwatch");
+  gfx->setTextColor(RGB565(30, 35, 50));
+  gfx->setCursor(LCD_WIDTH/2 - 54 + 1, 14 + 1);
+  gfx->print("STOPWATCH");
+  gfx->setTextColor(theme->accent);
+  gfx->setCursor(LCD_WIDTH/2 - 54, 14);
+  gfx->print("STOPWATCH");
   
-  // Time display card
+  // Time display - retro pixel frame
   unsigned long t = getStopwatchTime();
   int mins = (t / 60000) % 60;
   int secs = (t / 1000) % 60;
   int ms = (t % 1000) / 10;
   
-  gfx->fillRoundRect(20, 70, LCD_WIDTH - 40, 80, 18, RGB565(18, 20, 28));
-  gfx->drawRoundRect(20, 70, LCD_WIDTH - 40, 80, 18, RGB565(42, 44, 55));
+  gfx->fillRect(20, 60, LCD_WIDTH - 40, 70, RGB565(12, 14, 20));
+  gfx->drawRect(20, 60, LCD_WIDTH - 40, 70, RGB565(40, 45, 60));
+  gfx->fillRect(20, 60, 6, 6, theme->accent);
+  gfx->fillRect(LCD_WIDTH - 26, 60, 6, 6, theme->accent);
+  gfx->fillRect(20, 124, 6, 6, theme->accent);
+  gfx->fillRect(LCD_WIDTH - 26, 124, 6, 6, theme->accent);
   
   char timeStr[16];
   sprintf(timeStr, "%02d:%02d.%02d", mins, secs, ms);
   gfx->setTextSize(4);
-  gfx->setTextColor(COLOR_WHITE);
-  gfx->setCursor(55, 92);
+  gfx->setTextColor(RGB565(200, 205, 220));
+  gfx->setCursor(55, 82);
   gfx->print(timeStr);
   
-  // Lap times
+  // Lap times - retro terminal style
+  gfx->fillRect(20, 140, LCD_WIDTH - 40, 120, RGB565(8, 10, 14));
+  gfx->drawRect(20, 140, LCD_WIDTH - 40, 120, RGB565(30, 35, 50));
   gfx->setTextSize(1);
-  gfx->setTextColor(RGB565(120, 120, 130));
+  gfx->setTextColor(RGB565(0, 200, 80));
   for (int i = 0; i < min(lap_count, 5); i++) {
     int lapMins = (lap_times[i] / 60000) % 60;
     int lapSecs = (lap_times[i] / 1000) % 60;
-    gfx->setCursor(30, 170 + i * 22);
-    gfx->printf("Lap %d: %02d:%02d", i + 1, lapMins, lapSecs);
+    gfx->setCursor(30, 150 + i * 20);
+    gfx->printf("> Lap %d: %02d:%02d", i + 1, lapMins, lapSecs);
   }
   
-  // Control buttons - pill shaped
-  int btnY = 330;
-  gfx->fillRoundRect(24, btnY, 95, 45, 22, RGB565(30, 80, 50));
-  gfx->setTextColor(COLOR_WHITE);
+  // Control buttons - retro pixel
+  int btnY = 275;
+  // Start
+  gfx->fillRect(24, btnY, 95, 40, RGB565(10, 50, 30));
+  gfx->drawRect(24, btnY, 95, 40, RGB565(0, 200, 80));
+  gfx->fillRect(24, btnY, 4, 4, RGB565(0, 200, 80));
+  gfx->setTextColor(RGB565(0, 200, 80));
   gfx->setTextSize(2);
-  gfx->setCursor(44, btnY + 13);
+  gfx->setCursor(40, btnY + 12);
   gfx->print("Start");
   
-  gfx->fillRoundRect(LCD_WIDTH/2 - 42, btnY, 84, 45, 22, RGB565(25, 27, 35));
-  gfx->drawRoundRect(LCD_WIDTH/2 - 42, btnY, 84, 45, 22, RGB565(50, 52, 65));
-  gfx->setCursor(LCD_WIDTH/2 - 18, btnY + 13);
+  // Lap
+  gfx->fillRect(LCD_WIDTH/2 - 42, btnY, 84, 40, RGB565(15, 18, 25));
+  gfx->drawRect(LCD_WIDTH/2 - 42, btnY, 84, 40, RGB565(40, 45, 60));
+  gfx->setTextColor(RGB565(180, 185, 200));
+  gfx->setCursor(LCD_WIDTH/2 - 18, btnY + 12);
   gfx->print("Lap");
   
-  gfx->fillRoundRect(LCD_WIDTH - 119, btnY, 95, 45, 22, RGB565(80, 30, 30));
-  gfx->setCursor(LCD_WIDTH - 99, btnY + 13);
+  // Reset
+  gfx->fillRect(LCD_WIDTH - 119, btnY, 95, 40, RGB565(50, 15, 15));
+  gfx->drawRect(LCD_WIDTH - 119, btnY, 95, 40, RGB565(200, 60, 60));
+  gfx->fillRect(LCD_WIDTH - 28, btnY, 4, 4, RGB565(200, 60, 60));
+  gfx->setTextColor(RGB565(200, 60, 60));
+  gfx->setCursor(LCD_WIDTH - 99, btnY + 12);
   gfx->print("Reset");
   
   drawSwipeIndicator();
 }
 
 void drawTimerMode() {
-  gfx->fillScreen(COLOR_BLACK);
+  gfx->fillScreen(RGB565(2, 2, 5));
+  for (int y = 0; y < LCD_HEIGHT; y += 4) {
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+  }
   
-  gfx->setTextColor(getCurrentTheme()->primary);
+  ThemeColors* theme = getCurrentTheme();
+  gfx->fillRect(0, 0, LCD_WIDTH, 48, RGB565(10, 12, 18));
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, 46, 6, 3, theme->primary);
+  }
+  gfx->setTextColor(theme->primary);
   gfx->setTextSize(2);
-  gfx->setCursor(130, 20);
+  gfx->setCursor(LCD_WIDTH/2 - 30, 14);
   gfx->print("TIMER");
   
   int remaining = getTimerRemaining();
   int mins = remaining / 60;
   int secs = remaining % 60;
   
+  // Time display - retro framed
+  gfx->fillRect(30, 160, LCD_WIDTH - 60, 80, RGB565(12, 14, 20));
+  gfx->drawRect(30, 160, LCD_WIDTH - 60, 80, RGB565(40, 45, 60));
+  gfx->fillRect(30, 160, 6, 6, theme->primary);
+  gfx->fillRect(LCD_WIDTH - 36, 160, 6, 6, theme->primary);
+  
   char timeStr[16];
   sprintf(timeStr, "%02d:%02d", mins, secs);
   gfx->setTextSize(5);
-  gfx->setTextColor(COLOR_WHITE);
+  gfx->setTextColor(RGB565(200, 205, 220));
   gfx->setCursor(80, 180);
   gfx->print(timeStr);
   
@@ -552,6 +694,44 @@ void handleStopwatchTouch(TouchGesture& gesture) {
 }
 
 void handleTimerTouch(TouchGesture& gesture) {
+  if (gesture.event != TOUCH_TAP) return;
+  
+  int x = gesture.x, y = gesture.y;
+  int centerX = LCD_WIDTH / 2;
+  int btnY = 230;
+  int btnW = 100;
+  int btnH = 50;
+  
+  // Reset button
+  if (x >= 30 && x < 130 && y >= btnY && y < btnY + btnH) {
+    timer_running = false;
+    timer_elapsed_ms = 0;
+    lap_count = 0;
+    drawTimerApp();
+    return;
+  }
+  
+  // Start/Stop button
+  if (x >= centerX - btnW/2 && x < centerX + btnW/2 && y >= btnY && y < btnY + btnH) {
+    if (timer_running) {
+      timer_elapsed_ms += millis() - timer_start_ms;
+      timer_running = false;
+    } else {
+      timer_start_ms = millis();
+      timer_running = true;
+    }
+    drawTimerApp();
+    return;
+  }
+  
+  // Lap button
+  if (x >= LCD_WIDTH - 130 && x < LCD_WIDTH - 30 && y >= btnY && y < btnY + btnH) {
+    if (timer_running && lap_count < 10) {
+      lap_times[lap_count++] = millis() - timer_start_ms + timer_elapsed_ms;
+      drawTimerApp();
+    }
+    return;
+  }
 }
 
 void recordLapTime() {
@@ -571,30 +751,60 @@ void initWallpaperSelector() {
 }
 
 void drawWallpaperSelector() {
-  gfx->fillScreen(COLOR_BLACK);
+  // ========================================
+  // RETRO ANIME WALLPAPERS - CRT Style
+  // ========================================
+  gfx->fillScreen(RGB565(2, 2, 5));
+  for (int y = 0; y < LCD_HEIGHT; y += 4) {
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+  }
   
-  gfx->setTextColor(getCurrentTheme()->primary);
+  ThemeColors* theme = getCurrentTheme();
+  
+  // Retro header
+  gfx->fillRect(0, 0, LCD_WIDTH, 48, RGB565(10, 12, 18));
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, 46, 6, 3, COLOR_PINK);
+  }
   gfx->setTextSize(2);
-  gfx->setCursor(80, 20);
+  gfx->setTextColor(RGB565(30, 35, 50));
+  gfx->setCursor(LCD_WIDTH/2 - 60 + 1, 14 + 1);
+  gfx->print("WALLPAPERS");
+  gfx->setTextColor(COLOR_PINK);
+  gfx->setCursor(LCD_WIDTH/2 - 60, 14);
   gfx->print("WALLPAPERS");
   
-  // Built-in wallpapers
+  // Wallpaper options - retro pixel cards
   const char* wallpapers[] = {"Solid Black", "Gradient", "Grid", "Theme Color"};
-  uint16_t colors[] = {COLOR_BLACK, COLOR_BLUE, COLOR_GREEN, getCurrentTheme()->primary};
+  uint16_t colors[] = {RGB565(5, 5, 8), COLOR_BLUE, COLOR_GREEN, theme->primary};
   
   for (int i = 0; i < 4; i++) {
     int x = (i % 2) * 175 + 15;
-    int y = (i / 2) * 150 + 80;
+    int y = (i / 2) * 140 + 60;
     
-    gfx->fillRoundRect(x, y, 160, 130, 15, colors[i]);
-    if (i == selected_wallpaper) {
-      gfx->drawRoundRect(x, y, 160, 130, 15, COLOR_WHITE);
-      gfx->drawRoundRect(x + 2, y + 2, 156, 126, 13, COLOR_WHITE);
+    // Preview area
+    gfx->fillRect(x, y, 160, 120, colors[i]);
+    gfx->drawRect(x, y, 160, 120, RGB565(40, 45, 60));
+    // Pixel corners
+    gfx->fillRect(x, y, 6, 6, COLOR_PINK);
+    gfx->fillRect(x + 154, y, 6, 6, COLOR_PINK);
+    gfx->fillRect(x, y + 114, 6, 6, COLOR_PINK);
+    gfx->fillRect(x + 154, y + 114, 6, 6, COLOR_PINK);
+    
+    // CRT effect on preview
+    for (int sy = y + 2; sy < y + 118; sy += 4) {
+      gfx->drawFastHLine(x + 2, sy, 156, RGB565(0, 0, 0));
     }
     
-    gfx->setTextColor(COLOR_WHITE);
+    if (i == selected_wallpaper) {
+      gfx->drawRect(x - 2, y - 2, 164, 124, COLOR_WHITE);
+      gfx->drawRect(x - 1, y - 1, 162, 122, COLOR_WHITE);
+    }
+    
+    // Label
+    gfx->setTextColor(RGB565(180, 185, 200));
     gfx->setTextSize(1);
-    gfx->setCursor(x + 10, y + 110);
+    gfx->setCursor(x + 10, y + 105);
     gfx->print(wallpapers[i]);
   }
   
@@ -633,42 +843,57 @@ void applyWallpaper(const String& path) {
 void initCalculatorApp() {}
 
 void drawCalculatorApp() {
-  gfx->fillScreen(RGB565(8, 8, 12));
+  // ========================================
+  // RETRO ANIME CALCULATOR - CRT Style
+  // ========================================
+  gfx->fillScreen(RGB565(2, 2, 5));
+  for (int y = 0; y < LCD_HEIGHT; y += 4) {
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+  }
   
   ThemeColors* theme = getCurrentTheme();
   
-  // Header
-  gfx->fillRoundRect(0, 0, LCD_WIDTH, 46, 0, RGB565(16, 18, 24));
-  gfx->drawFastHLine(0, 46, LCD_WIDTH, RGB565(100, 100, 120));
-  gfx->setTextColor(RGB565(180, 180, 190));
+  // Retro header
+  gfx->fillRect(0, 0, LCD_WIDTH, 44, RGB565(10, 12, 18));
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, 42, 6, 3, RGB565(100, 100, 120));
+  }
+  gfx->setTextColor(RGB565(180, 185, 200));
   gfx->setTextSize(2);
-  gfx->setCursor(LCD_WIDTH/2 - 24, 14);
-  gfx->print("Calc");
+  gfx->setCursor(LCD_WIDTH/2 - 24, 12);
+  gfx->print("CALC");
   
-  // Display panel
-  gfx->fillRoundRect(16, 52, LCD_WIDTH - 32, 55, 14, RGB565(22, 24, 32));
-  gfx->drawRoundRect(16, 52, LCD_WIDTH - 32, 55, 14, RGB565(42, 44, 55));
-  gfx->setTextColor(COLOR_WHITE);
+  // Display panel - retro terminal
+  gfx->fillRect(16, 50, LCD_WIDTH - 32, 50, RGB565(8, 10, 14));
+  gfx->drawRect(16, 50, LCD_WIDTH - 32, 50, RGB565(40, 45, 60));
+  gfx->fillRect(16, 50, 5, 5, theme->primary);
+  gfx->fillRect(LCD_WIDTH - 21, 50, 5, 5, theme->primary);
+  gfx->setTextColor(RGB565(0, 200, 80));
   gfx->setTextSize(3);
-  gfx->setCursor(28, 66);
+  gfx->setCursor(28, 62);
   gfx->print(calc_display);
   
-  // Calculator buttons - modern rounded
+  // Calculator buttons - retro pixel style
   const char* buttons[] = {"7", "8", "9", "/", "4", "5", "6", "*", "1", "2", "3", "-", "C", "0", "=", "+"};
   for (int i = 0; i < 16; i++) {
     int bx = (i % 4) * 85 + 15;
-    int by = (i / 4) * 66 + 118;
+    int by = (i / 4) * 62 + 112;
     int bw = 75;
-    int bh = 56;
+    int bh = 52;
     
     bool isOp = (i % 4 == 3) || buttons[i][0] == 'C' || buttons[i][0] == '=';
-    uint16_t bg = isOp ? RGB565(35, 30, 45) : RGB565(25, 27, 35);
-    uint16_t border = isOp ? theme->primary : RGB565(45, 47, 58);
+    uint16_t bg = isOp ? RGB565(18, 15, 28) : RGB565(12, 14, 20);
+    uint16_t border = isOp ? theme->primary : RGB565(35, 40, 55);
     
-    gfx->fillRoundRect(bx, by, bw, bh, 14, bg);
-    gfx->drawRoundRect(bx, by, bw, bh, 14, border);
+    gfx->fillRect(bx, by, bw, bh, bg);
+    gfx->drawRect(bx, by, bw, bh, border);
+    // Pixel corners on operator buttons
+    if (isOp) {
+      gfx->fillRect(bx, by, 4, 4, theme->primary);
+      gfx->fillRect(bx + bw - 4, by, 4, 4, theme->primary);
+    }
     
-    gfx->setTextColor(isOp ? theme->primary : COLOR_WHITE);
+    gfx->setTextColor(isOp ? theme->primary : RGB565(200, 205, 220));
     gfx->setTextSize(2);
     gfx->setCursor(bx + bw/2 - 6, by + bh/2 - 8);
     gfx->print(buttons[i]);
@@ -733,57 +958,63 @@ void handleCalculatorTouch(TouchGesture& gesture) {
 void initFlashlightApp() {}
 
 void drawFlashlightApp() {
-  if (flashlight_on) {
-    gfx->fillScreen(COLOR_WHITE);
-  } else {
-    gfx->fillScreen(RGB565(8, 8, 12));
-  }
-  
   int centerX = LCD_WIDTH / 2;
   int centerY = 200;
   
   if (flashlight_on) {
-    // ON state - white screen with dark UI
-    gfx->setTextColor(RGB565(40, 40, 50));
+    // ON state - bright white screen (functional, skip CRT for max brightness)
+    gfx->fillScreen(COLOR_WHITE);
+    gfx->setTextColor(RGB565(30, 30, 40));
     gfx->setTextSize(2);
-    gfx->setCursor(centerX - 48, 30);
-    gfx->print("Torch");
+    gfx->setCursor(centerX - 30, 30);
+    gfx->print("TORCH");
     
-    // Big OFF button
-    gfx->fillCircle(centerX, centerY, 65, RGB565(40, 42, 55));
-    gfx->drawCircle(centerX, centerY, 66, RGB565(80, 82, 95));
+    // OFF button - pixel square
+    gfx->fillRect(centerX - 50, centerY - 30, 100, 60, RGB565(30, 32, 45));
+    gfx->drawRect(centerX - 50, centerY - 30, 100, 60, RGB565(60, 62, 75));
+    gfx->fillRect(centerX - 50, centerY - 30, 5, 5, RGB565(200, 60, 60));
+    gfx->fillRect(centerX + 45, centerY - 30, 5, 5, RGB565(200, 60, 60));
     gfx->setTextColor(COLOR_WHITE);
     gfx->setTextSize(3);
     gfx->setCursor(centerX - 24, centerY - 10);
     gfx->print("OFF");
     
-    gfx->setTextColor(RGB565(100, 100, 110));
+    gfx->setTextColor(RGB565(80, 80, 90));
     gfx->setTextSize(1);
     gfx->setCursor(centerX - 32, 380);
-    gfx->print("Tap to toggle");
+    gfx->print("> TAP TO TOGGLE <");
   } else {
-    // OFF state - dark screen
-    gfx->setTextColor(RGB565(180, 180, 190));
-    gfx->setTextSize(2);
-    gfx->setCursor(centerX - 48, 30);
-    gfx->print("Torch");
-    
-    // Glow ring around button
-    for (int r = 70; r > 65; r--) {
-      gfx->drawCircle(centerX, centerY, r, RGB565(40, 35, 10));
+    // OFF state - retro CRT dark
+    gfx->fillScreen(RGB565(2, 2, 5));
+    for (int y = 0; y < LCD_HEIGHT; y += 4) {
+      gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
     }
     
-    // Big ON button
-    gfx->fillCircle(centerX, centerY, 65, RGB565(255, 200, 60));
-    gfx->setTextColor(RGB565(30, 30, 30));
+    gfx->setTextColor(RGB565(180, 185, 200));
+    gfx->setTextSize(2);
+    gfx->setCursor(centerX - 30, 30);
+    gfx->print("TORCH");
+    
+    // Pixel glow effect around ON button
+    gfx->drawRect(centerX - 54, centerY - 34, 108, 68, RGB565(40, 35, 10));
+    gfx->drawRect(centerX - 52, centerY - 32, 104, 64, RGB565(60, 50, 15));
+    
+    // ON button - retro pixel
+    gfx->fillRect(centerX - 50, centerY - 30, 100, 60, RGB565(200, 160, 40));
+    gfx->drawRect(centerX - 50, centerY - 30, 100, 60, COLOR_GOLD);
+    gfx->fillRect(centerX - 50, centerY - 30, 6, 6, COLOR_GOLD);
+    gfx->fillRect(centerX + 44, centerY - 30, 6, 6, COLOR_GOLD);
+    gfx->fillRect(centerX - 50, centerY + 24, 6, 6, COLOR_GOLD);
+    gfx->fillRect(centerX + 44, centerY + 24, 6, 6, COLOR_GOLD);
+    gfx->setTextColor(RGB565(20, 20, 20));
     gfx->setTextSize(3);
     gfx->setCursor(centerX - 18, centerY - 10);
     gfx->print("ON");
     
-    gfx->setTextColor(RGB565(70, 72, 85));
+    gfx->setTextColor(RGB565(50, 55, 70));
     gfx->setTextSize(1);
-    gfx->setCursor(centerX - 32, 380);
-    gfx->print("Tap to toggle");
+    gfx->setCursor(centerX - 40, 380);
+    gfx->print("> TAP TO TOGGLE <");
   }
 }
 
@@ -793,5 +1024,676 @@ void handleFlashlightTouch(TouchGesture& gesture) {
     if (flashlight_on) setDisplayBrightness(255);
     else setDisplayBrightness(system_state.brightness);
     drawFlashlightApp();
+  }
+}
+
+// =============================================================================
+// TIMER / STOPWATCH APP
+// =============================================================================
+
+void initTimerApp() {
+  timer_elapsed_ms = 0;
+  timer_running = false;
+}
+
+// Update only the time display (called from main loop when timer is running)
+void updateTimerDisplay() {
+  if (!timer_running) return;
+  
+  ThemeColors* theme = getCurrentTheme();
+  int centerX = LCD_WIDTH / 2;
+  
+  // Calculate display time
+  unsigned long display_ms = millis() - timer_start_ms + timer_elapsed_ms;
+  
+  int mins = (display_ms / 60000) % 60;
+  int secs = (display_ms / 1000) % 60;
+  int centis = (display_ms / 10) % 100;
+  
+  // Only update the time display area (not the whole screen)
+  gfx->fillRect(31, 101, LCD_WIDTH - 62, 98, RGB565(12, 14, 20));
+  
+  gfx->setTextColor(COLOR_WHITE);
+  gfx->setTextSize(6);
+  char timeStr[12];
+  sprintf(timeStr, "%02d:%02d", mins, secs);
+  gfx->setCursor(60, 120);
+  gfx->print(timeStr);
+  
+  gfx->setTextColor(theme->accent);
+  gfx->setTextSize(3);
+  gfx->setCursor(260, 145);
+  gfx->printf(".%02d", centis);
+}
+
+void drawTimerApp() {
+  gfx->fillScreen(RGB565(2, 2, 5));
+  for (int y = 0; y < LCD_HEIGHT; y += 4) {
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+  }
+  
+  ThemeColors* theme = getCurrentTheme();
+  int centerX = LCD_WIDTH / 2;
+  
+  // Header
+  gfx->fillRect(0, 0, LCD_WIDTH, 48, RGB565(10, 12, 18));
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, 46, 6, 3, theme->primary);
+  }
+  gfx->setTextColor(theme->primary);
+  gfx->setTextSize(2);
+  gfx->setCursor(centerX - 48, 14);
+  gfx->print(timer_mode_stopwatch ? "STOPWATCH" : "TIMER");
+  
+  // Calculate display time
+  unsigned long display_ms = timer_elapsed_ms;
+  if (timer_running) {
+    display_ms = millis() - timer_start_ms + timer_elapsed_ms;
+  }
+  
+  int mins = (display_ms / 60000) % 60;
+  int secs = (display_ms / 1000) % 60;
+  int centis = (display_ms / 10) % 100;
+  
+  // Big time display
+  gfx->fillRect(30, 100, LCD_WIDTH - 60, 100, RGB565(12, 14, 20));
+  gfx->drawRect(30, 100, LCD_WIDTH - 60, 100, RGB565(40, 45, 60));
+  gfx->fillRect(30, 100, 5, 5, theme->primary);
+  
+  gfx->setTextColor(COLOR_WHITE);
+  gfx->setTextSize(6);
+  char timeStr[12];
+  sprintf(timeStr, "%02d:%02d", mins, secs);
+  gfx->setCursor(60, 120);
+  gfx->print(timeStr);
+  
+  gfx->setTextColor(theme->accent);
+  gfx->setTextSize(3);
+  gfx->setCursor(260, 145);
+  gfx->printf(".%02d", centis);
+  
+  // Control buttons
+  int btnY = 230;
+  int btnW = 100;
+  int btnH = 50;
+  
+  // Reset button
+  gfx->fillRect(30, btnY, btnW, btnH, RGB565(15, 18, 25));
+  gfx->drawRect(30, btnY, btnW, btnH, RGB565(60, 65, 80));
+  gfx->setTextColor(RGB565(180, 185, 200));
+  gfx->setTextSize(2);
+  gfx->setCursor(52, btnY + 16);
+  gfx->print("RESET");
+  
+  // Start/Stop button
+  uint16_t startColor = timer_running ? RGB565(200, 60, 60) : RGB565(60, 200, 80);
+  gfx->fillRect(centerX - btnW/2, btnY, btnW, btnH, startColor);
+  gfx->drawRect(centerX - btnW/2, btnY, btnW, btnH, COLOR_WHITE);
+  gfx->setTextColor(COLOR_WHITE);
+  gfx->setCursor(centerX - 24, btnY + 16);
+  gfx->print(timer_running ? "STOP" : "START");
+  
+  // Lap button (stopwatch) or Mode button
+  gfx->fillRect(LCD_WIDTH - 130, btnY, btnW, btnH, RGB565(15, 18, 25));
+  gfx->drawRect(LCD_WIDTH - 130, btnY, btnW, btnH, theme->primary);
+  gfx->fillRect(LCD_WIDTH - 130, btnY, 4, 4, theme->primary);
+  gfx->setTextColor(theme->primary);
+  gfx->setCursor(LCD_WIDTH - 108, btnY + 16);
+  gfx->print("LAP");
+  
+  // Lap times display
+  if (lap_count > 0) {
+    gfx->fillRect(30, 300, LCD_WIDTH - 60, 100, RGB565(10, 12, 18));
+    gfx->drawRect(30, 300, LCD_WIDTH - 60, 100, RGB565(30, 35, 50));
+    gfx->setTextSize(1);
+    gfx->setTextColor(RGB565(150, 155, 170));
+    for (int i = 0; i < min(lap_count, 4); i++) {
+      int lapMins = (lap_times[i] / 60000) % 60;
+      int lapSecs = (lap_times[i] / 1000) % 60;
+      int lapCentis = (lap_times[i] / 10) % 100;
+      gfx->setCursor(45, 310 + i * 22);
+      gfx->printf("Lap %d:  %02d:%02d.%02d", lap_count - i, lapMins, lapSecs, lapCentis);
+    }
+  }
+  
+  drawSwipeIndicator();
+}
+
+// =============================================================================
+// UNIT CONVERTER APP
+// =============================================================================
+
+static int converter_mode = 0;  // 0=length, 1=weight, 2=temp
+static float converter_input = 1.0;
+static int converter_unit_from = 0;
+static int converter_unit_to = 1;
+
+void initConverterApp() {
+  converter_input = 1.0;
+}
+
+void drawConverterApp() {
+  gfx->fillScreen(RGB565(2, 2, 5));
+  for (int y = 0; y < LCD_HEIGHT; y += 4) {
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+  }
+  
+  ThemeColors* theme = getCurrentTheme();
+  int centerX = LCD_WIDTH / 2;
+  
+  // Header
+  gfx->fillRect(0, 0, LCD_WIDTH, 48, RGB565(10, 12, 18));
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, 46, 6, 3, theme->primary);
+  }
+  gfx->setTextColor(theme->primary);
+  gfx->setTextSize(2);
+  gfx->setCursor(centerX - 48, 14);
+  gfx->print("CONVERTER");
+  
+  // Mode tabs
+  const char* modes[] = {"LENGTH", "WEIGHT", "TEMP"};
+  for (int i = 0; i < 3; i++) {
+    int tx = 25 + i * 115;
+    bool selected = (i == converter_mode);
+    gfx->fillRect(tx, 58, 105, 32, selected ? theme->primary : RGB565(15, 18, 25));
+    gfx->drawRect(tx, 58, 105, 32, selected ? theme->accent : RGB565(40, 45, 60));
+    gfx->setTextColor(selected ? COLOR_WHITE : RGB565(120, 125, 140));
+    gfx->setTextSize(1);
+    gfx->setCursor(tx + 20, 68);
+    gfx->print(modes[i]);
+  }
+  
+  // Units based on mode
+  const char* length_units[] = {"m", "km", "ft", "mi", "cm", "in"};
+  const char* weight_units[] = {"kg", "lb", "g", "oz"};
+  const char* temp_units[] = {"C", "F", "K"};
+  
+  const char** units;
+  int num_units;
+  float result;
+  
+  if (converter_mode == 0) {
+    units = length_units;
+    num_units = 6;
+    // Convert to meters first, then to target
+    float to_meters[] = {1.0, 1000.0, 0.3048, 1609.34, 0.01, 0.0254};
+    float in_meters = converter_input * to_meters[converter_unit_from];
+    result = in_meters / to_meters[converter_unit_to];
+  } else if (converter_mode == 1) {
+    units = weight_units;
+    num_units = 4;
+    float to_kg[] = {1.0, 0.453592, 0.001, 0.0283495};
+    float in_kg = converter_input * to_kg[converter_unit_from];
+    result = in_kg / to_kg[converter_unit_to];
+  } else {
+    units = temp_units;
+    num_units = 3;
+    // Temperature conversion
+    float celsius;
+    if (converter_unit_from == 0) celsius = converter_input;
+    else if (converter_unit_from == 1) celsius = (converter_input - 32) * 5.0 / 9.0;
+    else celsius = converter_input - 273.15;
+    
+    if (converter_unit_to == 0) result = celsius;
+    else if (converter_unit_to == 1) result = celsius * 9.0 / 5.0 + 32;
+    else result = celsius + 273.15;
+  }
+  
+  // Input display
+  gfx->fillRect(30, 110, LCD_WIDTH - 60, 60, RGB565(12, 14, 20));
+  gfx->drawRect(30, 110, LCD_WIDTH - 60, 60, RGB565(40, 45, 60));
+  gfx->setTextColor(COLOR_WHITE);
+  gfx->setTextSize(3);
+  gfx->setCursor(50, 125);
+  gfx->printf("%.2f", converter_input);
+  gfx->setTextSize(2);
+  gfx->setTextColor(theme->primary);
+  gfx->setCursor(250, 130);
+  gfx->print(units[converter_unit_from % num_units]);
+  
+  // Arrow
+  gfx->setTextColor(theme->accent);
+  gfx->setTextSize(3);
+  gfx->setCursor(centerX - 12, 185);
+  gfx->print("=");
+  
+  // Result display
+  gfx->fillRect(30, 220, LCD_WIDTH - 60, 60, RGB565(15, 20, 15));
+  gfx->drawRect(30, 220, LCD_WIDTH - 60, 60, theme->primary);
+  gfx->fillRect(30, 220, 5, 5, theme->primary);
+  gfx->setTextColor(RGB565(150, 230, 150));
+  gfx->setTextSize(3);
+  gfx->setCursor(50, 235);
+  gfx->printf("%.2f", result);
+  gfx->setTextSize(2);
+  gfx->setTextColor(theme->accent);
+  gfx->setCursor(250, 240);
+  gfx->print(units[converter_unit_to % num_units]);
+  
+  // Unit selection buttons
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(100, 105, 120));
+  gfx->setCursor(50, 300);
+  gfx->print("TAP numbers to change units");
+  
+  // +/- buttons
+  gfx->fillRect(50, 330, 80, 45, RGB565(15, 18, 25));
+  gfx->drawRect(50, 330, 80, 45, RGB565(60, 65, 80));
+  gfx->setTextColor(RGB565(180, 185, 200));
+  gfx->setTextSize(3);
+  gfx->setCursor(80, 340);
+  gfx->print("-");
+  
+  gfx->fillRect(centerX - 40, 330, 80, 45, RGB565(15, 18, 25));
+  gfx->drawRect(centerX - 40, 330, 80, 45, theme->primary);
+  gfx->setTextColor(theme->primary);
+  gfx->setCursor(centerX - 18, 340);
+  gfx->print("x10");
+  
+  gfx->fillRect(LCD_WIDTH - 130, 330, 80, 45, RGB565(15, 18, 25));
+  gfx->drawRect(LCD_WIDTH - 130, 330, 80, 45, RGB565(60, 65, 80));
+  gfx->setTextColor(RGB565(180, 185, 200));
+  gfx->setCursor(LCD_WIDTH - 100, 340);
+  gfx->print("+");
+  
+  drawSwipeIndicator();
+}
+
+void handleConverterTouch(TouchGesture& gesture) {
+  if (gesture.event != TOUCH_TAP) return;
+  
+  int x = gesture.x, y = gesture.y;
+  int centerX = LCD_WIDTH / 2;
+  
+  // Mode tabs
+  if (y >= 58 && y < 90) {
+    for (int i = 0; i < 3; i++) {
+      int tx = 25 + i * 115;
+      if (x >= tx && x < tx + 105) {
+        converter_mode = i;
+        converter_unit_from = 0;
+        converter_unit_to = 1;
+        drawConverterApp();
+        return;
+      }
+    }
+  }
+  
+  // Input area - cycle from unit
+  if (y >= 110 && y < 170) {
+    int num_units = (converter_mode == 0) ? 6 : (converter_mode == 1) ? 4 : 3;
+    converter_unit_from = (converter_unit_from + 1) % num_units;
+    drawConverterApp();
+    return;
+  }
+  
+  // Result area - cycle to unit
+  if (y >= 220 && y < 280) {
+    int num_units = (converter_mode == 0) ? 6 : (converter_mode == 1) ? 4 : 3;
+    converter_unit_to = (converter_unit_to + 1) % num_units;
+    drawConverterApp();
+    return;
+  }
+  
+  // +/- buttons
+  if (y >= 330 && y < 375) {
+    if (x >= 50 && x < 130) {
+      converter_input = max(0.01f, converter_input - 1.0f);
+      drawConverterApp();
+    } else if (x >= centerX - 40 && x < centerX + 40) {
+      converter_input *= 10.0f;
+      if (converter_input > 999999) converter_input = 1.0f;
+      drawConverterApp();
+    } else if (x >= LCD_WIDTH - 130 && x < LCD_WIDTH - 50) {
+      converter_input += 1.0f;
+      drawConverterApp();
+    }
+  }
+}
+
+// =============================================================================
+// ACHIEVEMENTS APP
+// =============================================================================
+
+typedef struct {
+  const char* name;
+  const char* desc;
+  int progress;
+  int target;
+  bool unlocked;
+} Achievement;
+
+static Achievement achievements[] = {
+  {"First Steps", "Walk 1000 steps", 0, 1000, false},
+  {"Marathon", "Walk 10000 steps in a day", 0, 10000, false},
+  {"Card Collector", "Collect 10 cards", 0, 10, false},
+  {"Boss Slayer", "Defeat 5 bosses", 0, 5, false},
+  {"Training Pro", "Complete 10 training sessions", 0, 10, false},
+  {"Quest Master", "Complete 20 daily quests", 0, 20, false},
+  {"Level Up!", "Reach level 10", 0, 10, false},
+  {"Gem Hoarder", "Collect 1000 gems", 0, 1000, false}
+};
+static int achievement_scroll = 0;
+
+void initAchievementsApp() {
+  // Update achievement progress from system state
+  achievements[0].progress = system_state.steps_today;
+  achievements[1].progress = system_state.steps_today;
+  achievements[2].progress = system_state.gacha_cards_collected;
+  achievements[3].progress = system_state.bosses_defeated;
+  achievements[4].progress = system_state.training_streak;
+  achievements[6].progress = system_state.player_level;
+  achievements[7].progress = system_state.player_gems;
+  
+  for (int i = 0; i < 8; i++) {
+    achievements[i].unlocked = (achievements[i].progress >= achievements[i].target);
+  }
+}
+
+void drawAchievementsApp() {
+  gfx->fillScreen(RGB565(2, 2, 5));
+  for (int y = 0; y < LCD_HEIGHT; y += 4) {
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+  }
+  
+  ThemeColors* theme = getCurrentTheme();
+  int centerX = LCD_WIDTH / 2;
+  
+  // Header
+  gfx->fillRect(0, 0, LCD_WIDTH, 48, RGB565(10, 12, 18));
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, 46, 6, 3, COLOR_GOLD);
+  }
+  gfx->setTextColor(COLOR_GOLD);
+  gfx->setTextSize(2);
+  gfx->setCursor(centerX - 60, 14);
+  gfx->print("ACHIEVEMENTS");
+  
+  // Count unlocked
+  int unlocked_count = 0;
+  for (int i = 0; i < 8; i++) {
+    if (achievements[i].unlocked) unlocked_count++;
+  }
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(150, 155, 170));
+  gfx->setCursor(LCD_WIDTH - 50, 18);
+  gfx->printf("%d/8", unlocked_count);
+  
+  // Achievement cards
+  for (int i = 0; i < 4; i++) {
+    int idx = i + achievement_scroll;
+    if (idx >= 8) break;
+    
+    int cardY = 60 + i * 95;
+    bool unlocked = achievements[idx].unlocked;
+    
+    // Card background
+    gfx->fillRect(20, cardY, LCD_WIDTH - 40, 85, unlocked ? RGB565(20, 25, 15) : RGB565(12, 14, 20));
+    gfx->drawRect(20, cardY, LCD_WIDTH - 40, 85, unlocked ? COLOR_GOLD : RGB565(40, 45, 60));
+    
+    if (unlocked) {
+      gfx->fillRect(20, cardY, 5, 5, COLOR_GOLD);
+      gfx->fillRect(LCD_WIDTH - 25, cardY, 5, 5, COLOR_GOLD);
+    }
+    
+    // Trophy icon for unlocked
+    if (unlocked) {
+      gfx->fillRect(30, cardY + 10, 30, 25, COLOR_GOLD);
+      gfx->fillRect(35, cardY + 35, 20, 8, COLOR_GOLD);
+      gfx->fillRect(30, cardY + 43, 30, 5, RGB565(180, 140, 40));
+    }
+    
+    // Achievement name
+    gfx->setTextColor(unlocked ? COLOR_GOLD : RGB565(180, 185, 200));
+    gfx->setTextSize(2);
+    gfx->setCursor(unlocked ? 75 : 35, cardY + 12);
+    gfx->print(achievements[idx].name);
+    
+    // Description
+    gfx->setTextColor(RGB565(100, 105, 120));
+    gfx->setTextSize(1);
+    gfx->setCursor(unlocked ? 75 : 35, cardY + 38);
+    gfx->print(achievements[idx].desc);
+    
+    // Progress bar
+    int barX = 35;
+    int barY = cardY + 58;
+    int barW = LCD_WIDTH - 90;
+    int barH = 12;
+    float progress = (float)achievements[idx].progress / achievements[idx].target;
+    if (progress > 1.0) progress = 1.0;
+    
+    gfx->fillRect(barX, barY, barW, barH, RGB565(8, 10, 14));
+    gfx->drawRect(barX, barY, barW, barH, RGB565(30, 35, 50));
+    int fillW = (int)(barW * progress);
+    if (fillW > 0) {
+      gfx->fillRect(barX + 1, barY + 1, fillW - 2, barH - 2, unlocked ? COLOR_GOLD : theme->primary);
+    }
+    
+    // Progress text
+    gfx->setTextColor(RGB565(150, 155, 170));
+    gfx->setCursor(barX + barW + 5, barY + 2);
+    gfx->printf("%d/%d", min(achievements[idx].progress, achievements[idx].target), achievements[idx].target);
+  }
+  
+  // Scroll indicator
+  if (achievement_scroll > 0 || achievement_scroll < 4) {
+    gfx->setTextColor(RGB565(60, 65, 80));
+    gfx->setTextSize(1);
+    gfx->setCursor(centerX - 20, LCD_HEIGHT - 30);
+    gfx->print("SCROLL");
+  }
+  
+  drawSwipeIndicator();
+}
+
+void handleAchievementsTouch(TouchGesture& gesture) {
+  if (gesture.event == TOUCH_SWIPE_DOWN && achievement_scroll > 0) {
+    achievement_scroll--;
+    drawAchievementsApp();
+  } else if (gesture.event == TOUCH_SWIPE_UP && achievement_scroll < 4) {
+    achievement_scroll++;
+    drawAchievementsApp();
+  }
+}
+
+// =============================================================================
+// SHOP APP - Simple free gems button
+// =============================================================================
+
+void initShopApp() {}
+
+void drawShopApp() {
+  gfx->fillScreen(RGB565(2, 2, 5));
+  
+  ThemeColors* theme = getCurrentTheme();
+  int centerX = LCD_WIDTH / 2;
+  int centerY = LCD_HEIGHT / 2;
+  
+  // Header
+  gfx->fillRect(0, 0, LCD_WIDTH, 48, RGB565(10, 12, 18));
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, 46, 6, 3, COLOR_GOLD);
+  }
+  gfx->setTextColor(COLOR_GOLD);
+  gfx->setTextSize(2);
+  gfx->setCursor(centerX - 24, 14);
+  gfx->print("SHOP");
+  
+  // Current gem balance - big display
+  gfx->fillRect(60, 70, LCD_WIDTH - 120, 60, RGB565(25, 20, 10));
+  gfx->drawRect(60, 70, LCD_WIDTH - 120, 60, COLOR_GOLD);
+  gfx->fillRect(60, 70, 5, 5, COLOR_GOLD);
+  gfx->fillRect(LCD_WIDTH - 65, 70, 5, 5, COLOR_GOLD);
+  
+  gfx->setTextColor(COLOR_GOLD);
+  gfx->setTextSize(1);
+  gfx->setCursor(centerX - 30, 78);
+  gfx->print("YOUR GEMS");
+  
+  gfx->setTextSize(4);
+  gfx->setCursor(centerX - 60, 95);
+  gfx->printf("%d", system_state.player_gems);
+  
+  // BIG FREE GEMS BUTTON
+  int btnX = 50;
+  int btnY = 180;
+  int btnW = LCD_WIDTH - 100;
+  int btnH = 120;
+  
+  // Button with gradient effect
+  for (int i = 0; i < btnH; i++) {
+    uint8_t r = 180 - i/2;
+    uint8_t g = 120 + i/3;
+    uint8_t b = 40;
+    gfx->drawFastHLine(btnX, btnY + i, btnW, RGB565(r, g, b));
+  }
+  gfx->drawRect(btnX, btnY, btnW, btnH, COLOR_WHITE);
+  gfx->drawRect(btnX + 2, btnY + 2, btnW - 4, btnH - 4, COLOR_GOLD);
+  
+  // Corner accents
+  gfx->fillRect(btnX, btnY, 10, 10, COLOR_WHITE);
+  gfx->fillRect(btnX + btnW - 10, btnY, 10, 10, COLOR_WHITE);
+  gfx->fillRect(btnX, btnY + btnH - 10, 10, 10, COLOR_WHITE);
+  gfx->fillRect(btnX + btnW - 10, btnY + btnH - 10, 10, 10, COLOR_WHITE);
+  
+  // Button text
+  gfx->setTextColor(RGB565(40, 25, 5));
+  gfx->setTextSize(3);
+  gfx->setCursor(centerX - 30, btnY + 25);
+  gfx->print("TAP");
+  
+  gfx->setTextSize(2);
+  gfx->setCursor(centerX - 24, btnY + 55);
+  gfx->print("FOR");
+  
+  gfx->setTextColor(COLOR_WHITE);
+  gfx->setTextSize(4);
+  gfx->setCursor(centerX - 72, btnY + 75);
+  gfx->print("+1000");
+  
+  // Instruction
+  gfx->setTextColor(RGB565(100, 105, 120));
+  gfx->setTextSize(1);
+  gfx->setCursor(centerX - 65, 320);
+  gfx->print("Tap as many times as you want!");
+  
+  drawSwipeIndicator();
+}
+
+void handleShopTouch(TouchGesture& gesture) {
+  if (gesture.event == TOUCH_TAP) {
+    int x = gesture.x, y = gesture.y;
+    int centerX = LCD_WIDTH / 2;
+    
+    // Check if tapped on the big button
+    int btnX = 50;
+    int btnY = 180;
+    int btnW = LCD_WIDTH - 100;
+    int btnH = 120;
+    
+    if (x >= btnX && x < btnX + btnW && y >= btnY && y < btnY + btnH) {
+      // Add 1000 gems!
+      system_state.player_gems += 1000;
+      
+      // Quick flash effect
+      gfx->fillRect(btnX + 5, btnY + 5, btnW - 10, btnH - 10, COLOR_WHITE);
+      delay(50);
+      
+      // Save game data to persist gems
+      extern void saveAllGameData();
+      saveAllGameData();
+      
+      // Redraw
+      drawShopApp();
+    }
+  }
+}
+
+// =============================================================================
+// GALLERY APP (Simple photo viewer placeholder)
+// =============================================================================
+
+static int gallery_image_index = 0;
+
+void initGalleryApp() {
+  gallery_image_index = 0;
+}
+
+void drawGalleryApp() {
+  gfx->fillScreen(RGB565(2, 2, 5));
+  
+  ThemeColors* theme = getCurrentTheme();
+  int centerX = LCD_WIDTH / 2;
+  int centerY = LCD_HEIGHT / 2;
+  
+  // Header
+  gfx->fillRect(0, 0, LCD_WIDTH, 48, RGB565(10, 12, 18));
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, 46, 6, 3, RGB565(255, 100, 200));
+  }
+  gfx->setTextColor(RGB565(255, 100, 200));
+  gfx->setTextSize(2);
+  gfx->setCursor(centerX - 42, 14);
+  gfx->print("GALLERY");
+  
+  // Image placeholder area
+  gfx->fillRect(30, 60, LCD_WIDTH - 60, LCD_HEIGHT - 140, RGB565(12, 14, 20));
+  gfx->drawRect(30, 60, LCD_WIDTH - 60, LCD_HEIGHT - 140, RGB565(40, 45, 60));
+  
+  // Placeholder content
+  gfx->setTextColor(RGB565(80, 85, 100));
+  gfx->setTextSize(2);
+  gfx->setCursor(centerX - 60, centerY - 30);
+  gfx->print("No Images");
+  
+  gfx->setTextSize(1);
+  gfx->setCursor(centerX - 80, centerY + 10);
+  gfx->print("Connect to WiFi to sync");
+  gfx->setCursor(centerX - 70, centerY + 25);
+  gfx->print("photos from your phone");
+  
+  // Image counter
+  gfx->setTextColor(RGB565(150, 155, 170));
+  gfx->setCursor(centerX - 15, LCD_HEIGHT - 70);
+  gfx->printf("%d / 0", gallery_image_index + 1);
+  
+  // Navigation arrows
+  gfx->fillRect(30, LCD_HEIGHT - 55, 60, 40, RGB565(15, 18, 25));
+  gfx->drawRect(30, LCD_HEIGHT - 55, 60, 40, RGB565(40, 45, 60));
+  gfx->setTextColor(RGB565(150, 155, 170));
+  gfx->setTextSize(2);
+  gfx->setCursor(50, LCD_HEIGHT - 45);
+  gfx->print("<");
+  
+  gfx->fillRect(LCD_WIDTH - 90, LCD_HEIGHT - 55, 60, 40, RGB565(15, 18, 25));
+  gfx->drawRect(LCD_WIDTH - 90, LCD_HEIGHT - 55, 60, 40, RGB565(40, 45, 60));
+  gfx->setCursor(LCD_WIDTH - 70, LCD_HEIGHT - 45);
+  gfx->print(">");
+  
+  drawSwipeIndicator();
+}
+
+void handleGalleryTouch(TouchGesture& gesture) {
+  if (gesture.event == TOUCH_SWIPE_LEFT) {
+    gallery_image_index++;
+    drawGalleryApp();
+  } else if (gesture.event == TOUCH_SWIPE_RIGHT) {
+    if (gallery_image_index > 0) gallery_image_index--;
+    drawGalleryApp();
+  }
+  
+  if (gesture.event == TOUCH_TAP) {
+    int x = gesture.x, y = gesture.y;
+    if (y >= LCD_HEIGHT - 55 && y < LCD_HEIGHT - 15) {
+      if (x < 100 && gallery_image_index > 0) {
+        gallery_image_index--;
+        drawGalleryApp();
+      } else if (x > LCD_WIDTH - 100) {
+        gallery_image_index++;
+        drawGalleryApp();
+      }
+    }
   }
 }

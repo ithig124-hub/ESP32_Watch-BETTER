@@ -79,4 +79,23 @@ const char* getRarityName(GachaRarity rarity);
 int getRarityStars(GachaRarity rarity);
 int getPowerRange(GachaRarity rarity, bool max);
 
+// New gacha features
+void drawPityCounter(int x, int y);
+void drawCardEvolutionScreen();
+void drawDeckBuilderScreen();
+void handleCardEvolutionTap(int x, int y);
+void handleDeckBuilderTap(int x, int y);
+bool evolveCard(int cardIndex);
+int getEvolveCost(int currentLevel);
+float getEvolvePowerMult(int level);
+int getDeckTotalPower();
+int getDeckBonusATK();
+int getDeckBonusHP();
+int getDeckBonusDEF();
+bool addCardToDeck(int cardIndex);
+bool removeCardFromDeck(int slotIndex);
+void applyPitySystem(GachaRarity& rarity);
+const char* getEvolutionName(int level);
+uint16_t getEvolutionColor(int level);
+
 #endif // GACHA_H

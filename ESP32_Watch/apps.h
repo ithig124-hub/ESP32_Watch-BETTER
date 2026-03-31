@@ -91,6 +91,32 @@ void initFlashlightApp();
 void drawFlashlightApp();
 void handleFlashlightTouch(TouchGesture& gesture);
 
+// Timer/Stopwatch
+void initTimerApp();
+void drawTimerApp();
+void handleTimerTouch(TouchGesture& gesture);
+void updateTimerDisplay();  // Real-time update while running
+
+// Unit Converter
+void initConverterApp();
+void drawConverterApp();
+void handleConverterTouch(TouchGesture& gesture);
+
+// Achievements
+void initAchievementsApp();
+void drawAchievementsApp();
+void handleAchievementsTouch(TouchGesture& gesture);
+
+// Shop
+void initShopApp();
+void drawShopApp();
+void handleShopTouch(TouchGesture& gesture);
+
+// Gallery
+void initGalleryApp();
+void drawGalleryApp();
+void handleGalleryTouch(TouchGesture& gesture);
+
 // App registry
 extern WatchApp registered_apps[];
 extern int num_registered_apps;

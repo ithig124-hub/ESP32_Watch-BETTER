@@ -318,6 +318,319 @@ void setTheme(ThemeType theme) {
   Serial.printf("[Themes] Active: %s\n", getThemeName(theme));
 }
 
+// =============================================================================
+// THEME TRANSITION ANIMATIONS - Character-specific cool effects
+// =============================================================================
+
+void playThemeTransition(ThemeType theme) {
+  int centerX = LCD_WIDTH / 2;
+  int centerY = LCD_HEIGHT / 2;
+  
+  switch(theme) {
+    case THEME_SUNG_JINWOO: {
+      // Jin-Woo: Black screen with "ARISE" text
+      gfx->fillScreen(COLOR_BLACK);
+      delay(200);
+      
+      // Purple mist effect rising from bottom
+      for (int y = LCD_HEIGHT; y > centerY - 50; y -= 15) {
+        for (int x = 0; x < LCD_WIDTH; x += 20) {
+          int size = random(5, 15);
+          gfx->fillCircle(x + random(-10, 10), y, size, JINWOO_MIST_PURPLE);
+        }
+        delay(30);
+      }
+      
+      // "ARISE" text animation
+      gfx->fillScreen(COLOR_BLACK);
+      gfx->setTextColor(JINWOO_ARISE_GLOW);
+      gfx->setTextSize(5);
+      const char* arise = "ARISE";
+      for (int i = 0; i < 5; i++) {
+        gfx->setCursor(60 + i * 50, centerY - 30);
+        gfx->print(arise[i]);
+        delay(150);
+      }
+      
+      // Flash effect
+      delay(300);
+      gfx->fillScreen(JINWOO_ARISE_GLOW);
+      delay(100);
+      break;
+    }
+    
+    case THEME_LUFFY_GEAR5: {
+      // Luffy: "Ha ha ha" laughing
+      gfx->fillScreen(LUFFY_DEEP_BLACK);
+      delay(200);
+      
+      // Sun rays effect
+      for (int r = 0; r < 300; r += 20) {
+        gfx->drawCircle(centerX, centerY, r, LUFFY_SUN_GOLD);
+        delay(30);
+      }
+      
+      // Laughing text
+      gfx->fillScreen(LUFFY_SUN_GOLD);
+      gfx->setTextColor(LUFFY_DEEP_BLACK);
+      gfx->setTextSize(4);
+      
+      gfx->setCursor(centerX - 80, centerY - 60);
+      gfx->print("HA");
+      delay(200);
+      gfx->setCursor(centerX - 40, centerY - 10);
+      gfx->print("HA");
+      delay(200);
+      gfx->setCursor(centerX, centerY + 40);
+      gfx->print("HA!");
+      delay(400);
+      
+      gfx->fillScreen(COLOR_WHITE);
+      delay(100);
+      break;
+    }
+    
+    case THEME_BOBOIBOY: {
+      // BoBoiBoy: Flash with all element colors, "ELEMENTAL FUSION"
+      uint16_t elementColors[] = {
+        RGB565(255, 50, 0),    // Fire - Red/Orange
+        RGB565(100, 200, 255), // Water - Blue
+        RGB565(255, 220, 50),  // Lightning - Yellow
+        RGB565(50, 255, 100),  // Wind - Green
+        RGB565(139, 90, 43),   // Earth - Brown
+        RGB565(255, 255, 255), // Light - White
+        RGB565(80, 0, 120)     // Shadow - Purple
+      };
+      
+      // Flash through all element colors
+      for (int i = 0; i < 7; i++) {
+        gfx->fillScreen(elementColors[i]);
+        delay(80);
+      }
+      
+      // Black with "ELEMENTAL FUSION" text
+      gfx->fillScreen(COLOR_BLACK);
+      delay(150);
+      
+      gfx->setTextColor(RGB565(255, 220, 50));
+      gfx->setTextSize(2);
+      gfx->setCursor(centerX - 60, centerY - 30);
+      gfx->print("ELEMENTAL");
+      delay(200);
+      
+      gfx->setTextColor(RGB565(255, 100, 50));
+      gfx->setTextSize(3);
+      gfx->setCursor(centerX - 60, centerY + 10);
+      gfx->print("FUSION");
+      delay(400);
+      
+      // Final flash
+      gfx->fillScreen(RGB565(255, 220, 100));
+      delay(100);
+      break;
+    }
+    
+    case THEME_NARUTO_SAGE: {
+      // Naruto: Orange chakra swirl
+      gfx->fillScreen(COLOR_BLACK);
+      for (int r = 0; r < 250; r += 10) {
+        float angle = r * 0.1;
+        int sx = centerX + cos(angle) * r/2;
+        int sy = centerY + sin(angle) * r/2;
+        gfx->fillCircle(sx, sy, 20, NARUTO_CHAKRA_ORANGE);
+        delay(20);
+      }
+      gfx->setTextColor(NARUTO_CHAKRA_ORANGE);
+      gfx->setTextSize(3);
+      gfx->setCursor(centerX - 80, centerY);
+      gfx->print("DATTEBAYO!");
+      delay(500);
+      gfx->fillScreen(NARUTO_CHAKRA_ORANGE);
+      delay(100);
+      break;
+    }
+    
+    case THEME_GOKU_UI: {
+      // Goku: Silver aura pulse
+      gfx->fillScreen(COLOR_BLACK);
+      for (int pulse = 0; pulse < 3; pulse++) {
+        for (int r = 50; r < 200; r += 30) {
+          gfx->drawCircle(centerX, centerY, r, GOKU_UI_SILVER);
+          gfx->drawCircle(centerX, centerY, r+1, GOKU_UI_SILVER);
+          delay(30);
+        }
+        gfx->fillScreen(COLOR_BLACK);
+        delay(100);
+      }
+      gfx->setTextColor(GOKU_UI_SILVER);
+      gfx->setTextSize(2);
+      gfx->setCursor(centerX - 80, centerY);
+      gfx->print("ULTRA INSTINCT");
+      delay(500);
+      gfx->fillScreen(GOKU_UI_SILVER);
+      delay(100);
+      break;
+    }
+    
+    case THEME_TANJIRO_SUN: {
+      // Tanjiro: Fire breathing effect
+      gfx->fillScreen(COLOR_BLACK);
+      for (int i = 0; i < 15; i++) {
+        int x = random(0, LCD_WIDTH);
+        int y = LCD_HEIGHT - random(50, 200);
+        int size = random(20, 60);
+        gfx->fillCircle(x, y, size, TANJIRO_FIRE_ORANGE);
+        gfx->fillCircle(x, y - size/2, size/2, TANJIRO_FLAME_GLOW);
+        delay(50);
+      }
+      gfx->setTextColor(TANJIRO_FIRE_ORANGE);
+      gfx->setTextSize(2);
+      gfx->setCursor(centerX - 85, centerY);
+      gfx->print("SUN BREATHING");
+      delay(500);
+      gfx->fillScreen(TANJIRO_FIRE_ORANGE);
+      delay(100);
+      break;
+    }
+    
+    case THEME_GOJO_INFINITY: {
+      // Gojo: DOMAIN EXPANSION - Unlimited Void
+      gfx->fillScreen(COLOR_BLACK);
+      delay(200);
+      
+      // "Domain Expansion" text first
+      gfx->setTextColor(GOJO_INFINITY_BLUE);
+      gfx->setTextSize(2);
+      gfx->setCursor(centerX - 85, centerY - 40);
+      gfx->print("DOMAIN EXPANSION");
+      delay(600);
+      
+      // Screen goes to void blue-black
+      gfx->fillScreen(RGB565(5, 10, 20));
+      delay(200);
+      
+      // Domain EXPANDING outward from center - the void opening up
+      for (int r = 10; r < 350; r += 15) {
+        // Multiple expanding rings creating the infinite void effect
+        gfx->drawCircle(centerX, centerY, r, GOJO_HOLLOW_PURPLE);
+        gfx->drawCircle(centerX, centerY, r + 2, GOJO_INFINITY_BLUE);
+        gfx->drawCircle(centerX, centerY, r + 4, RGB565(100, 150, 200));
+        
+        // Add some scattered infinity symbols/dots for the void particles
+        for (int p = 0; p < 6; p++) {
+          float angle = (r * 0.05) + (p * PI / 3);
+          int px = centerX + cos(angle) * (r * 0.8);
+          int py = centerY + sin(angle) * (r * 0.8);
+          gfx->fillCircle(px, py, 2, GOJO_INFINITY_BLUE);
+        }
+        delay(25);
+      }
+      
+      // Flash to white void
+      gfx->fillScreen(RGB565(200, 220, 255));
+      delay(100);
+      gfx->fillScreen(COLOR_BLACK);
+      delay(150);
+      
+      // "Limitless Void" - Gojo's domain name
+      gfx->setTextColor(GOJO_INFINITY_BLUE);
+      gfx->setTextSize(3);
+      gfx->setCursor(centerX - 95, centerY - 15);
+      gfx->print("LIMITLESS");
+      gfx->setCursor(centerX - 50, centerY + 25);
+      gfx->print("VOID");
+      delay(600);
+      
+      // Final expansion flash
+      for (int r = 0; r < 300; r += 50) {
+        gfx->drawCircle(centerX, centerY, r, COLOR_WHITE);
+        delay(20);
+      }
+      gfx->fillScreen(GOJO_INFINITY_BLUE);
+      delay(100);
+      break;
+    }
+    
+    case THEME_LEVI_STRONGEST: {
+      // Levi: Spinning blade slashes
+      gfx->fillScreen(LEVI_CHARCOAL_DARK);
+      for (int i = 0; i < 8; i++) {
+        float angle = i * PI / 4;
+        int x1 = centerX + cos(angle) * 20;
+        int y1 = centerY + sin(angle) * 20;
+        int x2 = centerX + cos(angle) * 180;
+        int y2 = centerY + sin(angle) * 180;
+        gfx->drawLine(x1, y1, x2, y2, LEVI_SILVER_BLADE);
+        gfx->drawLine(x1+1, y1, x2+1, y2, LEVI_SILVER_BLADE);
+        delay(60);
+      }
+      gfx->setTextColor(LEVI_SILVER_BLADE);
+      gfx->setTextSize(2);
+      gfx->setCursor(centerX - 90, centerY + 60);
+      gfx->print("SHINZOU WO SASAGEYO");
+      delay(500);
+      gfx->fillScreen(LEVI_SILVER_BLADE);
+      delay(100);
+      break;
+    }
+    
+    case THEME_SAITAMA_OPM: {
+      // Saitama: Simple "OK" with punch effect
+      gfx->fillScreen(SAITAMA_CAPE_RED);
+      delay(200);
+      gfx->fillScreen(COLOR_BLACK);
+      gfx->setTextColor(SAITAMA_CAPE_RED);
+      gfx->setTextSize(8);
+      gfx->setCursor(centerX - 50, centerY - 40);
+      gfx->print("OK");
+      delay(600);
+      // Punch impact
+      for (int r = 10; r < 300; r += 40) {
+        gfx->drawCircle(centerX, centerY, r, COLOR_WHITE);
+        delay(30);
+      }
+      gfx->fillScreen(COLOR_WHITE);
+      delay(100);
+      break;
+    }
+    
+    case THEME_DEKU_PLUSULTRA: {
+      // Deku: Lightning crackling + PLUS ULTRA
+      gfx->fillScreen(DEKU_DARK_HERO);
+      for (int i = 0; i < 12; i++) {
+        int x1 = random(50, LCD_WIDTH - 50);
+        int y1 = random(50, LCD_HEIGHT - 50);
+        for (int j = 0; j < 4; j++) {
+          int x2 = x1 + random(-40, 40);
+          int y2 = y1 + random(20, 60);
+          gfx->drawLine(x1, y1, x2, y2, DEKU_OFA_LIGHTNING);
+          gfx->drawLine(x1+1, y1, x2+1, y2, DEKU_FULL_COWL);
+          x1 = x2;
+          y1 = y2;
+        }
+        delay(50);
+      }
+      gfx->setTextColor(DEKU_FULL_COWL);
+      gfx->setTextSize(3);
+      gfx->setCursor(centerX - 95, centerY);
+      gfx->print("PLUS ULTRA!");
+      delay(500);
+      gfx->fillScreen(DEKU_FULL_COWL);
+      delay(100);
+      break;
+    }
+    
+    default: {
+      // Default: Simple fade
+      for (int b = 255; b > 0; b -= 25) {
+        gfx->fillScreen(RGB565(b/10, b/10, b/8));
+        delay(30);
+      }
+      break;
+    }
+  }
+}
+
 ThemeColors* getCurrentTheme() {
   return current_theme;
 }
@@ -418,64 +731,13 @@ void updateWatchFaceTime() {
     return;
   }
   
-  ThemeColors* theme = getCurrentTheme();
-  int centerX = LCD_WIDTH / 2;
-  
-  // --- Clear and redraw TIME area only (no fillScreen!) ---
-  // Time is drawn roughly at Y=95 to Y=175 across all themes
-  int timeY = 95;
-  int timeH = 85;
-  gfx->fillRect(0, timeY, LCD_WIDTH, timeH, 0x0000);
-  
-  // Draw time - modern clean style
-  char hourStr[3], minStr[3];
-  sprintf(hourStr, "%02d", time.hour);
-  sprintf(minStr, "%02d", time.minute);
-  
-  // Hour text
-  gfx->setTextSize(9);
-  gfx->setTextColor(COLOR_WHITE);
-  gfx->setCursor(20, timeY + 5);
-  gfx->print(hourStr);
-  
-  // Colon - animate blink
-  int colonX = centerX - 9;
-  int colonY = timeY + 40;
-  uint16_t colonColor = (time.second % 2) ? theme->primary : theme->accent;
-  gfx->fillCircle(colonX, colonY - 18, 5, colonColor);
-  gfx->fillCircle(colonX, colonY + 18, 5, colonColor);
-  
-  // Minute text
-  gfx->setTextSize(9);
-  gfx->setTextColor(COLOR_WHITE);
-  gfx->setCursor(197, timeY + 5);
-  gfx->print(minStr);
-  
-  // --- Seconds indicator arc (clear old, draw new) ---
-  // Clear the arc area (thin strip around the center)
-  int arcY = 55;
-  gfx->fillRect(0, arcY, LCD_WIDTH, 35, 0x0000);
-  
-  // Draw seconds progress arc as dots
-  float secAngle = (time.second / 60.0) * 2 * PI - PI/2;
-  for (float a = -PI/2; a < secAngle; a += 0.08) {
-    int sx = centerX + cos(a) * 150;
-    int sy = arcY + 17 + sin(a) * 15;
-    if (sx >= 0 && sx < LCD_WIDTH && sy >= arcY && sy < arcY + 35) {
-      gfx->fillCircle(sx, sy, 2, theme->accent);
-    }
-  }
-  
-  // Seconds text (small, right side)
-  gfx->setTextSize(2);
-  gfx->setTextColor(theme->primary);
-  gfx->fillRect(LCD_WIDTH - 45, timeY + timeH - 25, 45, 25, 0x0000);
-  gfx->setCursor(LCD_WIDTH - 40, timeY + timeH - 20);
-  gfx->printf(":%02d", time.second);
-  
   prev_hour = time.hour;
   prev_minute = time.minute;
   prev_second = time.second;
+  
+  // FULL REDRAW to prevent ANY overlap artifacts
+  // Each theme has unique layouts - partial updates cause the black bar issue
+  drawWatchFace();
 }
 
 // =============================================================================
@@ -539,8 +801,9 @@ void drawLuffyWatchFace() {
                           "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
   
   int dateY = 235;
-  gfx->fillRoundRect(80, dateY, 210, 30, 15, RGB565(20, 15, 8));
-  gfx->drawRoundRect(80, dateY, 210, 30, 15, RGB565(80, 60, 25));
+  gfx->fillRect(80, dateY, 210, 30, RGB565(20, 15, 8));
+  gfx->drawRect(80, dateY, 210, 30, RGB565(80, 60, 25));
+  gfx->fillRect(80, dateY, 4, 4, COLOR_GOLD);
   
   gfx->setTextSize(1);
   gfx->setTextColor(LUFFY_SUN_GOLD);
@@ -578,8 +841,9 @@ void drawLuffyStatsCards() {
   int cardStartX = (LCD_WIDTH - (3 * cardW + 2 * cardGap)) / 2;
   
   // Steps card
-  gfx->fillRoundRect(cardStartX, cardY, cardW, cardH, 12, RGB565(15, 20, 15));
-  gfx->drawRoundRect(cardStartX, cardY, cardW, cardH, 12, RGB565(50, 80, 50));
+  gfx->fillRect(cardStartX, cardY, cardW, cardH, RGB565(15, 20, 15));
+  gfx->drawRect(cardStartX, cardY, cardW, cardH, RGB565(50, 80, 50));
+  gfx->fillRect(cardStartX, cardY, 4, 4, COLOR_GREEN);
   gfx->setTextSize(1);
   gfx->setTextColor(RGB565(100, 160, 100));
   gfx->setCursor(cardStartX + 10, cardY + 8);
@@ -593,8 +857,9 @@ void drawLuffyStatsCards() {
   int card2X = cardStartX + cardW + cardGap;
   int battPct = system_state.battery_percentage;
   uint16_t battColor = battPct > 20 ? RGB565(100, 180, 255) : RGB565(255, 100, 100);
-  gfx->fillRoundRect(card2X, cardY, cardW, cardH, 12, RGB565(15, 18, 22));
-  gfx->drawRoundRect(card2X, cardY, cardW, cardH, 12, RGB565(50, 70, 90));
+  gfx->fillRect(card2X, cardY, cardW, cardH, RGB565(15, 18, 22));
+  gfx->drawRect(card2X, cardY, cardW, cardH, RGB565(50, 70, 90));
+  gfx->fillRect(card2X, cardY, 4, 4, COLOR_BLUE);
   gfx->setTextSize(1);
   gfx->setTextColor(RGB565(80, 120, 160));
   gfx->setCursor(card2X + 10, cardY + 8);
@@ -606,8 +871,9 @@ void drawLuffyStatsCards() {
   
   // Gems card
   int card3X = card2X + cardW + cardGap;
-  gfx->fillRoundRect(card3X, cardY, cardW, cardH, 12, RGB565(22, 18, 10));
-  gfx->drawRoundRect(card3X, cardY, cardW, cardH, 12, RGB565(80, 65, 30));
+  gfx->fillRect(card3X, cardY, cardW, cardH, RGB565(22, 18, 10));
+  gfx->drawRect(card3X, cardY, cardW, cardH, RGB565(80, 65, 30));
+  gfx->fillRect(card3X, cardY, 4, 4, COLOR_GOLD);
   gfx->setTextSize(1);
   gfx->setTextColor(RGB565(140, 110, 50));
   gfx->setCursor(card3X + 10, cardY + 8);
@@ -692,11 +958,11 @@ void drawJinwooWatchFace() {
   // === ARISE BADGE ===
   int ariseY = 240;
   for (int i = 2; i >= 0; i--) {
-    gfx->fillRoundRect(centerX - 55 - i*2, ariseY - i, 110 + i*4, 30 + i, 8,
+    gfx->fillRect(centerX - 55 - i*2, ariseY - i, 110 + i*4, 30 + i,
                        RGB565(20 + i*8, 10 + i*4, 40 + i*12));
   }
-  gfx->fillRoundRect(centerX - 55, ariseY, 110, 28, 8, RGB565(15, 8, 30));
-  gfx->drawRoundRect(centerX - 55, ariseY, 110, 28, 8, JINWOO_ARISE_GLOW);
+  gfx->fillRect(centerX - 55, ariseY, 110, 28, RGB565(15, 8, 30));
+  gfx->drawRect(centerX - 55, ariseY, 110, 28, JINWOO_ARISE_GLOW);
   
   gfx->setTextSize(2);
   gfx->setTextColor(JINWOO_ARISE_GLOW);
@@ -716,8 +982,8 @@ void drawJinwooWatchFace() {
   int statsY = 305;
   
   // Shadows
-  gfx->fillRoundRect(20, statsY, 100, 48, 10, RGB565(12, 8, 20));
-  gfx->drawRoundRect(20, statsY, 100, 48, 10, RGB565(50, 35, 80));
+  gfx->fillRect(20, statsY, 100, 48, RGB565(12, 8, 20));
+  gfx->drawRect(20, statsY, 100, 48, RGB565(50, 35, 80));
   gfx->setTextSize(1);
   gfx->setTextColor(RGB565(80, 60, 120));
   gfx->setCursor(30, statsY + 8);
@@ -728,8 +994,8 @@ void drawJinwooWatchFace() {
   gfx->printf("%d", system_state.gacha_cards_collected);
   
   // Level
-  gfx->fillRoundRect(130, statsY, 110, 48, 10, RGB565(12, 8, 20));
-  gfx->drawRoundRect(130, statsY, 110, 48, 10, RGB565(50, 35, 80));
+  gfx->fillRect(130, statsY, 110, 48, RGB565(12, 8, 20));
+  gfx->drawRect(130, statsY, 110, 48, RGB565(50, 35, 80));
   gfx->setTextSize(1);
   gfx->setTextColor(RGB565(80, 60, 120));
   gfx->setCursor(155, statsY + 8);
@@ -740,8 +1006,8 @@ void drawJinwooWatchFace() {
   gfx->printf("%d", system_state.player_level);
   
   // Mana
-  gfx->fillRoundRect(250, statsY, 100, 48, 10, RGB565(12, 8, 20));
-  gfx->drawRoundRect(250, statsY, 100, 48, 10, RGB565(50, 35, 80));
+  gfx->fillRect(250, statsY, 100, 48, RGB565(12, 8, 20));
+  gfx->drawRect(250, statsY, 100, 48, RGB565(50, 35, 80));
   gfx->setTextSize(1);
   gfx->setTextColor(RGB565(80, 60, 120));
   gfx->setCursor(265, statsY + 8);
@@ -760,6 +1026,8 @@ void drawJinwooWatchFace() {
 // =============================================================================
 
 void drawYugoWatchFace() {
+  // CRITICAL FIX: Clear entire screen first to prevent overlap from other watchfaces
+  gfx->fillScreen(RGB565(2, 2, 5));
   gfx->fillScreen(YUGO_SKY_BLUE_GREY);
   drawYugoPortals();
   
@@ -788,6 +1056,8 @@ void drawYugoWatchFace() {
 }
 
 void drawNarutoWatchFace() {
+  // CRITICAL FIX: Clear entire screen first to prevent overlap from other watchfaces
+  gfx->fillScreen(RGB565(2, 2, 5));
   gfx->fillScreen(NARUTO_SLATE_GREY);
   drawNarutoSageAura();
   
@@ -821,6 +1091,8 @@ void drawNarutoWatchFace() {
 }
 
 void drawGokuWatchFace() {
+  // CRITICAL FIX: Clear entire screen first to prevent overlap from other watchfaces
+  gfx->fillScreen(RGB565(2, 2, 5));
   gfx->fillScreen(COLOR_BLACK);
   drawGokuUIAura();
   
@@ -845,6 +1117,8 @@ void drawGokuWatchFace() {
 }
 
 void drawTanjiroWatchFace() {
+  // CRITICAL FIX: Clear entire screen first to prevent overlap from other watchfaces
+  gfx->fillScreen(RGB565(2, 2, 5));
   gfx->fillScreen(TANJIRO_DARK_CHARCOAL);
   drawTanjiroSunFlames();
   
@@ -873,6 +1147,8 @@ void drawTanjiroWatchFace() {
 }
 
 void drawGojoWatchFace() {
+  // CRITICAL FIX: Clear entire screen first to prevent overlap from other watchfaces
+  gfx->fillScreen(RGB565(2, 2, 5));
   gfx->fillScreen(COLOR_BLACK);
   drawGojoInfinityAura();
   
@@ -903,6 +1179,8 @@ void drawGojoWatchFace() {
 }
 
 void drawLeviWatchFace() {
+  // CRITICAL FIX: Clear entire screen first to prevent overlap from other watchfaces
+  gfx->fillScreen(RGB565(2, 2, 5));
   gfx->fillScreen(LEVI_CHARCOAL_DARK);
   
   WatchTime time = getCurrentTime();
@@ -931,6 +1209,8 @@ void drawLeviWatchFace() {
 }
 
 void drawSaitamaWatchFace() {
+  // CRITICAL FIX: Clear entire screen first to prevent overlap from other watchfaces
+  gfx->fillScreen(RGB565(2, 2, 5));
   gfx->fillScreen(COLOR_BLACK);
   
   WatchTime time = getCurrentTime();
@@ -958,6 +1238,8 @@ void drawSaitamaWatchFace() {
 }
 
 void drawDekuWatchFace() {
+  // CRITICAL FIX: Clear entire screen first to prevent overlap from other watchfaces
+  gfx->fillScreen(RGB565(2, 2, 5));
   gfx->fillScreen(DEKU_DARK_HERO);
   drawDekuOFALightning();
   
@@ -986,6 +1268,8 @@ void drawDekuWatchFace() {
 }
 
 void drawSleepWatchFace() {
+  // CRITICAL FIX: Clear entire screen first to prevent overlap
+  gfx->fillScreen(RGB565(2, 2, 5));
   gfx->fillScreen(COLOR_BLACK);
   WatchTime time = getCurrentTime();
   char timeStr[16];
@@ -1006,6 +1290,9 @@ static int boboiboy_current_element = 0;
 static unsigned long boboiboy_last_cycle = 0;
 
 void drawBoboiboyWatchFace() {
+  // CRITICAL FIX: Clear screen first to prevent overlap from other watchfaces
+  gfx->fillScreen(RGB565(2, 2, 5));
+  
   // Use dynamic background based on time
   drawDynamicBackground(THEME_BOBOIBOY);
   
@@ -1095,8 +1382,9 @@ void drawBoboiboyWatchFace() {
   
   // === ELEMENT NAME BADGE ===
   int badgeY = 235;
-  gfx->fillRoundRect(centerX - 70, badgeY, 140, 28, 14, RGB565(20, 22, 28));
-  gfx->drawRoundRect(centerX - 70, badgeY, 140, 28, 14, currentColor);
+  gfx->fillRect(centerX - 70, badgeY, 140, 28, RGB565(20, 22, 28));
+  gfx->drawRect(centerX - 70, badgeY, 140, 28, currentColor);
+  gfx->fillRect(centerX - 70, badgeY, 4, 4, currentColor);
   
   gfx->setTextColor(currentColor);
   gfx->setTextSize(2);
@@ -1123,8 +1411,9 @@ void drawBoboiboyWatchFace() {
   int cardStartX = (LCD_WIDTH - (3 * cardW + 2 * cardGap)) / 2;
   
   // Power card
-  gfx->fillRoundRect(cardStartX, cardY, cardW, cardH, 10, RGB565(20, 15, 10));
-  gfx->drawRoundRect(cardStartX, cardY, cardW, cardH, 10, BBB_BAND_ORANGE);
+  gfx->fillRect(cardStartX, cardY, cardW, cardH, RGB565(20, 15, 10));
+  gfx->drawRect(cardStartX, cardY, cardW, cardH, BBB_BAND_ORANGE);
+  gfx->fillRect(cardStartX, cardY, 4, 4, BBB_BAND_ORANGE);
   gfx->setTextSize(1);
   gfx->setTextColor(BBB_BAND_ORANGE);
   gfx->setCursor(cardStartX + 10, cardY + 8);
@@ -1136,8 +1425,9 @@ void drawBoboiboyWatchFace() {
   
   // Steps card
   int card2X = cardStartX + cardW + cardGap;
-  gfx->fillRoundRect(card2X, cardY, cardW, cardH, 10, RGB565(15, 20, 15));
-  gfx->drawRoundRect(card2X, cardY, cardW, cardH, 10, BBB_LEAF_GREEN);
+  gfx->fillRect(card2X, cardY, cardW, cardH, RGB565(15, 20, 15));
+  gfx->drawRect(card2X, cardY, cardW, cardH, BBB_LEAF_GREEN);
+  gfx->fillRect(card2X, cardY, 4, 4, BBB_LEAF_GREEN);
   gfx->setTextSize(1);
   gfx->setTextColor(RGB565(100, 160, 100));
   gfx->setCursor(card2X + 10, cardY + 8);
@@ -1147,12 +1437,14 @@ void drawBoboiboyWatchFace() {
   gfx->setCursor(card2X + 10, cardY + 25);
   gfx->printf("%d", system_state.steps_today);
   
-  // Battery card
+  // Battery card - FIX: Use actual PMU reading
   int card3X = card2X + cardW + cardGap;
-  int battPct = system_state.battery_percentage;
+  int battPct = getBatteryPercentage();  // Read from AXP2101 PMU
+  system_state.battery_percentage = battPct;  // Update cached value
   uint16_t battColor = battPct > 20 ? BBB_WIND_BLUE : BBB_FIRE_RED;
-  gfx->fillRoundRect(card3X, cardY, cardW, cardH, 10, RGB565(15, 18, 22));
-  gfx->drawRoundRect(card3X, cardY, cardW, cardH, 10, battColor);
+  gfx->fillRect(card3X, cardY, cardW, cardH, RGB565(15, 18, 22));
+  gfx->drawRect(card3X, cardY, cardW, cardH, battColor);
+  gfx->fillRect(card3X, cardY, 4, 4, battColor);
   gfx->setTextSize(1);
   gfx->setTextColor(RGB565(80, 120, 160));
   gfx->setCursor(card3X + 10, cardY + 8);
@@ -1370,20 +1662,23 @@ void drawStepCounter() {
 
 void drawBatteryIndicator() {
   int x = LCD_WIDTH - 50, y = 10;
-  gfx->drawRect(x, y, 40, 18, COLOR_WHITE);
-  gfx->fillRect(x + 40, y + 4, 4, 10, COLOR_WHITE);
+  // Retro pixel battery
+  gfx->drawRect(x, y, 40, 18, RGB565(80, 85, 100));
+  gfx->fillRect(x + 40, y + 4, 4, 10, RGB565(80, 85, 100));
   int fillWidth = (system_state.battery_percentage * 36) / 100;
-  uint16_t color = system_state.battery_percentage > 20 ? COLOR_GREEN : COLOR_RED;
-  if (system_state.is_charging) color = COLOR_YELLOW;
+  uint16_t color = system_state.battery_percentage > 20 ? RGB565(0, 200, 80) : COLOR_RED;
+  if (system_state.is_charging) color = COLOR_GOLD;
   gfx->fillRect(x + 2, y + 2, fillWidth, 14, color);
 }
 
 void drawThemeButton(int x, int y, int w, int h, const char* text, bool pressed) {
-  uint16_t bg = pressed ? RGB565(40, 42, 55) : RGB565(28, 30, 40);
-  uint16_t border = pressed ? current_theme->primary : RGB565(55, 58, 72);
-  gfx->fillRoundRect(x, y, w, h, min(h/2, 18), bg);
-  gfx->drawRoundRect(x, y, w, h, min(h/2, 18), border);
-  gfx->setTextColor(pressed ? current_theme->primary : RGB565(200, 200, 210));
+  uint16_t bg = pressed ? RGB565(25, 20, 35) : RGB565(15, 18, 25);
+  uint16_t border = pressed ? current_theme->primary : RGB565(40, 45, 60);
+  gfx->fillRect(x, y, w, h, bg);
+  gfx->drawRect(x, y, w, h, border);
+  gfx->fillRect(x, y, 4, 4, border);
+  gfx->fillRect(x + w - 4, y, 4, 4, border);
+  gfx->setTextColor(pressed ? current_theme->primary : RGB565(180, 185, 200));
   gfx->setTextSize(2);
   int textW = strlen(text) * 12;
   gfx->setCursor(x + (w - textW)/2, y + (h - 16)/2);
@@ -1395,17 +1690,20 @@ void drawGameButton(int x, int y, int w, int h, const char* text, bool pressed) 
 }
 
 void drawGlassPanel(int x, int y, int w, int h, uint8_t opacity) {
-  uint16_t glassBg = RGB565(30 + opacity, 30 + opacity, 40 + opacity);
-  gfx->fillRoundRect(x, y, w, h, current_theme->corner_radius, glassBg);
-  gfx->drawRoundRect(x, y, w, h, current_theme->corner_radius, RGB565(80, 80, 90));
+  gfx->fillRect(x, y, w, h, RGB565(12, 14, 20));
+  gfx->drawRect(x, y, w, h, RGB565(40, 45, 60));
+  gfx->fillRect(x, y, 5, 5, current_theme->primary);
+  gfx->fillRect(x + w - 5, y, 5, 5, current_theme->primary);
 }
 
 void drawGlassButton(int x, int y, int w, int h, const char* text, bool pressed) {
-  drawGlassPanel(x, y, w, h, pressed ? 50 : 25);
+  gfx->fillRect(x, y, w, h, pressed ? RGB565(18, 20, 30) : RGB565(15, 18, 25));
+  gfx->drawRect(x, y, w, h, pressed ? current_theme->primary : RGB565(40, 45, 60));
   if (pressed) {
-    gfx->drawRoundRect(x - 2, y - 2, w + 4, h + 4, current_theme->corner_radius + 2, current_theme->primary);
+    gfx->fillRect(x, y, 4, 4, current_theme->primary);
+    gfx->fillRect(x + w - 4, y, 4, 4, current_theme->primary);
   }
-  gfx->setTextColor(COLOR_WHITE);
+  gfx->setTextColor(pressed ? current_theme->primary : RGB565(180, 185, 200));
   gfx->setTextSize(2);
   int textW = strlen(text) * 12;
   gfx->setCursor(x + (w - textW)/2, y + (h - 16)/2);
@@ -1413,12 +1711,16 @@ void drawGlassButton(int x, int y, int w, int h, const char* text, bool pressed)
 }
 
 void drawGlassStatBar(int x, int y, int w, int h, float progress, uint16_t color, const char* label) {
-  gfx->fillRoundRect(x, y, w, h, h/2, RGB565(40, 40, 50));
+  gfx->fillRect(x, y, w, h, RGB565(8, 10, 14));
+  gfx->drawRect(x, y, w, h, RGB565(30, 35, 50));
   int fillW = (int)(w * constrain(progress, 0.0f, 1.0f));
   if (fillW > 0) {
-    gfx->fillRoundRect(x, y, fillW, h, h/2, color);
+    gfx->fillRect(x + 1, y + 1, fillW - 2, h - 2, color);
   }
-  gfx->drawRoundRect(x, y, w, h, h/2, RGB565(80, 80, 90));
+  // Pixel notches
+  for (int nx = x; nx < x + w; nx += 20) {
+    gfx->drawFastVLine(nx, y + 1, h - 2, RGB565(15, 18, 25));
+  }
   if (label) {
     gfx->setTextColor(COLOR_WHITE);
     gfx->setTextSize(1);
@@ -1432,111 +1734,450 @@ void drawGlassStatBar(int x, int y, int w, int h, float progress, uint16_t color
 // =============================================================================
 
 void drawCharacterStatsScreen() {
-  gfx->fillScreen(COLOR_BLACK);
+  // ========================================
+  // RETRO ANIME CHARACTER STATS - CRT Style
+  // ========================================
+  gfx->fillScreen(RGB565(2, 2, 5));
+  for (int y = 0; y < LCD_HEIGHT; y += 4) {
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+  }
   
   CharacterProfile* profile = getCurrentCharacterProfile();
   ThemeColors* theme = getCurrentTheme();
   
-  // Header
-  gfx->setTextColor(theme->primary);
+  // Retro header
+  gfx->fillRect(0, 0, LCD_WIDTH, 48, RGB565(10, 12, 18));
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, 46, 6, 3, theme->primary);
+  }
   gfx->setTextSize(2);
-  gfx->setCursor(60, 20);
+  gfx->setTextColor(RGB565(30, 35, 50));
+  gfx->setCursor(51, 14 + 1);
+  gfx->print("CHARACTER STATS");
+  gfx->setTextColor(theme->primary);
+  gfx->setCursor(50, 14);
   gfx->print("CHARACTER STATS");
   
-  // Glass card for character info
-  drawGlassPanel(50, 55, 270, 95);
+  // Character info card - retro pixel
+  gfx->fillRect(30, 55, 300, 90, RGB565(12, 14, 20));
+  gfx->drawRect(30, 55, 300, 90, RGB565(40, 45, 60));
+  gfx->fillRect(30, 55, 5, 5, theme->primary);
+  gfx->fillRect(325, 55, 5, 5, theme->primary);
+  gfx->fillRect(30, 140, 5, 5, theme->primary);
+  gfx->fillRect(325, 140, 5, 5, theme->primary);
   
   gfx->setTextColor(theme->primary);
   gfx->setTextSize(2);
-  gfx->setCursor(65, 70);
+  gfx->setCursor(45, 65);
   gfx->print(profile->name);
   
-  gfx->setTextColor(COLOR_WHITE);
+  gfx->setTextColor(RGB565(180, 185, 200));
   gfx->setTextSize(1);
-  gfx->setCursor(65, 95);
+  gfx->setCursor(45, 90);
   gfx->print(profile->title);
   
-  gfx->setTextColor(COLOR_GRAY);
-  gfx->setCursor(65, 115);
+  gfx->setTextColor(RGB565(80, 85, 100));
+  gfx->setCursor(45, 108);
   gfx->print(profile->series);
   
   gfx->setTextColor(theme->accent);
   gfx->setTextSize(2);
-  gfx->setCursor(65, 135);
+  gfx->setCursor(45, 125);
   gfx->printf("Lv.%d", system_state.player_level);
   
-  // Stat bars
-  int barY = 165;
+  // Stat bars - retro pixel style
+  int barY = 160;
   int barW = 270;
-  int barH = 22;
-  int spacing = 40;
+  int barH = 20;
+  int spacing = 36;
   
   drawGlassStatBar(50, barY, barW, barH, profile->stats.stat1_value / 100.0f, theme->primary, profile->stats.stat1_name);
   drawGlassStatBar(50, barY + spacing, barW, barH, profile->stats.stat2_value / 100.0f, theme->accent, profile->stats.stat2_name);
   drawGlassStatBar(50, barY + spacing * 2, barW, barH, profile->stats.stat3_value / 100.0f, theme->effect1, profile->stats.stat3_name);
   drawGlassStatBar(50, barY + spacing * 3, barW, barH, profile->stats.stat4_value / 100.0f, theme->effect2, profile->stats.stat4_name);
   
-  // Catchphrase
+  // Catchphrase - retro styled
+  gfx->fillRect(40, barY + spacing * 4 + 10, 280, 24, RGB565(10, 12, 18));
+  gfx->drawRect(40, barY + spacing * 4 + 10, 280, 24, RGB565(30, 35, 50));
   gfx->setTextColor(theme->primary);
   gfx->setTextSize(1);
-  gfx->setCursor(50, barY + spacing * 4 + 15);
+  gfx->setCursor(50, barY + spacing * 4 + 17);
   gfx->print(profile->catchphrase);
   
-  // Swipe indicator
+  // Swipe up indicator for progression
+  gfx->setTextColor(RGB565(60, 65, 80));
+  gfx->setTextSize(1);
+  gfx->setCursor(LCD_WIDTH/2 - 60, LCD_HEIGHT - 25);
+  gfx->print("SWIPE UP: PROGRESSION");
+  
   drawSwipeIndicator();
+}
+
+// =============================================================================
+// CHARACTER PROGRESSION TREE SCREEN - Full Title List
+// =============================================================================
+
+static int progression_scroll = 0;
+
+// Title definitions
+struct Title {
+  const char* name;
+  const char* requirement;
+  int level_req;
+  bool unlocked;
+};
+
+// ==================== LUFFY TITLES ====================
+Title LUFFY_TITLE_LIST[] = {
+  {"Rubber Rookie", "Level 1 - Stretchy newcomer", 1, false},
+  {"Straw Hat Fighter", "Level 5 - Determined crew member", 5, false},
+  {"Gum-Gum Kid", "Level 10 - Young rubber pirate", 10, false},
+  {"East Blue Champion", "Level 15 - Strongest in weakest sea", 15, false},
+  {"Captain of Freedom", "Level 16 - Values freedom above all", 16, false},
+  {"Sky Island Drifter", "Level 20 - Floating island adventurer", 20, false},
+  {"Gear Second Surger", "Level 25 - Blood acceleration master", 25, false},
+  {"Grand Line Veteran", "Level 30 - Pirate graveyard warrior", 30, false},
+  {"Gear Third Brawler", "Level 31 - Giant bone balloon", 31, false},
+  {"Gear Fourth Juggernaut", "Level 40 - Muscle balloon form", 40, false},
+  {"Haki Awakener", "Level 45 - Power of will unlocked", 45, false},
+  {"Conqueror's Vessel", "Level 50 - Kingly ambition wielder", 50, false},
+  {"Emissary of Laughter", "Level 51 - Brings joy to oppressed", 51, false},
+  {"Toon World Trickster", "Level 60 - Reality bends to will", 60, false},
+  {"Nika's Wrath", "Level 65 - Sun God's fury vessel", 65, false},
+  {"Joy Boy's Heir", "Level 70 - Inheritor of ancient will", 70, false},
+  {"Toon God Warrior", "Level 71 - Cartoon power master", 71, false},
+  {"Reality Cartoonist", "Level 80 - Draws reality with rubber", 80, false},
+  {"Haki Harmonizer", "Level 85 - All Haki types fused", 85, false},
+  {"Boundless Luffy", "Level 90 - Beyond physical limits", 90, false},
+  {"Liberation Deity", "Level 95 - God of freedom and joy", 95, false},
+  {"Sun God Nika", "Level 100 - Warrior of Liberation", 100, false}
+};
+
+// ==================== YUGO TITLES ====================
+Title YUGO_TITLE_LIST[] = {
+  {"Young Eliatrope", "Level 1 - Curious dragon child", 1, false},
+  {"Curious Explorer", "Level 5 - Adventure seeker", 5, false},
+  {"Brotherhood Member", "Level 10 - Tofu Brotherhood", 10, false},
+  {"Wakfu Student", "Level 15 - Learning life energy", 15, false},
+  {"Portal Initiate", "Level 16 - Dimensional magic start", 16, false},
+  {"Warp Jumper", "Level 20 - Short teleportation", 20, false},
+  {"Sadida Ally", "Level 25 - Tree people friend", 25, false},
+  {"Dimensional Walker", "Level 30 - World traverser", 30, false},
+  {"Shushu Whisperer", "Level 31 - Demon weapon speaker", 31, false},
+  {"Wakfu Manipulator", "Level 40 - Life force control", 40, false},
+  {"Rubilax Wielder", "Level 45 - Demon sword master", 45, false},
+  {"Adamai's Brother", "Level 50 - Dragon twin bond", 50, false},
+  {"Portal Architect", "Level 51 - Complex portals", 51, false},
+  {"Temporal Traveler", "Level 60 - Time manipulation", 60, false},
+  {"Prince of Eliatropes", "Level 65 - Royal dragon heir", 65, false},
+  {"Inglorium Navigator", "Level 70 - Divine realm master", 70, false},
+  {"Dimensional Weaver", "Level 71 - Reality shaper", 71, false},
+  {"Keeper of Realities", "Level 80 - Dimension guardian", 80, false},
+  {"Cosmic Warper", "Level 85 - Space-time bender", 85, false},
+  {"Eliatrope King", "Level 90 - PATH CHOICE", 90, false},
+  {"King of Dragons", "Level 95 - Dragon Path ruler", 95, false},
+  {"Master of Portals", "Level 100 - Dimension lord", 100, false}
+};
+
+// ==================== JINWOO TITLES ====================
+Title JINWOO_TITLE_LIST[] = {
+  {"Weakest Hunter", "Level 1 - E-Rank at bottom", 1, false},
+  {"E-Rank Grinder", "Level 5 - Persistent despite weak", 5, false},
+  {"Dungeon Survivor", "Level 10 - Lived through death", 10, false},
+  {"System User", "Level 15 - Chosen by system", 15, false},
+  {"Rank D Ascender", "Level 16 - No longer weakest", 16, false},
+  {"C-Rank Climber", "Level 25 - Recognized hunter", 25, false},
+  {"Solo Dungeon Clearer", "Level 30 - Handles dungeons alone", 30, false},
+  {"Grave Raiser", "Level 31 - First shadow soldier", 31, false},
+  {"Shadow Initiate", "Level 35 - Commands the dead", 35, false},
+  {"Shadow Commander", "Level 40 - Small shadow army", 40, false},
+  {"B-Rank Hunter", "Level 45 - Elite hunter status", 45, false},
+  {"Red Gate Conqueror", "Level 50 - Impossible dungeons", 50, false},
+  {"Rank B Executioner", "Level 51 - Elite shadow power", 51, false},
+  {"Dungeon Monarch", "Level 60 - Dungeon ruler", 60, false},
+  {"Rank A Terminator", "Level 65 - National level threat", 65, false},
+  {"Jeju Island Savior", "Level 70 - Saved from ants", 70, false},
+  {"Shadow Monarch's Vessel", "Level 71 - Ancient power chosen", 71, false},
+  {"Monarch of Shadows", "Level 80 - Shadow throne heir", 80, false},
+  {"King of Death", "Level 85 - Life and death master", 85, false},
+  {"Ashborn's Successor", "Level 90 - Full monarch power", 90, false},
+  {"Darkness Embodied", "Level 95 - Shadow incarnation", 95, false},
+  {"Shadow Monarch", "Level 100 - Supreme ruler of death", 100, false}
+};
+
+// ==================== GENERIC TITLES (for other characters) ====================
+Title GENERIC_TITLE_LIST[] = {
+  {"Newbie", "Level 1 - Start journey", 1, false},
+  {"Apprentice", "Level 5", 5, false},
+  {"Warrior", "Level 10", 10, false},
+  {"Champion", "Level 15", 15, false},
+  {"Elite", "Level 20", 20, false},
+  {"Master", "Level 25", 25, false},
+  {"Grandmaster", "Level 30", 30, false},
+  {"Legend", "Level 40", 40, false},
+  {"Mythic", "Level 50", 50, false},
+  {"Immortal", "Level 75", 75, false},
+  {"Transcendent", "Level 100", 100, false},
+  {"Card Collector", "Collect 10 cards", 1, false},
+  {"Gacha Addict", "Collect 50 cards", 1, false},
+  {"Boss Slayer", "Defeat 5 bosses", 1, false},
+  {"Boss Hunter", "Defeat 25 bosses", 1, false},
+  {"Step Master", "Walk 10,000 steps", 1, false},
+  {"Gem Hoarder", "Collect 10,000 gems", 1, false},
+  {"Training Fanatic", "10 day streak", 1, false},
+  {"Dedicated Player", "30 day login streak", 1, false}
+};
+
+void drawProgressionScreen() {
+  gfx->fillScreen(RGB565(2, 2, 5));
+  for (int y = 0; y < LCD_HEIGHT; y += 4) {
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+  }
+  
+  CharacterProfile* profile = getCurrentCharacterProfile();
+  ThemeColors* theme = getCurrentTheme();
+  int centerX = LCD_WIDTH / 2;
+  
+  // Header
+  gfx->fillRect(0, 0, LCD_WIDTH, 48, RGB565(10, 12, 18));
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, 46, 6, 3, theme->primary);
+  }
+  gfx->setTextColor(theme->primary);
+  gfx->setTextSize(2);
+  gfx->setCursor(centerX - 40, 14);
+  gfx->print("TITLES");
+  
+  // Current level indicator
+  gfx->setTextColor(theme->accent);
+  gfx->setTextSize(1);
+  gfx->setCursor(LCD_WIDTH - 70, 18);
+  gfx->printf("LVL %d", system_state.player_level);
+  
+  // Select title list based on current theme
+  Title* titles;
+  int numTitles;
+  
+  switch(system_state.current_theme) {
+    case THEME_LUFFY_GEAR5:
+      titles = LUFFY_TITLE_LIST;
+      numTitles = 22;
+      break;
+    case THEME_YUGO_WAKFU:
+      titles = YUGO_TITLE_LIST;
+      numTitles = 22;
+      break;
+    case THEME_SUNG_JINWOO:
+      titles = JINWOO_TITLE_LIST;
+      numTitles = 22;
+      break;
+    default:
+      titles = GENERIC_TITLE_LIST;
+      numTitles = 19;
+      break;
+  }
+  
+  // Update unlock status based on level
+  for (int i = 0; i < numTitles; i++) {
+    titles[i].unlocked = (system_state.player_level >= titles[i].level_req);
+  }
+  
+  // For generic list, also check achievement-based titles
+  if (system_state.current_theme != THEME_LUFFY_GEAR5 && 
+      system_state.current_theme != THEME_YUGO_WAKFU &&
+      system_state.current_theme != THEME_SUNG_JINWOO) {
+    if (numTitles >= 12) titles[11].unlocked = (system_state.gacha_cards_collected >= 10);
+    if (numTitles >= 13) titles[12].unlocked = (system_state.gacha_cards_collected >= 50);
+    if (numTitles >= 14) titles[13].unlocked = (system_state.bosses_defeated >= 5);
+    if (numTitles >= 15) titles[14].unlocked = (system_state.bosses_defeated >= 25);
+    if (numTitles >= 16) titles[15].unlocked = (system_state.steps_today >= 10000);
+    if (numTitles >= 17) titles[16].unlocked = (system_state.player_gems >= 10000);
+    if (numTitles >= 18) titles[17].unlocked = (system_state.training_streak >= 10);
+    if (numTitles >= 19) titles[18].unlocked = (system_state.daily_login_count >= 30);
+  }
+  
+  // Count unlocked titles
+  int unlockedCount = 0;
+  for (int i = 0; i < numTitles; i++) {
+    if (titles[i].unlocked) unlockedCount++;
+  }
+  
+  // Show unlocked count
+  gfx->setTextColor(RGB565(150, 155, 170));
+  gfx->setCursor(20, 18);
+  gfx->printf("%d/%d", unlockedCount, numTitles);
+  
+  // Draw title cards (4 visible at a time)
+  int startIdx = progression_scroll * 4;
+  for (int i = 0; i < 4; i++) {
+    int idx = startIdx + i;
+    if (idx >= numTitles) break;
+    
+    int cardY = 58 + i * 90;
+    bool unlocked = titles[idx].unlocked;
+    
+    // Card background
+    gfx->fillRect(20, cardY, LCD_WIDTH - 40, 80, 
+                  unlocked ? RGB565(15, 25, 15) : RGB565(12, 14, 20));
+    gfx->drawRect(20, cardY, LCD_WIDTH - 40, 80, 
+                  unlocked ? theme->primary : RGB565(40, 45, 60));
+    
+    if (unlocked) {
+      // Corner accents for unlocked
+      gfx->fillRect(20, cardY, 5, 5, theme->primary);
+      gfx->fillRect(LCD_WIDTH - 25, cardY, 5, 5, theme->primary);
+      gfx->fillRect(20, cardY + 75, 5, 5, theme->primary);
+      gfx->fillRect(LCD_WIDTH - 25, cardY + 75, 5, 5, theme->primary);
+    }
+    
+    // Trophy/lock icon
+    int iconX = 45;
+    int iconY = cardY + 40;
+    if (unlocked) {
+      // Trophy shape
+      gfx->fillRect(iconX - 10, iconY - 15, 20, 18, COLOR_GOLD);
+      gfx->fillRect(iconX - 6, iconY + 3, 12, 5, COLOR_GOLD);
+      gfx->fillRect(iconX - 8, iconY + 8, 16, 4, RGB565(180, 140, 40));
+    } else {
+      // Lock shape
+      gfx->drawRect(iconX - 8, iconY - 5, 16, 14, RGB565(80, 85, 100));
+      gfx->drawCircle(iconX, iconY - 10, 6, RGB565(80, 85, 100));
+    }
+    
+    // Title name
+    gfx->setTextColor(unlocked ? theme->accent : RGB565(120, 125, 140));
+    gfx->setTextSize(2);
+    gfx->setCursor(75, cardY + 15);
+    gfx->print(titles[idx].name);
+    
+    // Requirement
+    gfx->setTextColor(unlocked ? RGB565(150, 180, 150) : RGB565(80, 85, 100));
+    gfx->setTextSize(1);
+    gfx->setCursor(75, cardY + 42);
+    gfx->print(titles[idx].requirement);
+    
+    // Status badge
+    if (unlocked) {
+      gfx->fillRect(LCD_WIDTH - 95, cardY + 52, 60, 18, RGB565(40, 80, 40));
+      gfx->drawRect(LCD_WIDTH - 95, cardY + 52, 60, 18, RGB565(100, 200, 100));
+      gfx->setTextColor(RGB565(150, 255, 150));
+      gfx->setCursor(LCD_WIDTH - 88, cardY + 56);
+      gfx->print("EARNED");
+    } else {
+      gfx->fillRect(LCD_WIDTH - 95, cardY + 52, 60, 18, RGB565(30, 30, 35));
+      gfx->drawRect(LCD_WIDTH - 95, cardY + 52, 60, 18, RGB565(60, 65, 80));
+      gfx->setTextColor(RGB565(100, 105, 120));
+      gfx->setCursor(LCD_WIDTH - 88, cardY + 56);
+      gfx->print("LOCKED");
+    }
+  }
+  
+  // Scroll indicators
+  int maxScroll = (numTitles - 1) / 4;
+  if (progression_scroll > 0) {
+    gfx->setTextColor(theme->primary);
+    gfx->setTextSize(1);
+    gfx->setCursor(centerX - 30, 52);
+    gfx->print("^^^ SWIPE DOWN ^^^");
+  }
+  if (progression_scroll < maxScroll) {
+    gfx->setTextColor(theme->primary);
+    gfx->setTextSize(1);
+    gfx->setCursor(centerX - 30, LCD_HEIGHT - 25);
+    gfx->print("vvv SWIPE UP vvv");
+  }
+  
+  // Page indicator
+  gfx->setTextColor(RGB565(80, 85, 100));
+  gfx->setCursor(LCD_WIDTH - 40, LCD_HEIGHT - 25);
+  gfx->printf("%d/%d", progression_scroll + 1, maxScroll + 1);
+  
+  drawSwipeIndicator();
+}
+
+void handleProgressionTouch(TouchGesture& gesture) {
+  int maxScroll = 4;  // (20 titles / 4 per page) - 1
+  
+  if (gesture.event == TOUCH_SWIPE_UP && progression_scroll < maxScroll) {
+    // Swipe UP = scroll to see MORE titles (next page)
+    progression_scroll++;
+    drawProgressionScreen();
+  } else if (gesture.event == TOUCH_SWIPE_DOWN) {
+    if (progression_scroll > 0) {
+      // Swipe DOWN = scroll to see PREVIOUS titles
+      progression_scroll--;
+      drawProgressionScreen();
+    } else {
+      // At first page - go back to character stats
+      progression_scroll = 0;
+      system_state.current_screen = SCREEN_CHARACTER_STATS;
+      drawCharacterStatsScreen();
+    }
+  }
 }
 
 // Theme selector page state (shared between draw and touch handler)
 static int themePageState = 0;
 
 void drawThemeSelector() {
-  gfx->fillScreen(RGB565(8, 8, 12));
+  // ========================================
+  // RETRO ANIME THEME SELECTOR - CRT Style
+  // ========================================
+  gfx->fillScreen(RGB565(2, 2, 5));
+  for (int y = 0; y < LCD_HEIGHT; y += 4) {
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+  }
   
   ThemeColors* theme = getCurrentTheme();
   
-  // Header
-  gfx->fillRoundRect(0, 0, LCD_WIDTH, 42, 0, RGB565(16, 18, 24));
-  gfx->drawFastHLine(0, 42, LCD_WIDTH, theme->primary);
+  // Retro header
+  gfx->fillRect(0, 0, LCD_WIDTH, 44, RGB565(10, 12, 18));
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, 42, 6, 3, theme->primary);
+  }
   gfx->setTextColor(COLOR_WHITE);
   gfx->setTextSize(2);
-  gfx->setCursor(LCD_WIDTH/2 - 48, 12);
-  gfx->print("Themes");
+  gfx->setCursor(LCD_WIDTH/2 - 42, 12);
+  gfx->print("THEMES");
   
-  // Page dots in header
-  int dotY = 26;
-  gfx->fillCircle(LCD_WIDTH - 28, dotY, 4, themePageState == 0 ? theme->primary : RGB565(50, 52, 65));
-  gfx->fillCircle(LCD_WIDTH - 14, dotY, 4, themePageState == 1 ? theme->primary : RGB565(50, 52, 65));
+  // Page indicators - pixel squares
+  gfx->fillRect(LCD_WIDTH - 28, 18, 8, 8, themePageState == 0 ? theme->primary : RGB565(40, 45, 60));
+  gfx->fillRect(LCD_WIDTH - 14, 18, 8, 8, themePageState == 1 ? theme->primary : RGB565(40, 45, 60));
   
   if (themePageState == 0) {
-    // Page 1: First 6 themes
     const char* names[] = {"Luffy", "Jin-Woo", "Yugo", "Naruto", "Goku", "Tanjiro"};
     ThemeColors* themes[] = {&luffy_gear5_theme, &sung_jinwoo_theme, &yugo_wakfu_theme,
                              &naruto_sage_theme, &goku_ui_theme, &tanjiro_sun_theme};
     
     for (int i = 0; i < 6; i++) {
       int x = (i % 2) * 170 + 15;
-      int y = (i / 2) * 105 + 52;
+      int y = (i / 2) * 100 + 52;
       
-      // Card with theme color
-      gfx->fillRoundRect(x, y, 155, 90, 18, RGB565(22, 24, 32));
-      gfx->fillRoundRect(x + 4, y + 4, 147, 30, 14, themes[i]->primary);
-      
-      // Selection ring
-      if ((ThemeType)i == system_state.current_theme) {
-        gfx->drawRoundRect(x - 2, y - 2, 159, 94, 20, theme->accent);
-        gfx->drawRoundRect(x - 1, y - 1, 157, 92, 19, COLOR_WHITE);
-      } else {
-        gfx->drawRoundRect(x, y, 155, 90, 18, RGB565(50, 52, 65));
+      // Retro pixel card
+      gfx->fillRect(x, y, 155, 85, RGB565(12, 14, 20));
+      gfx->fillRect(x + 4, y + 4, 147, 28, themes[i]->primary);
+      // CRT lines on color bar
+      for (int sy = y + 5; sy < y + 31; sy += 3) {
+        gfx->drawFastHLine(x + 5, sy, 145, RGB565(0, 0, 0));
       }
       
-      gfx->setTextColor(COLOR_WHITE);
+      if ((ThemeType)i == system_state.current_theme) {
+        gfx->drawRect(x - 2, y - 2, 159, 89, COLOR_WHITE);
+        gfx->drawRect(x - 1, y - 1, 157, 87, theme->accent);
+      } else {
+        gfx->drawRect(x, y, 155, 85, RGB565(40, 45, 60));
+      }
+      // Pixel corners
+      gfx->fillRect(x, y, 5, 5, themes[i]->primary);
+      gfx->fillRect(x + 150, y, 5, 5, themes[i]->primary);
+      
+      gfx->setTextColor(RGB565(200, 205, 220));
       gfx->setTextSize(2);
       int textLen = strlen(names[i]) * 12;
-      gfx->setCursor(x + (155 - textLen) / 2, y + 52);
+      gfx->setCursor(x + (155 - textLen) / 2, y + 50);
       gfx->print(names[i]);
     }
   } else {
-    // Page 2: Last 5 themes
     const char* names[] = {"Gojo", "Levi", "Saitama", "Deku", "BoBoiBoy"};
     ThemeColors* themes[] = {&gojo_infinity_theme, &levi_strongest_theme, 
                              &saitama_opm_theme, &deku_plusultra_theme, &boboiboy_elemental_theme};
@@ -1547,36 +2188,41 @@ void drawThemeSelector() {
       int col = i % 2;
       int row = i / 2;
       int x = col * 170 + 15;
-      int y = row * 105 + 52;
+      int y = row * 100 + 52;
       
       if (i == 4) {
         x = (LCD_WIDTH - 155) / 2;
-        y = 2 * 105 + 52;
+        y = 2 * 100 + 52;
       }
       
-      gfx->fillRoundRect(x, y, 155, 90, 18, RGB565(22, 24, 32));
-      gfx->fillRoundRect(x + 4, y + 4, 147, 30, 14, themes[i]->primary);
+      gfx->fillRect(x, y, 155, 85, RGB565(12, 14, 20));
+      gfx->fillRect(x + 4, y + 4, 147, 28, themes[i]->primary);
+      for (int sy = y + 5; sy < y + 31; sy += 3) {
+        gfx->drawFastHLine(x + 5, sy, 145, RGB565(0, 0, 0));
+      }
       
       if (types[i] == system_state.current_theme) {
-        gfx->drawRoundRect(x - 2, y - 2, 159, 94, 20, theme->accent);
-        gfx->drawRoundRect(x - 1, y - 1, 157, 92, 19, COLOR_WHITE);
+        gfx->drawRect(x - 2, y - 2, 159, 89, COLOR_WHITE);
+        gfx->drawRect(x - 1, y - 1, 157, 87, theme->accent);
       } else {
-        gfx->drawRoundRect(x, y, 155, 90, 18, RGB565(50, 52, 65));
+        gfx->drawRect(x, y, 155, 85, RGB565(40, 45, 60));
       }
+      gfx->fillRect(x, y, 5, 5, themes[i]->primary);
+      gfx->fillRect(x + 150, y, 5, 5, themes[i]->primary);
       
-      gfx->setTextColor(COLOR_WHITE);
+      gfx->setTextColor(RGB565(200, 205, 220));
       gfx->setTextSize(2);
       int textLen = strlen(names[i]) * 12;
-      gfx->setCursor(x + (155 - textLen) / 2, y + 52);
+      gfx->setCursor(x + (155 - textLen) / 2, y + 50);
       gfx->print(names[i]);
     }
   }
   
-  // Swipe hint
+  // Swipe hint - retro
   gfx->setTextSize(1);
-  gfx->setTextColor(RGB565(65, 68, 80));
-  gfx->setCursor(LCD_WIDTH/2 - 48, LCD_HEIGHT - 28);
-  gfx->print("< Swipe L/R >");
+  gfx->setTextColor(RGB565(50, 55, 70));
+  gfx->setCursor(LCD_WIDTH/2 - 40, LCD_HEIGHT - 28);
+  gfx->print("< SWIPE >");
   
   drawSwipeIndicator();
 }
@@ -1602,14 +2248,21 @@ void handleThemeSelectorTouch(TouchGesture& gesture) {
   
   int x = gesture.x, y = gesture.y;
   
+  // Forward declaration for save function
+  extern void saveAllGameData();
+  
   // Theme selection - tap on theme cards
   if (themePageState == 0) {
     for (int i = 0; i < 6; i++) {
       int tx = (i % 2) * 170 + 15;
       int ty = (i / 2) * 105 + 52;
       if (x >= tx && x < tx + 155 && y >= ty && y < ty + 90) {
-        setTheme((ThemeType)i);
-        drawThemeSelector();
+        ThemeType newTheme = (ThemeType)i;
+        playThemeTransition(newTheme);  // Play cool animation
+        setTheme(newTheme);
+        saveAllGameData();  // Save theme to NVS
+        system_state.current_screen = SCREEN_WATCHFACE;  // Go to watch face
+        drawWatchFace();
         return;
       }
     }
@@ -1628,8 +2281,11 @@ void handleThemeSelectorTouch(TouchGesture& gesture) {
       }
       
       if (x >= tx && x < tx + 155 && y >= ty && y < ty + 90) {
+        playThemeTransition(types[i]);  // Play cool animation
         setTheme(types[i]);
-        drawThemeSelector();
+        saveAllGameData();  // Save theme to NVS
+        system_state.current_screen = SCREEN_WATCHFACE;  // Go to watch face
+        drawWatchFace();
         return;
       }
     }

@@ -1,5 +1,6 @@
 /*
  * steps_tracker.cpp - Step Counter Implementation
+ * FIXED: Type mismatch in max() function at line 196
  */
 
 #include "steps_tracker.h"
@@ -37,156 +38,381 @@ void initStepsTracker() {
 }
 
 void drawStepsCard() {
-  gfx->fillScreen(RGB565(8, 8, 12));
+  // ========================================
+  // RETRO ANIME STEP TRACKER - CRT STYLE
+  // Fixes overlap by doing FULL screen clear
+  // ========================================
+  
+  // CRITICAL: Full screen clear to prevent overlap from watchface
+  gfx->fillScreen(RGB565(2, 2, 5));  // Deep AMOLED black with slight blue tint
+  
   ThemeColors* theme = getCurrentTheme();
   
-  // Header
-  gfx->fillRoundRect(0, 0, LCD_WIDTH, 55, 0, RGB565(16, 18, 24));
-  gfx->drawFastHLine(0, 55, LCD_WIDTH, theme->primary);
+  // === RETRO CRT SCAN LINES (subtle) ===
+  for (int y = 0; y < LCD_HEIGHT; y += 4) {
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(5, 5, 8));
+  }
+  
+  // === RETRO HEADER WITH PIXEL BORDER ===
+  gfx->fillRect(0, 0, LCD_WIDTH, 50, RGB565(10, 12, 18));
+  
+  // Pixel-style border (retro game aesthetic)
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, 48, 6, 3, theme->primary);
+  }
+  
+  // Header text with retro glow
   gfx->setTextSize(2);
-  gfx->setTextColor(COLOR_WHITE);
-  gfx->setCursor(LCD_WIDTH/2 - 54, 18);
-  gfx->print("Activity");
+  gfx->setTextColor(RGB565(40, 45, 60));  // Shadow
+  gfx->setCursor(LCD_WIDTH/2 - 60 + 1, 15 + 1);
+  gfx->print("ACTIVITY");
+  gfx->setTextColor(theme->primary);
+  gfx->setCursor(LCD_WIDTH/2 - 60, 15);
+  gfx->print("ACTIVITY");
   
   int centerX = LCD_WIDTH / 2;
-  int centerY = 160;
-  int radius = 90;
+  int centerY = 155;
+  int radius = 85;
   float progress = (float)steps_data.steps_today / steps_data.steps_goal;
   if (progress > 1.0) progress = 1.0;
   
-  // Background ring
-  for (int i = 0; i < 360; i += 3) {
+  // === RETRO CIRCULAR GAUGE (Pixel Art Style) ===
+  // Outer pixel ring frame
+  for (int i = 0; i < 360; i += 10) {
+    float a = i * PI / 180.0 - PI/2;
+    int x = centerX + cos(a) * (radius + 8);
+    int y = centerY + sin(a) * (radius + 8);
+    gfx->fillRect(x - 2, y - 2, 4, 4, RGB565(25, 30, 40));  // Pixel dots
+  }
+  
+  // Background ring - retro segment style
+  for (int i = 0; i < 360; i += 6) {
     float a = i * PI / 180.0 - PI/2;
     int x = centerX + cos(a) * radius;
     int y = centerY + sin(a) * radius;
-    gfx->fillCircle(x, y, 6, RGB565(30, 30, 40));
+    gfx->fillRect(x - 3, y - 3, 6, 6, RGB565(20, 22, 30));  // Square segments
   }
   
-  // Progress arc
+  // Progress arc - glowing retro style
   int progressDeg = progress * 360;
-  for (int i = 0; i < progressDeg; i += 3) {
+  for (int i = 0; i < progressDeg; i += 6) {
     float a = i * PI / 180.0 - PI/2;
     int x = centerX + cos(a) * radius;
     int y = centerY + sin(a) * radius;
-    uint16_t color = (progress < 0.5) ? RGB565(255, 100, 100) :
-                     (progress < 0.8) ? RGB565(255, 200, 50) : RGB565(100, 255, 100);
-    gfx->fillCircle(x, y, 7, color);
+    
+    // Color based on progress with retro palette
+    uint16_t color;
+    if (progress < 0.3) {
+      color = RGB565(255, 60, 80);      // Retro red
+    } else if (progress < 0.6) {
+      color = RGB565(255, 180, 40);     // Retro amber
+    } else if (progress < 0.9) {
+      color = RGB565(80, 255, 120);     // Retro green
+    } else {
+      color = RGB565(120, 200, 255);    // Retro cyan (goal reached!)
+    }
+    
+    // Glow effect (outer)
+    gfx->fillRect(x - 4, y - 4, 8, 8, RGB565(color >> 12, (color >> 6) & 0x1F, color & 0x1F));
+    // Core segment
+    gfx->fillRect(x - 3, y - 3, 6, 6, color);
   }
   
-  // Center step count
+  // === CENTER STEP COUNT - RETRO DIGITAL STYLE ===
+  // Dark panel behind numbers
+  gfx->fillRect(centerX - 70, centerY - 30, 140, 65, RGB565(8, 10, 15));
+  gfx->drawRect(centerX - 70, centerY - 30, 140, 65, RGB565(40, 50, 70));
+  
+  // Big step number with pixel shadow
   gfx->setTextSize(4);
-  gfx->setTextColor(theme->primary);
   char stepsStr[10];
   sprintf(stepsStr, "%d", steps_data.steps_today);
   int strLen = strlen(stepsStr) * 24;
-  gfx->setCursor(centerX - strLen/2, centerY - 20);
+  
+  // Shadow
+  gfx->setTextColor(RGB565(20, 25, 35));
+  gfx->setCursor(centerX - strLen/2 + 2, centerY - 22 + 2);
   gfx->print(stepsStr);
   
+  // Main text - bright retro color
+  gfx->setTextColor(theme->primary);
+  gfx->setCursor(centerX - strLen/2, centerY - 22);
+  gfx->print(stepsStr);
+  
+  // "STEPS" label
   gfx->setTextSize(1);
   gfx->setTextColor(theme->accent);
-  gfx->setCursor(centerX - 15, centerY + 15);
+  gfx->setCursor(centerX - 15, centerY + 12);
   gfx->print("STEPS");
   
-  // Goal
-  gfx->setTextColor(RGB565(150, 150, 160));
-  gfx->setCursor(centerX - 36, centerY + 35);
-  gfx->printf("Goal: %d", steps_data.steps_goal);
+  // Goal with retro bracket style
+  gfx->setTextColor(RGB565(100, 110, 130));
+  gfx->setCursor(centerX - 42, centerY + 26);
+  gfx->printf("[ GOAL: %d ]", steps_data.steps_goal);
   
-  // Stats cards
-  int cardY = 280;
-  int cardW = 110;
-  int cardH = 70;
+  // === RETRO STAT CARDS (Pixel Frame Style) ===
+  int cardY = 265;
+  int cardW = 108;
+  int cardH = 65;
+  int cardGap = 8;
+  int cardStartX = (LCD_WIDTH - (3 * cardW + 2 * cardGap)) / 2;
   
-  // Distance
-  gfx->fillRoundRect(10, cardY, cardW, cardH, 12, RGB565(25, 27, 35));
-  gfx->setTextSize(1);
-  gfx->setTextColor(RGB565(150, 150, 160));
-  gfx->setCursor(20, cardY + 10);
-  gfx->print("Distance");
-  gfx->setTextSize(2);
-  gfx->setTextColor(COLOR_CYAN);
-  gfx->setCursor(20, cardY + 30);
-  gfx->printf("%.2f", steps_data.distance_km);
-  gfx->setTextSize(1);
-  gfx->setCursor(20, cardY + 52);
-  gfx->print("km");
+  // Distance Card
+  drawRetroStatCard(cardStartX, cardY, cardW, cardH, 
+                    "DISTANCE", steps_data.distance_km, "km", 
+                    RGB565(80, 200, 255), true);
   
-  // Calories
-  gfx->fillRoundRect(130, cardY, cardW, cardH, 12, RGB565(25, 27, 35));
-  gfx->setTextSize(1);
-  gfx->setTextColor(RGB565(150, 150, 160));
-  gfx->setCursor(140, cardY + 10);
-  gfx->print("Calories");
-  gfx->setTextSize(2);
-  gfx->setTextColor(COLOR_ORANGE);
-  gfx->setCursor(140, cardY + 30);
-  gfx->printf("%d", steps_data.calories_burned);
-  gfx->setTextSize(1);
-  gfx->setCursor(140, cardY + 52);
-  gfx->print("kcal");
+  // Calories Card  
+  drawRetroStatCard(cardStartX + cardW + cardGap, cardY, cardW, cardH,
+                    "CALORIES", (float)steps_data.calories_burned, "kcal",
+                    RGB565(255, 150, 80), false);
   
-  // Active minutes
-  gfx->fillRoundRect(250, cardY, cardW, cardH, 12, RGB565(25, 27, 35));
-  gfx->setTextSize(1);
-  gfx->setTextColor(RGB565(150, 150, 160));
-  gfx->setCursor(260, cardY + 10);
-  gfx->print("Active");
-  gfx->setTextSize(2);
-  gfx->setTextColor(COLOR_GREEN);
-  gfx->setCursor(260, cardY + 30);
-  gfx->printf("%d", steps_data.active_minutes);
-  gfx->setTextSize(1);
-  gfx->setCursor(260, cardY + 52);
-  gfx->print("min");
+  // Active Minutes Card
+  drawRetroStatCard(cardStartX + 2*(cardW + cardGap), cardY, cardW, cardH,
+                    "ACTIVE", (float)steps_data.active_minutes, "min",
+                    RGB565(100, 255, 150), false);
   
-  // Weekly chart
-  int chartY = 370;
-  int barW = 45;
-  int barMaxH = 60;
+  // === RETRO WEEKLY CHART (Bar Graph) ===
+  int chartY = 350;
+  int barW = 42;
+  int barMaxH = 55;
+  int chartStartX = (LCD_WIDTH - (7 * barW + 6 * 6)) / 2;
+  
+  // Chart frame
+  gfx->fillRect(chartStartX - 10, chartY - 5, 7 * barW + 6 * 6 + 20, barMaxH + 35, RGB565(10, 12, 18));
+  gfx->drawRect(chartStartX - 10, chartY - 5, 7 * barW + 6 * 6 + 20, barMaxH + 35, RGB565(40, 45, 60));
+  
+  // "7-DAY" label
   gfx->setTextSize(1);
-  gfx->setTextColor(RGB565(150, 150, 160));
-  gfx->setCursor(20, chartY);
-  gfx->print("7-Day History");
+  gfx->setTextColor(RGB565(120, 130, 150));
+  gfx->setCursor(chartStartX, chartY);
+  gfx->print("7-DAY HISTORY");
+  
+  const char* days[] = {"M", "T", "W", "T", "F", "S", "S"};
   
   for (int i = 0; i < 7; i++) {
-    int x = 20 + i * (barW + 5);
-    int y = chartY + 20;
+    int x = chartStartX + i * (barW + 6);
+    int y = chartY + 15;
     uint32_t daySteps = steps_data.weekly_steps[6 - i];
-    int barH = (daySteps * barMaxH) / steps_data.steps_goal;
+    // FIX: Cast to same type to avoid max() template deduction error
+    int barH = (daySteps * barMaxH) / max((uint32_t)1, steps_data.steps_goal);
     if (barH > barMaxH) barH = barMaxH;
+    if (barH < 3) barH = 3;  // Minimum visible height
     
-    uint16_t barColor = (i == 6) ? theme->primary : RGB565(80, 80, 100);
-    gfx->fillRoundRect(x, y + (barMaxH - barH), barW, barH, 4, barColor);
+    // Bar background (empty part)
+    gfx->fillRect(x, y, barW - 2, barMaxH, RGB565(18, 20, 28));
     
-    const char* days[] = {"M", "T", "W", "T", "F", "S", "S"};
-    gfx->setCursor(x + 18, y + barMaxH + 5);
+    // Bar fill - retro gradient effect
+    uint16_t barColor;
+    if (i == 6) {
+      // Today - highlighted with theme color
+      barColor = theme->primary;
+      // Glow effect for today
+      gfx->fillRect(x - 1, y + (barMaxH - barH) - 1, barW, barH + 2, RGB565(theme->primary >> 12, 20, 30));
+    } else {
+      barColor = RGB565(60, 70, 100);
+    }
+    gfx->fillRect(x, y + (barMaxH - barH), barW - 2, barH, barColor);
+    
+    // Day label
+    gfx->setTextSize(1);
+    gfx->setTextColor(i == 6 ? theme->accent : RGB565(80, 90, 110));
+    gfx->setCursor(x + barW/2 - 3, y + barMaxH + 4);
     gfx->print(days[i]);
   }
   
   drawSwipeIndicator();
 }
 
-void updateStepCount() {
-  Wire.beginTransmission(QMI8658_ADDR);
-  Wire.write(0x35);
-  Wire.endTransmission(false);
-  Wire.requestFrom(QMI8658_ADDR, 6);
+// Helper function for retro stat cards
+void drawRetroStatCard(int x, int y, int w, int h, const char* label, float value, const char* unit, uint16_t color, bool showDecimal) {
+  // Card background with pixel border
+  gfx->fillRect(x, y, w, h, RGB565(12, 14, 20));
   
-  if (Wire.available() >= 6) {
-    int16_t ax = Wire.read() | (Wire.read() << 8);
-    int16_t ay = Wire.read() | (Wire.read() << 8);
-    int16_t az = Wire.read() | (Wire.read() << 8);
-    
-    float ax_g = ax / 16384.0;
-    float ay_g = ay / 16384.0;
-    float az_g = az / 16384.0;
-    
-    processAccelerometerData(ax_g, ay_g, az_g);
+  // Pixel corner decorations (retro game style)
+  gfx->fillRect(x, y, 4, 4, color);
+  gfx->fillRect(x + w - 4, y, 4, 4, color);
+  gfx->fillRect(x, y + h - 4, 4, 4, color);
+  gfx->fillRect(x + w - 4, y + h - 4, 4, 4, color);
+  
+  // Border
+  gfx->drawRect(x, y, w, h, RGB565(40, 45, 60));
+  
+  // Label
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(100, 110, 130));
+  gfx->setCursor(x + 8, y + 8);
+  gfx->print(label);
+  
+  // Value with glow effect
+  gfx->setTextSize(2);
+  gfx->setTextColor(RGB565(color >> 12, (color >> 6) & 0x3F, color & 0x1F));  // Dimmed shadow
+  if (showDecimal) {
+    gfx->setCursor(x + 9, y + 26);
+    gfx->printf("%.1f", value);
+  } else {
+    gfx->setCursor(x + 9, y + 26);
+    gfx->printf("%d", (int)value);
   }
   
+  gfx->setTextColor(color);
+  if (showDecimal) {
+    gfx->setCursor(x + 8, y + 25);
+    gfx->printf("%.1f", value);
+  } else {
+    gfx->setCursor(x + 8, y + 25);
+    gfx->printf("%d", (int)value);
+  }
+  
+  // Unit
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(80, 90, 110));
+  gfx->setCursor(x + 8, y + h - 15);
+  gfx->print(unit);
+}
+
+void updateStepCount() {
+  // =====================================================
+  // USE QMI8658 HARDWARE PEDOMETER FOR ACCURATE STEPS
+  // The QMI8658 has a built-in pedometer that's more accurate
+  // than software-based step detection
+  // =====================================================
+  
+  static bool pedometer_initialized = false;
+  static uint32_t last_hw_steps = 0;
+  
+  if (!pedometer_initialized) {
+    // Configure QMI8658 pedometer
+    // See SensorQMI8658.hpp configPedometer() for parameter details
+    
+    // Step 1: Configure pedometer parameters via CAL registers
+    Wire.beginTransmission(QMI8658_ADDR);
+    Wire.write(0x0B);  // CAL1_L - ped_sample_cnt low
+    Wire.write(0x50);  // 80 samples batch
+    Wire.endTransmission();
+    
+    Wire.beginTransmission(QMI8658_ADDR);
+    Wire.write(0x0C);  // CAL1_H - ped_sample_cnt high  
+    Wire.write(0x00);
+    Wire.endTransmission();
+    
+    Wire.beginTransmission(QMI8658_ADDR);
+    Wire.write(0x0D);  // CAL2_L - peak2peak threshold low (200mg = 0xCC)
+    Wire.write(0xCC);
+    Wire.endTransmission();
+    
+    Wire.beginTransmission(QMI8658_ADDR);
+    Wire.write(0x0E);  // CAL2_H - peak2peak threshold high
+    Wire.write(0x00);
+    Wire.endTransmission();
+    
+    Wire.beginTransmission(QMI8658_ADDR);
+    Wire.write(0x0F);  // CAL3_L - peak threshold low (100mg = 0x66)
+    Wire.write(0x66);
+    Wire.endTransmission();
+    
+    Wire.beginTransmission(QMI8658_ADDR);
+    Wire.write(0x10);  // CAL3_H - peak threshold high
+    Wire.write(0x00);
+    Wire.endTransmission();
+    
+    // Configure timing via CTRL9 command
+    Wire.beginTransmission(QMI8658_ADDR);
+    Wire.write(0x11);  // CAL4_H
+    Wire.write(0x01);  // First phase config
+    Wire.endTransmission();
+    
+    Wire.beginTransmission(QMI8658_ADDR);
+    Wire.write(0x0A);  // CTRL9 - send CONFIGURE_PEDOMETER command
+    Wire.write(0x0D);
+    Wire.endTransmission();
+    delay(10);
+    
+    // Phase 2: Timing parameters
+    Wire.beginTransmission(QMI8658_ADDR);
+    Wire.write(0x0B);  // CAL1_L - time_up low (1.6s @ 50Hz = 80)
+    Wire.write(0x50);
+    Wire.endTransmission();
+    
+    Wire.beginTransmission(QMI8658_ADDR);
+    Wire.write(0x0C);  // CAL1_H - time_up high
+    Wire.write(0x00);
+    Wire.endTransmission();
+    
+    Wire.beginTransmission(QMI8658_ADDR);
+    Wire.write(0x0D);  // CAL2_L - time_low (0.25s @ 50Hz = 12)
+    Wire.write(0x0C);
+    Wire.endTransmission();
+    
+    Wire.beginTransmission(QMI8658_ADDR);
+    Wire.write(0x0E);  // CAL2_H - time_cnt_entry (10 steps to confirm)
+    Wire.write(0x0A);
+    Wire.endTransmission();
+    
+    Wire.beginTransmission(QMI8658_ADDR);
+    Wire.write(0x0F);  // CAL3_L - precision (0)
+    Wire.write(0x00);
+    Wire.endTransmission();
+    
+    Wire.beginTransmission(QMI8658_ADDR);
+    Wire.write(0x10);  // CAL3_H - sig_count (report every 4 steps)
+    Wire.write(0x04);
+    Wire.endTransmission();
+    
+    Wire.beginTransmission(QMI8658_ADDR);
+    Wire.write(0x11);  // CAL4_H
+    Wire.write(0x02);  // Second phase config
+    Wire.endTransmission();
+    
+    Wire.beginTransmission(QMI8658_ADDR);
+    Wire.write(0x0A);  // CTRL9 - send CONFIGURE_PEDOMETER command
+    Wire.write(0x0D);
+    Wire.endTransmission();
+    delay(10);
+    
+    // Enable pedometer in CTRL8
+    Wire.beginTransmission(QMI8658_ADDR);
+    Wire.write(0x08);  // CTRL8
+    uint8_t ctrl8 = 0x80 | 0x10;  // STATUS_INT handshake + Pedometer enable
+    Wire.write(ctrl8);
+    Wire.endTransmission();
+    
+    pedometer_initialized = true;
+    Serial.println("[Steps] QMI8658 hardware pedometer initialized");
+  }
+  
+  // Read step count from QMI8658 pedometer registers (0x58, 0x59, 0x5A)
+  Wire.beginTransmission(QMI8658_ADDR);
+  Wire.write(0x58);  // STEP_CNT_LOW
+  Wire.endTransmission(false);
+  Wire.requestFrom(QMI8658_ADDR, 3);
+  
+  if (Wire.available() >= 3) {
+    uint8_t low = Wire.read();
+    uint8_t mid = Wire.read();
+    uint8_t high = Wire.read();
+    
+    uint32_t hw_steps = (uint32_t)low | ((uint32_t)mid << 8) | ((uint32_t)high << 16);
+    
+    // Add new steps to today's count
+    if (hw_steps > last_hw_steps) {
+      uint32_t new_steps = hw_steps - last_hw_steps;
+      steps_data.steps_today += new_steps;
+      steps_data.hourly_steps[steps_data.current_hour] += new_steps;
+      
+      if (new_steps > 0) {
+        steps_data.active_minutes++;
+        Serial.printf("[Steps] +%d steps (total: %d)\n", new_steps, steps_data.steps_today);
+      }
+    }
+    last_hw_steps = hw_steps;
+  }
+  
+  // Calculate derived metrics
   steps_data.distance_km = steps_data.steps_today * activity_config.stride_length_m / 1000.0;
   steps_data.calories_burned = steps_data.steps_today * 0.04;
   
+  // Save periodically
   if (steps_data.steps_today % 100 == 0 && steps_data.steps_today > 0) {
     saveStepsData();
   }

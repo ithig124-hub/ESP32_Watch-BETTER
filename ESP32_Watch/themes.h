@@ -200,8 +200,13 @@ void drawCharacterStatsScreen();
 void drawStatBar(int x, int y, int w, int h, int value, int maxValue, uint16_t color, const char* label);
 void drawAnimatedStatBar(int x, int y, int w, int h, float targetProgress, uint16_t color);
 
+// Progression Screen
+void drawProgressionScreen();
+void handleProgressionTouch(TouchGesture& gesture);
+
 // Theme Selector
 void drawThemeSelector();
 void handleThemeSelectorTouch(TouchGesture& gesture);
+void playThemeTransition(ThemeType theme);  // Character-specific transition animation
 
 #endif // THEMES_H
