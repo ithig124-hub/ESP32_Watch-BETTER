@@ -2042,194 +2042,266 @@ static int boboiboy_current_element = 0;
 static unsigned long boboiboy_last_cycle = 0;
 
 void drawBoboiboyWatchFace() {
-  // CRITICAL FIX: Clear screen first to prevent overlap from other watchfaces
-  gfx->fillScreen(RGB565(2, 2, 5));
+  // Full clear with dark tech background
+  gfx->fillScreen(RGB565(5, 8, 15));
   
-  // Use dynamic background based on time
+  // Use dynamic background
   drawDynamicBackground(THEME_BOBOIBOY);
   
   WatchTime time = getCurrentTime();
   int centerX = LCD_WIDTH / 2;  // 205
-  int centerY = 200;  // Center for powerband display
   
-  // Element colors array matching the Powerband icons
+  // Element data
   uint16_t elementColors[] = {
     BBB_LIGHTNING_YELLOW,  // Halilintar - Yellow
-    BBB_WIND_BLUE,         // Taufan - Cyan/Blue
+    BBB_WIND_BLUE,         // Taufan - Cyan
     BBB_EARTH_BROWN,       // Gempa - Brown
-    BBB_FIRE_RED,          // Blaze - Red/Orange
+    BBB_FIRE_RED,          // Blaze - Red
     BBB_WATER_CYAN,        // Ice - Light Blue
     BBB_LEAF_GREEN,        // Thorn - Green
-    BBB_LIGHT_GOLD         // Solar - Gold/Yellow
+    BBB_LIGHT_GOLD         // Solar - Gold
   };
   const char* elementNames[] = {
     "HALILINTAR", "TAUFAN", "GEMPA", "BLAZE", "ICE", "THORN", "SOLAR"
   };
-  
-  // Element icons/symbols (simplified representations)
-  const char* elementSymbols[] = {
-    "Z", "~", "#", "*", "+", "@", "O"  // Simplified element representations
+  const char* elementShort[] = {
+    "HAL", "TAU", "GEM", "BLZ", "ICE", "THN", "SOL"
   };
   
-  // Use manually selected element (tap-to-switch)
   int currentElement = getCurrentBoboiboyElement();
   uint16_t currentColor = elementColors[currentElement];
+  uint16_t dimColor = RGB565((currentColor >> 11) / 2, ((currentColor >> 5) & 0x3F) / 2, (currentColor & 0x1F) / 2);
   
   // ============================================================================
-  // POWERBAND STYLE DESIGN - Circular with metallic frame
+  // TECH FRAME - Hexagonal outer border (not circular!)
   // ============================================================================
   
-  // === OUTER METALLIC FRAME ===
-  // Gold/orange outer ring (like the Powerband frame)
-  for (int r = 155; r > 145; r--) {
-    uint8_t shade = map(r, 145, 155, 120, 200);
-    gfx->drawCircle(centerX, centerY, r, RGB565(shade, shade/2, 20));
-  }
+  int frameTop = 15;
+  int frameInset = 40;
+  gfx->drawLine(frameInset, frameTop, LCD_WIDTH - frameInset, frameTop, currentColor);
+  gfx->drawLine(frameInset, frameTop, 10, frameTop + 30, currentColor);
+  gfx->drawLine(LCD_WIDTH - frameInset, frameTop, LCD_WIDTH - 10, frameTop + 30, currentColor);
   
-  // Silver/grey inner frame
-  for (int r = 144; r > 138; r--) {
-    uint8_t shade = map(r, 138, 144, 80, 140);
-    gfx->drawCircle(centerX, centerY, r, RGB565(shade, shade, shade + 20));
-  }
+  gfx->drawLine(10, frameTop + 30, 10, 350, dimColor);
+  gfx->drawLine(LCD_WIDTH - 10, frameTop + 30, LCD_WIDTH - 10, 350, dimColor);
   
-  // === INNER GLOWING CIRCLE (cyan/blue like in images) ===
-  // Fill the inner circle with cyan glow
-  for (int r = 137; r > 0; r--) {
-    uint8_t cyan_r = map(r, 0, 137, 30, 80);
-    uint8_t cyan_g = map(r, 0, 137, 80, 180);
-    uint8_t cyan_b = map(r, 0, 137, 100, 220);
-    gfx->drawCircle(centerX, centerY, r, RGB565(cyan_r, cyan_g, cyan_b));
-  }
+  gfx->fillRect(5, frameTop + 25, 8, 8, currentColor);
+  gfx->fillRect(LCD_WIDTH - 13, frameTop + 25, 8, 8, currentColor);
   
-  // Central yellow/orange glow ring (when active)
-  for (int r = 55; r > 35; r--) {
-    uint8_t glow = map(r, 35, 55, 200, 100);
-    gfx->drawCircle(centerX, centerY, r, RGB565(glow, glow/2, 10));
-  }
+  // ============================================================================
+  // SPLIT-FLAP CLOCK DISPLAY (Digital panels like departure boards)
+  // ============================================================================
   
-  // === 7 ELEMENT ICONS IN CIRCLE ===
-  // Draw element icons arranged like the Powerband
-  float iconRadius = 95;  // Distance from center
-  for (int i = 0; i < 7; i++) {
-    // Arrange icons in a circle starting from top
-    float angle = (i * (360.0 / 7) - 90) * PI / 180.0;
-    int iconX = centerX + cos(angle) * iconRadius;
-    int iconY = centerY + sin(angle) * iconRadius;
-    
-    // Icon background circle
-    if (i == currentElement) {
-      // Active element - larger with white glow
-      gfx->fillCircle(iconX, iconY, 22, RGB565(40, 50, 60));
-      gfx->fillCircle(iconX, iconY, 18, elementColors[i]);
-      gfx->drawCircle(iconX, iconY, 23, COLOR_WHITE);
-      gfx->drawCircle(iconX, iconY, 24, COLOR_WHITE);
-      
-      // Draw element symbol in center
-      gfx->setTextColor(COLOR_WHITE);
-      gfx->setTextSize(2);
-      gfx->setCursor(iconX - 6, iconY - 7);
-      gfx->print(elementSymbols[i]);
+  int clockY = 50;
+  int digitW = 75;
+  int digitH = 100;
+  int digitGap = 8;
+  int colonW = 20;
+  
+  int totalW = (digitW * 4) + colonW + (digitGap * 3);
+  int startX = (LCD_WIDTH - totalW) / 2;
+  
+  char digits[5];
+  digits[0] = '0' + (time.hour / 10);
+  digits[1] = '0' + (time.hour % 10);
+  digits[2] = '0' + (time.minute / 10);
+  digits[3] = '0' + (time.minute % 10);
+  digits[4] = '\0';
+  
+  // Draw 4 digit panels
+  for (int d = 0; d < 4; d++) {
+    int x;
+    if (d < 2) {
+      x = startX + d * (digitW + digitGap);
     } else {
-      // Inactive element - smaller, muted
-      gfx->fillCircle(iconX, iconY, 15, RGB565(30, 35, 45));
-      gfx->fillCircle(iconX, iconY, 12, elementColors[i]);
+      x = startX + (digitW * 2) + (digitGap * 2) + colonW + digitGap + (d - 2) * (digitW + digitGap);
+    }
+    
+    // Panel background
+    gfx->fillRect(x, clockY, digitW, digitH, RGB565(15, 18, 25));
+    
+    // Split line (flip card effect)
+    gfx->drawLine(x, clockY + digitH/2, x + digitW, clockY + digitH/2, RGB565(30, 35, 45));
+    
+    // Border
+    gfx->drawRect(x, clockY, digitW, digitH, RGB565(40, 45, 55));
+    
+    // Corner accents in theme color
+    gfx->fillRect(x, clockY, 4, 4, currentColor);
+    gfx->fillRect(x + digitW - 4, clockY, 4, 4, currentColor);
+    gfx->fillRect(x, clockY + digitH - 4, 4, 4, currentColor);
+    gfx->fillRect(x + digitW - 4, clockY + digitH - 4, 4, 4, currentColor);
+    
+    // Digit
+    gfx->setTextColor(COLOR_WHITE);
+    gfx->setTextSize(8);
+    gfx->setCursor(x + (digitW - 48) / 2, clockY + (digitH - 64) / 2);
+    gfx->print(digits[d]);
+  }
+  
+  // Colon between hour and minute
+  int colonX = startX + (digitW * 2) + (digitGap * 2);
+  gfx->fillCircle(colonX + colonW/2, clockY + digitH/3, 6, currentColor);
+  gfx->fillCircle(colonX + colonW/2, clockY + (digitH*2)/3, 6, currentColor);
+  
+  // Seconds display below colon
+  gfx->setTextSize(2);
+  gfx->setTextColor(dimColor);
+  gfx->setCursor(colonX + 2, clockY + digitH + 5);
+  gfx->printf(":%02d", time.second);
+  
+  // ============================================================================
+  // ELEMENT NAME BANNER
+  // ============================================================================
+  
+  int bannerY = clockY + digitH + 35;
+  int bannerH = 50;
+  
+  // Banner background with gradient effect
+  for (int i = 0; i < bannerH; i++) {
+    uint8_t alpha = map(i, 0, bannerH, 40, 15);
+    gfx->drawLine(20, bannerY + i, LCD_WIDTH - 20, bannerY + i, 
+                  RGB565(alpha, alpha + 5, alpha + 10));
+  }
+  
+  // Banner borders
+  gfx->drawLine(20, bannerY, LCD_WIDTH - 20, bannerY, currentColor);
+  gfx->drawLine(20, bannerY + bannerH, LCD_WIDTH - 20, bannerY + bannerH, currentColor);
+  
+  // Left accent bar
+  gfx->fillRect(20, bannerY, 5, bannerH, currentColor);
+  
+  // "POWER:" label
+  gfx->setTextColor(RGB565(120, 125, 135));
+  gfx->setTextSize(2);
+  gfx->setCursor(35, bannerY + 15);
+  gfx->print("POWER:");
+  
+  // Element name in theme color
+  gfx->setTextColor(currentColor);
+  gfx->setTextSize(3);
+  gfx->setCursor(130, bannerY + 10);
+  gfx->print(elementNames[currentElement]);
+  
+  // ============================================================================
+  // HORIZONTAL ELEMENT SELECTOR BAR (Not circular!)
+  // ============================================================================
+  
+  int barY = bannerY + bannerH + 25;
+  int barH = 45;
+  int iconSize = 35;
+  int iconGap = 8;
+  int totalBarW = (iconSize * 7) + (iconGap * 6);
+  int barStartX = (LCD_WIDTH - totalBarW) / 2;
+  
+  // Bar background
+  gfx->fillRect(barStartX - 10, barY, totalBarW + 20, barH, RGB565(10, 12, 18));
+  gfx->drawRect(barStartX - 10, barY, totalBarW + 20, barH, RGB565(40, 45, 55));
+  
+  // Draw 7 element icons horizontally
+  for (int i = 0; i < 7; i++) {
+    int iconX = barStartX + (i * (iconSize + iconGap));
+    int iconY = barY + (barH - iconSize) / 2;
+    
+    if (i == currentElement) {
+      // Active element - highlighted with border
+      gfx->fillRect(iconX - 2, iconY - 2, iconSize + 4, iconSize + 4, currentColor);
+      gfx->fillRect(iconX, iconY, iconSize, iconSize, RGB565(20, 25, 35));
       
-      // Draw element symbol
-      gfx->setTextColor(RGB565(200, 200, 200));
+      // Glow effect
+      gfx->drawRect(iconX - 3, iconY - 3, iconSize + 6, iconSize + 6, currentColor);
+      
+      // Element short name
+      gfx->setTextColor(currentColor);
       gfx->setTextSize(1);
-      gfx->setCursor(iconX - 3, iconY - 4);
-      gfx->print(elementSymbols[i]);
+      gfx->setCursor(iconX + 3, iconY + 13);
+      gfx->print(elementShort[i]);
+    } else {
+      // Inactive element - muted
+      gfx->fillRect(iconX, iconY, iconSize, iconSize, RGB565(25, 28, 35));
+      gfx->drawRect(iconX, iconY, iconSize, iconSize, RGB565(50, 55, 65));
+      
+      // Small colored indicator at bottom
+      gfx->fillRect(iconX + iconSize/2 - 4, iconY + iconSize - 8, 8, 5, elementColors[i]);
     }
   }
   
-  // === CENTER LIGHTNING BOLT (Powerband signature) ===
-  // Draw a stylized lightning bolt in center
-  int boltX = centerX;
-  int boltY = centerY;
-  gfx->fillTriangle(boltX - 5, boltY - 15, boltX + 10, boltY - 5, boltX - 2, boltY, BBB_LIGHTNING_YELLOW);
-  gfx->fillTriangle(boltX + 2, boltY, boltX - 10, boltY + 5, boltX + 5, boltY + 15, BBB_LIGHTNING_YELLOW);
+  // ============================================================================
+  // STATS PANELS (3 at bottom)
+  // ============================================================================
   
-  // === TIME DISPLAY - Above the Powerband ===
-  char hourStr[3], minStr[3];
-  sprintf(hourStr, "%02d", time.hour);
-  sprintf(minStr, "%02d", time.minute);
+  int statsY = barY + barH + 20;
+  int panelH = 70;
+  int panelW = 115;
+  int panelGap = 15;
+  int panelStartX = (LCD_WIDTH - (panelW * 3 + panelGap * 2)) / 2;
   
-  int timeY = 25;
-  
-  // Shadow
-  gfx->setTextSize(6);
-  gfx->setTextColor(RGB565(30, 25, 20));
-  gfx->setCursor(centerX - 95 + 2, timeY + 2);
-  gfx->print(hourStr);
-  gfx->print(":");
-  gfx->print(minStr);
-  
-  // Main time
-  gfx->setTextColor(COLOR_WHITE);
-  gfx->setCursor(centerX - 95, timeY);
-  gfx->print(hourStr);
-  gfx->setTextColor(currentColor);
-  gfx->print(":");
-  gfx->setTextColor(COLOR_WHITE);
-  gfx->print(minStr);
-  
-  // Seconds
-  gfx->setTextSize(2);
-  gfx->setTextColor(currentColor);
-  gfx->setCursor(centerX + 78, timeY + 20);
-  gfx->printf("%02d", time.second);
-  
-  // === ELEMENT NAME BADGE ===
-  int badgeY = 360;
-  int badgeW = 200;
-  gfx->fillRect(centerX - badgeW/2, badgeY, badgeW, 40, RGB565(15, 18, 25));
-  gfx->drawRect(centerX - badgeW/2, badgeY, badgeW, 40, currentColor);
-  gfx->fillRect(centerX - badgeW/2, badgeY, 6, 6, currentColor);
-  gfx->fillRect(centerX + badgeW/2 - 6, badgeY, 6, 6, currentColor);
-  
-  // Element name
-  gfx->setTextColor(currentColor);
-  gfx->setTextSize(3);
-  int nameLen = strlen(elementNames[currentElement]) * 18;
-  gfx->setCursor(centerX - nameLen/2, badgeY + 8);
-  gfx->print(elementNames[currentElement]);
-  
-  // === DATE & STATS ROW ===
   const char* days[] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
-  int statsY = 410;
   
-  // Date
+  // Panel 1: Date
+  gfx->fillRect(panelStartX, statsY, panelW, panelH, RGB565(12, 15, 22));
+  gfx->drawRect(panelStartX, statsY, panelW, panelH, RGB565(35, 40, 50));
+  gfx->fillRect(panelStartX, statsY, panelW, 3, BBB_WIND_BLUE);  // Top accent
+  gfx->setTextColor(RGB565(100, 105, 115));
   gfx->setTextSize(1);
-  gfx->setTextColor(RGB565(150, 150, 160));
-  gfx->setCursor(30, statsY);
-  gfx->printf("%s %02d.%02d", days[time.weekday % 7], time.day, time.month);
+  gfx->setCursor(panelStartX + 8, statsY + 12);
+  gfx->print("DATE");
+  gfx->setTextColor(COLOR_WHITE);
+  gfx->setTextSize(2);
+  gfx->setCursor(panelStartX + 8, statsY + 35);
+  gfx->printf("%s %02d/%02d", days[time.weekday % 7], time.day, time.month);
   
-  // Steps
-  gfx->setTextColor(BBB_LEAF_GREEN);
-  gfx->setCursor(130, statsY);
-  gfx->printf("STEPS: %d", system_state.steps_today);
+  // Panel 2: Steps
+  int panel2X = panelStartX + panelW + panelGap;
+  gfx->fillRect(panel2X, statsY, panelW, panelH, RGB565(12, 15, 22));
+  gfx->drawRect(panel2X, statsY, panelW, panelH, RGB565(35, 40, 50));
+  gfx->fillRect(panel2X, statsY, panelW, 3, BBB_LEAF_GREEN);  // Top accent
+  gfx->setTextColor(RGB565(100, 105, 115));
+  gfx->setTextSize(1);
+  gfx->setCursor(panel2X + 8, statsY + 12);
+  gfx->print("STEPS");
+  gfx->setTextColor(COLOR_WHITE);
+  gfx->setTextSize(2);
+  gfx->setCursor(panel2X + 8, statsY + 35);
+  gfx->printf("%d", system_state.steps_today);
   
-  // Battery with percentage
+  // Panel 3: Battery
+  int panel3X = panelStartX + (panelW + panelGap) * 2;
   int battPct = getBatteryPercentage();
   system_state.battery_percentage = battPct;
-  uint16_t battColor = battPct > 20 ? BBB_WIND_BLUE : BBB_FIRE_RED;
-  gfx->setTextColor(battColor);
-  gfx->setCursor(280, statsY);
-  gfx->printf("PWR: %d%%", battPct);
-  
-  // === ACTIVITY RINGS ===
-  drawBoboiboyActivityRings(centerX, 465);
-  
-  // === OCHOBOT ASSISTANT ===
-  if (ochobot_pos.visible) {
-    drawOchobot(LCD_WIDTH - 50, 75, OCHOBOT_IDLE, 0.8);
-  }
-  
-  // === TAP HINT ===
-  gfx->setTextColor(RGB565(80, 85, 95));
+  uint16_t battColor = battPct > 20 ? BBB_LIGHTNING_YELLOW : BBB_FIRE_RED;
+  gfx->fillRect(panel3X, statsY, panelW, panelH, RGB565(12, 15, 22));
+  gfx->drawRect(panel3X, statsY, panelW, panelH, RGB565(35, 40, 50));
+  gfx->fillRect(panel3X, statsY, panelW, 3, battColor);  // Top accent
+  gfx->setTextColor(RGB565(100, 105, 115));
   gfx->setTextSize(1);
-  gfx->setCursor(centerX - 65, 485);
-  gfx->print("Tap center to switch!");
+  gfx->setCursor(panel3X + 8, statsY + 12);
+  gfx->print("POWER");
+  gfx->setTextColor(COLOR_WHITE);
+  gfx->setTextSize(2);
+  gfx->setCursor(panel3X + 8, statsY + 35);
+  gfx->printf("%d%%", battPct);
+  
+  // ============================================================================
+  // BOTTOM HUD LINE
+  // ============================================================================
+  
+  int hudY = statsY + panelH + 15;
+  gfx->drawLine(30, hudY, LCD_WIDTH - 30, hudY, RGB565(40, 45, 55));
+  
+  // Tap hint
+  gfx->setTextColor(RGB565(70, 75, 85));
+  gfx->setTextSize(1);
+  gfx->setCursor(centerX - 55, hudY + 8);
+  gfx->print("[TAP TO SWITCH]");
+  
+  // ============================================================================
+  // OCHOBOT (if visible)
+  // ============================================================================
+  
+  if (ochobot_pos.visible) {
+    drawOchobot(LCD_WIDTH - 45, 20, OCHOBOT_IDLE, 0.7);
+  }
 }
 
 // =============================================================================
@@ -2656,15 +2728,25 @@ void drawCharacterStatsScreen() {
   
   CharacterXPData* char_xp = getCurrentCharacterXP();
   
+  // ==========================================================================
+  // FIX: Check force flag FIRST - ensures redraw when navigating here
+  // ==========================================================================
   extern bool g_force_char_stats_redraw;
   bool data_changed = g_force_char_stats_redraw ||
                       (system_state.player_level != last_level) || 
                       (char_xp && char_xp->xp != last_xp) ||
                       (char_xp && char_xp->equipped_title_index != last_equipped_title);
   
+  // FIX: Reset force flag BEFORE skip check - this is CRITICAL
+  if (g_force_char_stats_redraw) {
+    Serial.println("[THEMES] Character stats: Force redraw flag was set");
+    g_force_char_stats_redraw = false;
+  }
+  
   if (!data_changed) return;
   
-  g_force_char_stats_redraw = false;
+  Serial.println("[THEMES] Drawing character stats screen");
+  
   last_level = system_state.player_level;
   if (char_xp) {
     last_xp = char_xp->xp;

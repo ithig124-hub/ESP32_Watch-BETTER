@@ -1,6 +1,9 @@
 /*
- * wifi_sync.cpp - WiFi Boot Sync Implementation
+ * wifi_sync.cpp - WiFi Boot Sync Implementation (FIXED)
  * FUSION OS Feature
+ * 
+ * FIX: Added quick scan - skips sync entirely if target network not visible
+ * This prevents infinite loop when offline
  * 
  * NOTE: SD Card support DISABLED due to hardware conflict
  * GPIO 4,5,6,7 are shared between QSPI display and SD_MMC
@@ -34,6 +37,71 @@ WiFiSyncState wifi_sync_state = {
 // Hardcoded WiFi network (fallback)
 const char* HARDCODED_SSID = "Optus_9D2E3D";
 const char* HARDCODED_PASSWORD = "snucktemptGLeQU";
+
+// =============================================================================
+// CONSTANTS - REDUCED TIMEOUTS
+// =============================================================================
+#define WIFI_RETRY_PER_NETWORK 2       // Reduced from 3
+#define WIFI_CONNECT_TIMEOUT 5000      // Reduced from 10000ms to 5 seconds
+#define NTP_TIMEOUT 5000               // Reduced from 10000ms to 5 seconds
+
+// =============================================================================
+// QUICK NETWORK SCAN - NEW FUNCTION (FIX FOR INFINITE LOOP)
+// Returns true if target network is visible, false otherwise
+// =============================================================================
+bool quickNetworkScan() {
+  extern void feedWatchdog();
+  
+  Serial.println("[WiFiSync] Quick scan: Checking for available networks...");
+  feedWatchdog();
+  
+  // Set WiFi to station mode for scanning
+  WiFi.mode(WIFI_STA);
+  WiFi.disconnect();
+  delay(100);
+  feedWatchdog();
+  
+  // Do a quick scan - 300ms per channel is fast
+  Serial.println("[WiFiSync] Scanning...");
+  int scanResult = WiFi.scanNetworks(false, false, false, 300);
+  feedWatchdog();
+  
+  if (scanResult <= 0) {
+    Serial.println("[WiFiSync] Quick scan: NO NETWORKS FOUND");
+    Serial.println("[WiFiSync] -> Skipping WiFi sync (no networks in range)");
+    WiFi.scanDelete();
+    WiFi.mode(WIFI_OFF);
+    return false;
+  }
+  
+  Serial.printf("[WiFiSync] Quick scan: Found %d networks\n", scanResult);
+  
+  // Check if our target network is in the list
+  bool targetFound = false;
+  for (int i = 0; i < scanResult; i++) {
+    feedWatchdog();
+    String foundSSID = WiFi.SSID(i);
+    if (foundSSID.equals(HARDCODED_SSID)) {
+      targetFound = true;
+      Serial.printf("[WiFiSync] Quick scan: TARGET FOUND '%s' (RSSI: %d dBm)\n", 
+                    HARDCODED_SSID, WiFi.RSSI(i));
+      break;
+    }
+  }
+  
+  // Clean up scan results
+  WiFi.scanDelete();
+  
+  if (!targetFound) {
+    Serial.printf("[WiFiSync] Quick scan: Target network '%s' NOT VISIBLE\n", HARDCODED_SSID);
+    Serial.println("[WiFiSync] -> Skipping WiFi sync (target not in range)");
+    WiFi.mode(WIFI_OFF);
+    return false;
+  }
+  
+  Serial.println("[WiFiSync] Quick scan: Target network available, proceeding with sync");
+  return true;
+}
 
 // =============================================================================
 // INITIALIZE WIFI SYNC
@@ -72,7 +140,7 @@ int loadWiFiNetworks() {
 }
 
 // =============================================================================
-// PERFORM BOOT SYNC
+// PERFORM BOOT SYNC - FIXED WITH QUICK SCAN
 // =============================================================================
 bool performBootSync() {
   extern void feedWatchdog();  // External watchdog feed function
@@ -84,13 +152,25 @@ bool performBootSync() {
   }
   
   Serial.println("[WiFiSync] ===== BOOT SYNC START =====");
+  feedWatchdog();
+  
+  // =========================================================================
+  // FIX: QUICK SCAN FIRST - Skip entirely if target network not visible
+  // This prevents the infinite loop when offline!
+  // =========================================================================
+  if (!quickNetworkScan()) {
+    Serial.println("[WiFiSync] ===== BOOT SYNC SKIPPED (No WiFi) =====");
+    wifi_sync_state.last_sync_success = false;
+    return false;  // Exit immediately - no waiting, no retries!
+  }
+  
   Serial.printf("[WiFiSync] Attempting to connect to %d networks...\n", 
                 wifi_sync_state.networks_loaded);
   feedWatchdog();
   
   bool connected = false;
   
-  // Try each network TWICE before moving to next
+  // Try each network with REDUCED retries (was 3, now 2)
   for (int net = 0; net < wifi_sync_state.networks_loaded && !connected; net++) {
     WiFiCredential* cred = &wifi_sync_state.networks[net];
     if (!cred->valid) continue;
@@ -109,7 +189,7 @@ bool performBootSync() {
       } else {
         Serial.printf("[WiFiSync]   Failed (attempt %d)\n", attempt);
         feedWatchdog();
-        delay(500);  // Reduced from 1000ms
+        delay(300);  // Reduced from 500ms
       }
     }
   }
@@ -144,7 +224,7 @@ bool performBootSync() {
 }
 
 // =============================================================================
-// CONNECT TO WIFI
+// CONNECT TO WIFI - Reduced delay for faster response
 // =============================================================================
 bool connectToWiFi(const char* ssid, const char* password, int timeout_ms) {
   extern void feedWatchdog();  // External watchdog feed function
@@ -155,7 +235,7 @@ bool connectToWiFi(const char* ssid, const char* password, int timeout_ms) {
   unsigned long start = millis();
   
   while (WiFi.status() != WL_CONNECTED && (millis() - start) < timeout_ms) {
-    delay(500);
+    delay(250);  // Reduced from 500ms for faster checking
     feedWatchdog();  // CRITICAL: Feed watchdog to prevent timeout during WiFi connection
   }
   

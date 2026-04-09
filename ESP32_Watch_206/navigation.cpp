@@ -1,10 +1,12 @@
-//Text size is 1 (tiny!)
-//Color is RGB565(180, 185, 200) (light gray on dark background)
-//Here's the complete fixed navigation.cpp with visible app text:
-
 /*
- * navigation.cpp - IMPROVED Swipe Navigation
+ * navigation.cpp - IMPROVED Swipe Navigation (FIXED)
  * Modern Anime Gaming Smartwatch - Enhanced Edition
+ *
+ * FIXES APPLIED:
+ * 1. Steps Tracker now properly draws when navigating to it
+ * 2. Character Stats redraws EVERY time you navigate to it (not just on XP change)
+ * 3. Reduced navigation cooldown for smoother transitions
+ * 4. Added force redraw for Steps Tracker screen
  *
  * IMPROVEMENTS:
  * - Better touch detection with lower thresholds
@@ -55,6 +57,16 @@ NavigationState navState = {
 };
 
 // =============================================================================
+// FIX: Force redraw flag for Steps Tracker
+// =============================================================================
+static bool g_force_steps_redraw = true;
+
+void forceStepsRedraw() {
+  g_force_steps_redraw = true;
+  Serial.println("[NAV] Steps tracker redraw forced");
+}
+
+// =============================================================================
 // INITIALIZATION
 // =============================================================================
 
@@ -78,12 +90,12 @@ void initNavigation() {
 }
 
 // =============================================================================
-// NAVIGATION CONTROL - IMPROVED
+// NAVIGATION CONTROL - FIXED
 // =============================================================================
 
 bool canNavigate() {
-  // Force reset stuck states after timeout
-  if (navState.isTransitioning && (millis() - navState.lastNavigationMs > 1000)) {
+  // FIX: Reduced timeout from 1000ms to 500ms for faster recovery
+  if (navState.isTransitioning && (millis() - navState.lastNavigationMs > 500)) {
     Serial.println("[NAV] Force resetting stuck transition state");
     navState.isTransitioning = false;
   }
@@ -96,7 +108,8 @@ bool canNavigate() {
     return false;
   }
 
-  if (millis() - navState.lastNavigationMs < NAVIGATION_COOLDOWN_MS) {
+  // FIX: Reduced cooldown for smoother navigation (was ~200ms)
+  if (millis() - navState.lastNavigationMs < 150) {
     return false;
   }
 
@@ -178,8 +191,12 @@ void navigateDown() {
   }
 }
 
+// =============================================================================
+// NAVIGATE TO SCREEN - FIXED
+// =============================================================================
 void navigateToScreen(MainScreen screen) {
-  if (screen == navState.currentMain) return;
+  // FIX: Don't skip even if same screen - we need to refresh!
+  // Was: if (screen == navState.currentMain) return;
 
   navState.isTransitioning = true;
   navState.lastNavigationMs = millis();
@@ -187,14 +204,36 @@ void navigateToScreen(MainScreen screen) {
   MainScreen oldScreen = navState.currentMain;
   navState.currentMain = screen;
 
-  // INSTANT LOAD FIX: Force character stats redraw when navigating to it
-  if (screen == MAIN_CHARACTER_STATS) {
-    extern void forceCharacterStatsRedraw();
-    forceCharacterStatsRedraw();
+  // ==========================================================================
+  // FIX: Force redraw for ALL screens when navigating to them
+  // ==========================================================================
+  switch (screen) {
+    case MAIN_WATCHFACE: {
+      extern void forceWatchfaceRedraw();
+      forceWatchfaceRedraw();
+      Serial.println("[NAV] Forced watchface redraw");
+      break;
+    }
+    case MAIN_STEPS_TRACKER: {
+      g_force_steps_redraw = true;
+      Serial.println("[NAV] Forced steps tracker redraw");
+      break;
+    }
+    case MAIN_CHARACTER_STATS: {
+      // FIX: Force redraw EVERY time we navigate to Character Stats
+      // This fixes the "no update until XP gain" issue
+      extern void forceCharacterStatsRedraw();
+      forceCharacterStatsRedraw();
+      Serial.println("[NAV] Forced character stats redraw");
+      break;
+    }
+    case MAIN_APP_GRID_1:
+      // App grid handles its own redraw
+      break;
   }
 
-  // Reset app grid page when leaving
-  if (oldScreen == MAIN_APP_GRID_1) {
+  // Reset app grid page when leaving app grid
+  if (oldScreen == MAIN_APP_GRID_1 && screen != MAIN_APP_GRID_1) {
     navState.appGridPage = 0;
   }
 
@@ -214,7 +253,7 @@ void navigateToScreen(MainScreen screen) {
       break;
   }
 
-  Serial.printf("[NAV] Screen changed to: %d (system: %d)\n", screen, system_state.current_screen);
+  Serial.printf("[NAV] Screen changed: %d -> %d (system: %d)\n", oldScreen, screen, system_state.current_screen);
 
   // Draw new screen
   drawCurrentScreen();
@@ -231,37 +270,57 @@ int getCurrentAppGridPage() {
 }
 
 // =============================================================================
-// SCREEN DRAWING - IMPROVED
+// SCREEN DRAWING - FIXED
 // =============================================================================
 
 void drawCurrentScreen() {
   // CRITICAL: Prevent overlap by ensuring full screen clear
-  // Force redraw by resetting anti-flicker flags
   extern void forceWatchfaceRedraw();
   forceWatchfaceRedraw();
 
-  // Force Character Stats redraw when navigating to it
+  // ==========================================================================
+  // FIX: Track screen changes and force redraws appropriately
+  // ==========================================================================
   static MainScreen last_screen = MAIN_WATCHFACE;
-  if (navState.currentMain == MAIN_CHARACTER_STATS && last_screen != MAIN_CHARACTER_STATS) {
-    // Screen just changed TO character stats - force redraw once
+  
+  // FIX: Force Steps Tracker redraw when entering it
+  if (navState.currentMain == MAIN_STEPS_TRACKER && last_screen != MAIN_STEPS_TRACKER) {
+    g_force_steps_redraw = true;
+    Serial.println("[NAV] Entering Steps Tracker - forcing redraw");
+  }
+  
+  // FIX: Force Character Stats redraw EVERY time we navigate to it
+  if (navState.currentMain == MAIN_CHARACTER_STATS) {
     extern void forceCharacterStatsRedraw();
     forceCharacterStatsRedraw();
+    Serial.println("[NAV] Drawing Character Stats - forcing redraw");
   }
+  
   last_screen = navState.currentMain;
 
   switch (navState.currentMain) {
     case MAIN_WATCHFACE:
       drawWatchFace();
       break;
+      
     case MAIN_STEPS_TRACKER:
-      // Full clear happens inside drawStepsCard() now
+      // =======================================================================
+      // FIX: Always clear screen when entering Steps Tracker
+      // =======================================================================
+      if (g_force_steps_redraw) {
+        gfx->fillScreen(RGB565(2, 2, 5));  // Full screen clear with dark background
+        Serial.println("[NAV] Steps Tracker: Full screen clear done");
+        g_force_steps_redraw = false;
+      }
       drawStepsCard();
       break;
+      
     case MAIN_APP_GRID_1:
       if (navState.appGridPage == 0) drawAppGrid1();
       else if (navState.appGridPage == 1) drawAppGrid2();
       else drawAppGrid3();
       break;
+      
     case MAIN_CHARACTER_STATS:
       drawCharacterStatsScreen();
       break;
