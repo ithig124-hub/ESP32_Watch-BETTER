@@ -1793,60 +1793,92 @@ void handleShopTouch(TouchGesture& gesture) {
                   
                   Serial.println("[SHOP] DEV MODE: Level 100 + All Titles Unlocked!");
                   
-                  delay(3000);
+                  delay(2000);
                   
-                  // Redraw character stats screen to show level 100
-                  system_state.current_screen = SCREEN_CHARACTER_STATS;
-                  extern void drawCharacterStatsScreen();
-                  drawCharacterStatsScreen();
+                  // Reboot to ensure all systems update with new level
+                  gfx->setTextSize(1);
+                  gfx->setTextColor(RGB565(150, 150, 160));
+                  gfx->setCursor(centerX - 50, LCD_HEIGHT/2 + 90);
+                  gfx->print("Rebooting...");
+                  delay(1000);
+                  
+                  Serial.println("[SHOP] Code 1001 - Rebooting to apply changes...");
+                  ESP.restart();
                 }
 //Let me give you the complete correct structure for the 2002 block. Replace your entire else if (entered_code == "2002") section with this:
 
 } else if (entered_code == "2002") {
-  // UNDO CODE
-  if (backup_exists) {
-    if (system_state.current_theme != backup_theme) {
-      // Wrong character!
-      gfx->fillScreen(RGB565(100, 50, 0));
-      gfx->setTextSize(2);
-      gfx->setTextColor(COLOR_WHITE);
-      gfx->setCursor(centerX - 100, LCD_HEIGHT/2 - 20);
-      gfx->print("WRONG CHARACTER!");
-      delay(2000);
-    } else {
-      // Correct character - restore
-      extern CharacterXPData* getCurrentCharacterXP();
-      CharacterXPData* char_data = getCurrentCharacterXP();
-      if (char_data) {
-        char_data->level = backup_level;
-        char_data->xp = backup_xp;
-        extern long calculateXPForLevel(int level);
-        char_data->xp_to_next_level = calculateXPForLevel(char_data->level + 1);
-        for (int i = 0; i < 22; i++) {
-          char_data->titles[i].unlocked = backup_titles[i];
-        }
-        system_state.player_level = char_data->level;
-        system_state.player_xp = char_data->xp;
-        extern void saveXPData();
-        saveXPData();
-        
-        gfx->fillScreen(RGB565(0, 0, 0));
-        gfx->setTextSize(3);
-        gfx->setTextColor(RGB565(0, 200, 255));
-        gfx->setCursor(centerX - 100, LCD_HEIGHT/2);
-        gfx->print("RESTORED!");
-        delay(2000);
-        backup_exists = false;
+  // UNDO/RESTORE CODE - Restores backup if exists, else resets to level 1
+  extern CharacterXPData* getCurrentCharacterXP();
+  CharacterXPData* char_data = getCurrentCharacterXP();
+  
+  if (backup_exists && system_state.current_theme == backup_theme) {
+    // Backup exists for this character - restore it
+    if (char_data) {
+      char_data->level = backup_level;
+      char_data->xp = backup_xp;
+      extern long calculateXPForLevel(int level);
+      char_data->xp_to_next_level = calculateXPForLevel(char_data->level + 1);
+      for (int i = 0; i < 22; i++) {
+        char_data->titles[i].unlocked = backup_titles[i];
       }
+      system_state.player_level = char_data->level;
+      system_state.player_xp = char_data->xp;
+      extern void saveXPData();
+      saveXPData();
+      
+      gfx->fillScreen(RGB565(0, 0, 0));
+      gfx->setTextSize(3);
+      gfx->setTextColor(RGB565(0, 200, 255));
+      gfx->setCursor(centerX - 100, LCD_HEIGHT/2 - 30);
+      gfx->print("RESTORED!");
+      gfx->setTextSize(2);
+      gfx->setCursor(centerX - 70, LCD_HEIGHT/2 + 10);
+      gfx->printf("Level %d", backup_level);
+      gfx->setTextSize(1);
+      gfx->setTextColor(RGB565(150, 150, 160));
+      gfx->setCursor(centerX - 50, LCD_HEIGHT/2 + 50);
+      gfx->print("Rebooting...");
+      delay(2000);
+      backup_exists = false;
+      
+      // Reboot to apply changes
+      Serial.println("[SHOP] Code 2002 - Restored backup, rebooting...");
+      ESP.restart();
     }
   } else {
-    // No backup exists
-    gfx->fillScreen(RGB565(100, 50, 0));
-    gfx->setTextSize(3);
-    gfx->setTextColor(COLOR_WHITE);
-    gfx->setCursor(centerX - 100, LCD_HEIGHT/2);
-    gfx->print("NO BACKUP!");
-    delay(1500);
+    // No backup OR wrong character - reset to level 1
+    if (char_data) {
+      char_data->level = 1;
+      char_data->xp = 0;
+      extern long calculateXPForLevel(int level);
+      char_data->xp_to_next_level = calculateXPForLevel(2);
+      // Keep first title unlocked
+      for (int i = 1; i < 22; i++) {
+        char_data->titles[i].unlocked = false;
+      }
+      char_data->titles[0].unlocked = true;
+      char_data->equipped_title_index = 0;
+      system_state.player_level = 1;
+      system_state.player_xp = 0;
+      extern void saveXPData();
+      saveXPData();
+      
+      gfx->fillScreen(RGB565(0, 0, 0));
+      gfx->setTextSize(2);
+      gfx->setTextColor(RGB565(255, 150, 50));
+      gfx->setCursor(centerX - 80, LCD_HEIGHT/2 - 30);
+      gfx->print("RESET TO LV.1");
+      gfx->setTextSize(1);
+      gfx->setTextColor(RGB565(150, 150, 160));
+      gfx->setCursor(centerX - 50, LCD_HEIGHT/2 + 20);
+      gfx->print("Rebooting...");
+      delay(2000);
+      
+      // Reboot to apply changes
+      Serial.println("[SHOP] Code 2002 - No backup, reset to level 1, rebooting...");
+      ESP.restart();
+    }
   }
 } else {
   // Wrong code

@@ -18,7 +18,8 @@ extern Arduino_CO5300 *gfx;
 extern SystemState system_state;
 
 StepsData steps_data = {0, 10000, 0.0, 0, 0, 0, {}, {}, 0};
-ActivityThresholds activity_config = {1.2, 250, 0.75};
+// SUPER SENSITIVE: Lower threshold (0.3 instead of 1.2), shorter cooldown (150ms instead of 250ms)
+ActivityThresholds activity_config = {0.3, 150, 0.75};
 
 static float last_magnitude = 1.0;
 static unsigned long last_step_time = 0;
@@ -302,22 +303,20 @@ void drawRetroStatCard(int x, int y, int w, int h, const char* label, float valu
 
 void updateStepCount() {
   // =====================================================
-  // USE QMI8658 HARDWARE PEDOMETER FOR ACCURATE STEPS
-  // The QMI8658 has a built-in pedometer that's more accurate
-  // than software-based step detection
+  // USE QMI8658 HARDWARE PEDOMETER - SUPER SENSITIVE MODE
+  // Lowered all thresholds for maximum step detection
   // =====================================================
   
   static bool pedometer_initialized = false;
   static uint32_t last_hw_steps = 0;
   
   if (!pedometer_initialized) {
-    // Configure QMI8658 pedometer
-    // See SensorQMI8658.hpp configPedometer() for parameter details
+    // Configure QMI8658 pedometer - SUPER SENSITIVE SETTINGS
     
     // Step 1: Configure pedometer parameters via CAL registers
     Wire.beginTransmission(QMI8658_ADDR);
     Wire.write(0x0B);  // CAL1_L - ped_sample_cnt low
-    Wire.write(0x50);  // 80 samples batch
+    Wire.write(0x20);  // 32 samples batch (was 80) - faster response
     Wire.endTransmission();
     
     Wire.beginTransmission(QMI8658_ADDR);
@@ -326,8 +325,8 @@ void updateStepCount() {
     Wire.endTransmission();
     
     Wire.beginTransmission(QMI8658_ADDR);
-    Wire.write(0x0D);  // CAL2_L - peak2peak threshold low (200mg = 0xCC)
-    Wire.write(0xCC);
+    Wire.write(0x0D);  // CAL2_L - peak2peak threshold low (50mg = 0x32) SUPER SENSITIVE
+    Wire.write(0x32);  // Was 0xCC (200mg) - now 50mg for easy detection
     Wire.endTransmission();
     
     Wire.beginTransmission(QMI8658_ADDR);
@@ -336,8 +335,8 @@ void updateStepCount() {
     Wire.endTransmission();
     
     Wire.beginTransmission(QMI8658_ADDR);
-    Wire.write(0x0F);  // CAL3_L - peak threshold low (100mg = 0x66)
-    Wire.write(0x66);
+    Wire.write(0x0F);  // CAL3_L - peak threshold low (30mg = 0x1E) SUPER SENSITIVE
+    Wire.write(0x1E);  // Was 0x66 (100mg) - now 30mg for easy detection
     Wire.endTransmission();
     
     Wire.beginTransmission(QMI8658_ADDR);
@@ -357,10 +356,10 @@ void updateStepCount() {
     Wire.endTransmission();
     delay(10);
     
-    // Phase 2: Timing parameters
+    // Phase 2: Timing parameters - FASTER DETECTION
     Wire.beginTransmission(QMI8658_ADDR);
-    Wire.write(0x0B);  // CAL1_L - time_up low (1.6s @ 50Hz = 80)
-    Wire.write(0x50);
+    Wire.write(0x0B);  // CAL1_L - time_up low (0.8s @ 50Hz = 40)
+    Wire.write(0x28);  // Was 0x50 (1.6s) - now 0.8s for faster step window
     Wire.endTransmission();
     
     Wire.beginTransmission(QMI8658_ADDR);
@@ -369,13 +368,13 @@ void updateStepCount() {
     Wire.endTransmission();
     
     Wire.beginTransmission(QMI8658_ADDR);
-    Wire.write(0x0D);  // CAL2_L - time_low (0.25s @ 50Hz = 12)
-    Wire.write(0x0C);
+    Wire.write(0x0D);  // CAL2_L - time_low (0.15s @ 50Hz = 7)
+    Wire.write(0x07);  // Was 0x0C (0.25s) - faster minimum step time
     Wire.endTransmission();
     
     Wire.beginTransmission(QMI8658_ADDR);
-    Wire.write(0x0E);  // CAL2_H - time_cnt_entry (10 steps to confirm)
-    Wire.write(0x0A);
+    Wire.write(0x0E);  // CAL2_H - time_cnt_entry (2 steps to confirm) INSTANT
+    Wire.write(0x02);  // Was 0x0A (10 steps) - now only 2 steps to start counting!
     Wire.endTransmission();
     
     Wire.beginTransmission(QMI8658_ADDR);
@@ -384,8 +383,8 @@ void updateStepCount() {
     Wire.endTransmission();
     
     Wire.beginTransmission(QMI8658_ADDR);
-    Wire.write(0x10);  // CAL3_H - sig_count (report every 4 steps)
-    Wire.write(0x04);
+    Wire.write(0x10);  // CAL3_H - sig_count (report every 1 step) INSTANT
+    Wire.write(0x01);  // Was 0x04 (every 4 steps) - now report EVERY step!
     Wire.endTransmission();
     
     Wire.beginTransmission(QMI8658_ADDR);
@@ -407,7 +406,7 @@ void updateStepCount() {
     Wire.endTransmission();
     
     pedometer_initialized = true;
-    Serial.println("[Steps] QMI8658 hardware pedometer initialized");
+    Serial.println("[Steps] QMI8658 SUPER SENSITIVE pedometer initialized");
   }
   
   // Read step count from QMI8658 pedometer registers (0x58, 0x59, 0x5A)

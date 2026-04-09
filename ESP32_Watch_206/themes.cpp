@@ -27,6 +27,52 @@ extern void forceAppGridRedraw();
 // Force redraw flag for character stats - enables instant loading on navigation
 bool g_force_char_stats_redraw = true;
 
+// Forward declarations for visual effects
+void drawYugoPortals();
+void drawYugoPortalEffects();
+void drawNarutoSageAura();
+void drawNarutoSageAuraEnhanced();
+void drawGokuUIAura();
+void drawGokuUIAuraEnhanced();
+void drawGokuSpeedLines();
+void drawTanjiroSunFlames();
+void drawTanjiroSunFlamesEnhanced();
+void drawGojoInfinityAura();
+void drawGojoInfinityAuraEnhanced();
+void drawGojoSixEyesGlow();
+void drawGojoSixEyesGlowEnhanced();
+void drawLeviBladeShine();
+void drawLeviWingsEffect();
+void drawLeviBladeShineEnhanced();
+void drawDekuOFALightning();
+void drawDekuOFALightningEnhanced();
+void drawSaitamaImpactLines();
+
+// =============================================================================
+// XP DATA LOADING FOR THEME CHANGES - Fixes title equip bug
+// =============================================================================
+void loadXPDataForTheme(ThemeType theme) {
+  // This function ensures XP data is properly loaded for the selected character
+  // when theme changes. This fixes the bug where Luffy's titles would be shown
+  // instead of the new character's titles after a theme change.
+  
+  extern void loadXPData();  // Load XP from NVS
+  extern CharacterXPData* getCurrentCharacterXP();
+  
+  // Load XP data from NVS (this reads character-specific data based on theme)
+  loadXPData();
+  
+  // Ensure system state is updated with current character's level/XP
+  CharacterXPData* char_xp = getCurrentCharacterXP();
+  if (char_xp) {
+    system_state.player_level = char_xp->level;
+    system_state.player_xp = char_xp->xp;
+    
+    Serial.printf("[XP] Loaded XP data for theme %d: Level %d, XP %ld, Equipped Title: %d\n",
+                  theme, char_xp->level, char_xp->xp, char_xp->equipped_title_index);
+  }
+}
+
 // =============================================================================
 // THEME COLOR DEFINITIONS - ALL 10 CHARACTERS (IMPROVED)
 // =============================================================================
@@ -1058,153 +1104,573 @@ void drawYugoWatchFace() {
   // CRITICAL FIX: Clear entire screen first to prevent overlap from other watchfaces
   gfx->fillScreen(RGB565(2, 2, 5));
   gfx->fillScreen(YUGO_SKY_BLUE_GREY);
-  drawYugoPortals();
+  
+  // Enhanced portal effects
+  drawYugoPortalEffects();
   
   WatchTime time = getCurrentTime();
+  int centerX = LCD_WIDTH / 2;
+  int centerY = 180;
+  
   char timeStr[16];
   sprintf(timeStr, "%02d:%02d", time.hour, time.minute);
   
-  gfx->setTextColor(YUGO_PORTAL_CYAN);
+  // Title with shadow glow
+  gfx->setTextColor(RGB565(20, 40, 50));
   gfx->setTextSize(3);
+  gfx->setCursor(97, 37);
+  gfx->print("PORTAL MASTER");
+  gfx->setTextColor(YUGO_PORTAL_CYAN);
   gfx->setCursor(95, 35);
   gfx->print("PORTAL MASTER");
   
-  gfx->setTextSize(7);
-  gfx->setTextColor(YUGO_WAKFU_ENERGY);
-  gfx->setCursor(50, 180);
+  // Time with enhanced shadow
+  gfx->setTextSize(8);
+  gfx->setTextColor(RGB565(10, 30, 40));
+  gfx->setCursor(37, 142);
+  gfx->print(timeStr);
+  gfx->setTextColor(YUGO_PORTAL_GLOW);
+  gfx->setCursor(35, 140);
   gfx->print(timeStr);
   
+  // Seconds with portal glow
   gfx->setTextSize(3);
-  gfx->setTextColor(YUGO_HAT_GOLD);
-  gfx->setCursor(310, 210);
+  gfx->setTextColor(YUGO_WAKFU_ENERGY);
+  gfx->setCursor(310, 175);
   gfx->printf("%02d", time.second);
   
-  drawYugoActivityRings(LCD_WIDTH/2, 390);
-  drawBatteryIndicator();
-  drawStepCounter();
+  // Seconds arc - portal energy ring
+  float secAngle = (time.second / 60.0) * 2 * PI - PI/2;
+  for (float a = -PI/2; a < secAngle; a += 0.04) {
+    int sx = centerX + cos(a) * 145;
+    int sy = centerY - 20 + sin(a) * 55;
+    gfx->fillCircle(sx, sy, 3, YUGO_PORTAL_CYAN);
+  }
+  
+  // Character tagline
+  gfx->setTextColor(YUGO_HAT_GOLD);
+  gfx->setTextSize(2);
+  gfx->setCursor(100, 270);
+  gfx->print("Adventure awaits!");
+  
+  // === DATE SECTION ===
+  const char* days[] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
+  int dateY = 302;
+  gfx->setTextSize(2);
+  gfx->setTextColor(RGB565(130, 160, 170));
+  gfx->setCursor(centerX - 80, dateY);
+  gfx->printf("%s  %02d.%02d", days[time.weekday % 7], time.day, time.month);
+  
+  // === STATS CARDS ===
+  int cardY = 340;
+  int cardH = 55;
+  int cardW = 115;
+  int cardGap = 12;
+  int cardStartX = (LCD_WIDTH - (3 * cardW + 2 * cardGap)) / 2;
+  
+  // Steps card
+  gfx->fillRect(cardStartX, cardY, cardW, cardH, RGB565(15, 25, 30));
+  gfx->drawRect(cardStartX, cardY, cardW, cardH, RGB565(50, 100, 100));
+  gfx->fillRect(cardStartX, cardY, 5, 5, YUGO_PORTAL_CYAN);
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(80, 140, 140));
+  gfx->setCursor(cardStartX + 10, cardY + 8);
+  gfx->print("STEPS");
+  gfx->setTextSize(2);
+  gfx->setTextColor(YUGO_PORTAL_GLOW);
+  gfx->setCursor(cardStartX + 10, cardY + 28);
+  gfx->printf("%d", system_state.steps_today);
+  
+  // Battery card with percentage
+  int card2X = cardStartX + cardW + cardGap;
+  int battPct = getBatteryPercentage();
+  system_state.battery_percentage = battPct;
+  uint16_t battColor = battPct > 20 ? YUGO_WAKFU_ENERGY : RGB565(255, 100, 100);
+  gfx->fillRect(card2X, cardY, cardW, cardH, RGB565(15, 22, 28));
+  gfx->drawRect(card2X, cardY, cardW, cardH, battColor);
+  gfx->fillRect(card2X, cardY, 5, 5, battColor);
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(80, 120, 140));
+  gfx->setCursor(card2X + 10, cardY + 8);
+  gfx->print("POWER");
+  gfx->setTextSize(2);
+  gfx->setTextColor(battColor);
+  gfx->setCursor(card2X + 10, cardY + 28);
+  gfx->printf("%d%%", battPct);
+  
+  // Wakfu energy card
+  int card3X = card2X + cardW + cardGap;
+  gfx->fillRect(card3X, cardY, cardW, cardH, RGB565(20, 22, 18));
+  gfx->drawRect(card3X, cardY, cardW, cardH, RGB565(80, 75, 40));
+  gfx->fillRect(card3X, cardY, 5, 5, YUGO_HAT_GOLD);
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(120, 110, 60));
+  gfx->setCursor(card3X + 10, cardY + 8);
+  gfx->print("WAKFU");
+  gfx->setTextSize(2);
+  gfx->setTextColor(YUGO_HAT_GOLD);
+  gfx->setCursor(card3X + 10, cardY + 28);
+  gfx->print("100%");
+  
+  drawYugoActivityRings(centerX, 435);
 }
 
 void drawNarutoWatchFace() {
   // CRITICAL FIX: Clear entire screen first to prevent overlap from other watchfaces
   gfx->fillScreen(RGB565(2, 2, 5));
   gfx->fillScreen(NARUTO_SLATE_GREY);
-  drawNarutoSageAura();
+  
+  // Enhanced sage aura
+  drawNarutoSageAuraEnhanced();
   
   WatchTime time = getCurrentTime();
+  int centerX = LCD_WIDTH / 2;
+  int centerY = 180;
+  
   char timeStr[16];
   sprintf(timeStr, "%02d:%02d", time.hour, time.minute);
   
-  gfx->setTextColor(NARUTO_CHAKRA_ORANGE);
+  // Title with glow shadow
+  gfx->setTextColor(RGB565(40, 25, 10));
   gfx->setTextSize(3);
+  gfx->setCursor(122, 37);
+  gfx->print("SAGE MODE");
+  gfx->setTextColor(NARUTO_CHAKRA_ORANGE);
   gfx->setCursor(120, 35);
   gfx->print("SAGE MODE");
   
-  gfx->setTextSize(7);
+  // Time with shadow effect
+  gfx->setTextSize(8);
+  gfx->setTextColor(RGB565(40, 25, 10));
+  gfx->setCursor(37, 142);
+  gfx->print(timeStr);
   gfx->setTextColor(NARUTO_SAGE_GOLD);
-  gfx->setCursor(50, 180);
+  gfx->setCursor(35, 140);
   gfx->print(timeStr);
   
+  // Seconds with chakra glow
   gfx->setTextSize(3);
   gfx->setTextColor(NARUTO_KURAMA_FLAME);
-  gfx->setCursor(310, 210);
+  gfx->setCursor(310, 175);
   gfx->printf("%02d", time.second);
   
+  // Chakra arc - seconds progress
+  float secAngle = (time.second / 60.0) * 2 * PI - PI/2;
+  for (float a = -PI/2; a < secAngle; a += 0.04) {
+    int sx = centerX + cos(a) * 145;
+    int sy = centerY - 20 + sin(a) * 55;
+    gfx->fillCircle(sx, sy, 3, NARUTO_CHAKRA_ORANGE);
+  }
+  
+  // Catchphrase
   gfx->setTextColor(NARUTO_CHAKRA_ORANGE);
   gfx->setTextSize(2);
-  gfx->setCursor(130, 290);
-  gfx->print("Believe it!");
+  gfx->setCursor(100, 270);
+  gfx->print("Believe it! Dattebayo!");
   
-  drawNarutoActivityRings(LCD_WIDTH/2, 390);
-  drawBatteryIndicator();
-  drawStepCounter();
+  // === DATE SECTION ===
+  const char* days[] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
+  int dateY = 302;
+  gfx->setTextSize(2);
+  gfx->setTextColor(RGB565(150, 130, 100));
+  gfx->setCursor(centerX - 80, dateY);
+  gfx->printf("%s  %02d.%02d", days[time.weekday % 7], time.day, time.month);
+  
+  // === STATS CARDS ===
+  int cardY = 340;
+  int cardH = 55;
+  int cardW = 115;
+  int cardGap = 12;
+  int cardStartX = (LCD_WIDTH - (3 * cardW + 2 * cardGap)) / 2;
+  
+  // Steps card
+  gfx->fillRect(cardStartX, cardY, cardW, cardH, RGB565(20, 20, 15));
+  gfx->drawRect(cardStartX, cardY, cardW, cardH, RGB565(80, 70, 50));
+  gfx->fillRect(cardStartX, cardY, 5, 5, NARUTO_CHAKRA_ORANGE);
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(100, 90, 60));
+  gfx->setCursor(cardStartX + 10, cardY + 8);
+  gfx->print("STEPS");
+  gfx->setTextSize(2);
+  gfx->setTextColor(NARUTO_SAGE_GOLD);
+  gfx->setCursor(cardStartX + 10, cardY + 28);
+  gfx->printf("%d", system_state.steps_today);
+  
+  // Battery/Chakra card
+  int card2X = cardStartX + cardW + cardGap;
+  int battPct = getBatteryPercentage();
+  system_state.battery_percentage = battPct;
+  uint16_t battColor = battPct > 20 ? NARUTO_RASENGAN_BLUE : RGB565(255, 80, 80);
+  gfx->fillRect(card2X, cardY, cardW, cardH, RGB565(18, 20, 25));
+  gfx->drawRect(card2X, cardY, cardW, cardH, battColor);
+  gfx->fillRect(card2X, cardY, 5, 5, battColor);
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(70, 100, 140));
+  gfx->setCursor(card2X + 10, cardY + 8);
+  gfx->print("CHAKRA");
+  gfx->setTextSize(2);
+  gfx->setTextColor(battColor);
+  gfx->setCursor(card2X + 10, cardY + 28);
+  gfx->printf("%d%%", battPct);
+  
+  // Kurama card
+  int card3X = card2X + cardW + cardGap;
+  gfx->fillRect(card3X, cardY, cardW, cardH, RGB565(25, 18, 12));
+  gfx->drawRect(card3X, cardY, cardW, cardH, NARUTO_KURAMA_FLAME);
+  gfx->fillRect(card3X, cardY, 5, 5, NARUTO_KURAMA_FLAME);
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(140, 90, 50));
+  gfx->setCursor(card3X + 10, cardY + 8);
+  gfx->print("KURAMA");
+  gfx->setTextSize(2);
+  gfx->setTextColor(NARUTO_KURAMA_FLAME);
+  gfx->setCursor(card3X + 10, cardY + 28);
+  gfx->print("100%");
+  
+  drawNarutoActivityRings(centerX, 435);
 }
 
 void drawGokuWatchFace() {
   // CRITICAL FIX: Clear entire screen first to prevent overlap from other watchfaces
   gfx->fillScreen(RGB565(2, 2, 5));
   gfx->fillScreen(COLOR_BLACK);
-  drawGokuUIAura();
+  drawGokuUIAuraEnhanced();
   
   WatchTime time = getCurrentTime();
+  int centerX = LCD_WIDTH / 2;
+  int centerY = 180;
+  
   char timeStr[16];
   sprintf(timeStr, "%02d:%02d", time.hour, time.minute);
   
+  // Title with silver glow
+  gfx->setTextColor(RGB565(30, 35, 45));
+  gfx->setTextSize(2);
+  gfx->setCursor(77, 37);
+  gfx->print("ULTRA INSTINCT");
   gfx->setTextColor(GOKU_UI_SILVER);
-  gfx->setTextSize(3);
   gfx->setCursor(75, 35);
   gfx->print("ULTRA INSTINCT");
   
-  gfx->setTextSize(7);
+  // Time with shadow
+  gfx->setTextSize(8);
+  gfx->setTextColor(RGB565(30, 35, 45));
+  gfx->setCursor(37, 142);
+  gfx->print(timeStr);
   gfx->setTextColor(GOKU_DIVINE_SILVER);
-  gfx->setCursor(50, 180);
+  gfx->setCursor(35, 140);
   gfx->print(timeStr);
   
+  // Seconds
+  gfx->setTextSize(3);
+  gfx->setTextColor(GOKU_KI_BLAST_BLUE);
+  gfx->setCursor(310, 175);
+  gfx->printf("%02d", time.second);
+  
+  // Speed lines and ki arc
   drawGokuSpeedLines();
-  drawGokuActivityRings(LCD_WIDTH/2, 390);
-  drawBatteryIndicator();
-  drawStepCounter();
+  float secAngle = (time.second / 60.0) * 2 * PI - PI/2;
+  for (float a = -PI/2; a < secAngle; a += 0.04) {
+    int sx = centerX + cos(a) * 145;
+    int sy = centerY - 20 + sin(a) * 55;
+    gfx->fillCircle(sx, sy, 3, GOKU_UI_SILVER);
+  }
+  
+  // Tagline
+  gfx->setTextColor(GOKU_AURA_WHITE);
+  gfx->setTextSize(1);
+  gfx->setCursor(90, 270);
+  gfx->print("The body moves on its own");
+  
+  // === DATE SECTION ===
+  const char* days[] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
+  int dateY = 292;
+  gfx->setTextSize(2);
+  gfx->setTextColor(RGB565(130, 140, 150));
+  gfx->setCursor(centerX - 80, dateY);
+  gfx->printf("%s  %02d.%02d", days[time.weekday % 7], time.day, time.month);
+  
+  // === STATS CARDS ===
+  int cardY = 330;
+  int cardH = 55;
+  int cardW = 115;
+  int cardGap = 12;
+  int cardStartX = (LCD_WIDTH - (3 * cardW + 2 * cardGap)) / 2;
+  
+  // Steps card
+  gfx->fillRect(cardStartX, cardY, cardW, cardH, RGB565(12, 15, 20));
+  gfx->drawRect(cardStartX, cardY, cardW, cardH, RGB565(60, 70, 85));
+  gfx->fillRect(cardStartX, cardY, 5, 5, GOKU_UI_SILVER);
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(90, 100, 115));
+  gfx->setCursor(cardStartX + 10, cardY + 8);
+  gfx->print("STEPS");
+  gfx->setTextSize(2);
+  gfx->setTextColor(GOKU_UI_SILVER);
+  gfx->setCursor(cardStartX + 10, cardY + 28);
+  gfx->printf("%d", system_state.steps_today);
+  
+  // Ki/Battery card
+  int card2X = cardStartX + cardW + cardGap;
+  int battPct = getBatteryPercentage();
+  system_state.battery_percentage = battPct;
+  uint16_t battColor = battPct > 20 ? GOKU_KI_BLAST_BLUE : RGB565(255, 80, 80);
+  gfx->fillRect(card2X, cardY, cardW, cardH, RGB565(15, 18, 25));
+  gfx->drawRect(card2X, cardY, cardW, cardH, battColor);
+  gfx->fillRect(card2X, cardY, 5, 5, battColor);
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(70, 100, 150));
+  gfx->setCursor(card2X + 10, cardY + 8);
+  gfx->print("KI");
+  gfx->setTextSize(2);
+  gfx->setTextColor(battColor);
+  gfx->setCursor(card2X + 10, cardY + 28);
+  gfx->printf("%d%%", battPct);
+  
+  // Power Level card
+  int card3X = card2X + cardW + cardGap;
+  gfx->fillRect(card3X, cardY, cardW, cardH, RGB565(18, 18, 22));
+  gfx->drawRect(card3X, cardY, cardW, cardH, GOKU_DIVINE_SILVER);
+  gfx->fillRect(card3X, cardY, 5, 5, GOKU_DIVINE_SILVER);
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(120, 125, 135));
+  gfx->setCursor(card3X + 10, cardY + 8);
+  gfx->print("POWER");
+  gfx->setTextSize(2);
+  gfx->setTextColor(GOKU_DIVINE_SILVER);
+  gfx->setCursor(card3X + 10, cardY + 28);
+  gfx->print("9001+");
+  
+  drawGokuActivityRings(centerX, 425);
 }
 
 void drawTanjiroWatchFace() {
   // CRITICAL FIX: Clear entire screen first to prevent overlap from other watchfaces
   gfx->fillScreen(RGB565(2, 2, 5));
   gfx->fillScreen(TANJIRO_DARK_CHARCOAL);
-  drawTanjiroSunFlames();
+  drawTanjiroSunFlamesEnhanced();
   
   WatchTime time = getCurrentTime();
+  int centerX = LCD_WIDTH / 2;
+  int centerY = 180;
+  
   char timeStr[16];
   sprintf(timeStr, "%02d:%02d", time.hour, time.minute);
   
+  // Title with flame glow
+  gfx->setTextColor(RGB565(50, 25, 10));
+  gfx->setTextSize(2);
+  gfx->setCursor(87, 37);
+  gfx->print("SUN BREATHING");
   gfx->setTextColor(TANJIRO_FIRE_ORANGE);
-  gfx->setTextSize(3);
   gfx->setCursor(85, 35);
   gfx->print("SUN BREATHING");
   
-  gfx->setTextSize(7);
+  // Time with shadow
+  gfx->setTextSize(8);
+  gfx->setTextColor(RGB565(50, 25, 10));
+  gfx->setCursor(37, 142);
+  gfx->print(timeStr);
   gfx->setTextColor(TANJIRO_FLAME_GLOW);
-  gfx->setCursor(50, 180);
+  gfx->setCursor(35, 140);
   gfx->print(timeStr);
   
+  // Seconds
+  gfx->setTextSize(3);
+  gfx->setTextColor(TANJIRO_WATER_BLUE);
+  gfx->setCursor(310, 175);
+  gfx->printf("%02d", time.second);
+  
+  // Flame arc
+  float secAngle = (time.second / 60.0) * 2 * PI - PI/2;
+  for (float a = -PI/2; a < secAngle; a += 0.04) {
+    int sx = centerX + cos(a) * 145;
+    int sy = centerY - 20 + sin(a) * 55;
+    gfx->fillCircle(sx, sy, 3, TANJIRO_FIRE_ORANGE);
+  }
+  
+  // Tagline
   gfx->setTextColor(TANJIRO_WATER_BLUE);
   gfx->setTextSize(2);
-  gfx->setCursor(110, 290);
+  gfx->setCursor(95, 270);
   gfx->print("Hinokami Kagura");
   
-  drawTanjiroActivityRings(LCD_WIDTH/2, 390);
-  drawBatteryIndicator();
-  drawStepCounter();
+  // === DATE SECTION ===
+  const char* days[] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
+  int dateY = 302;
+  gfx->setTextSize(2);
+  gfx->setTextColor(RGB565(140, 120, 100));
+  gfx->setCursor(centerX - 80, dateY);
+  gfx->printf("%s  %02d.%02d", days[time.weekday % 7], time.day, time.month);
+  
+  // === STATS CARDS ===
+  int cardY = 340;
+  int cardH = 55;
+  int cardW = 115;
+  int cardGap = 12;
+  int cardStartX = (LCD_WIDTH - (3 * cardW + 2 * cardGap)) / 2;
+  
+  // Steps card
+  gfx->fillRect(cardStartX, cardY, cardW, cardH, RGB565(18, 22, 20));
+  gfx->drawRect(cardStartX, cardY, cardW, cardH, TANJIRO_CHECK_GREEN);
+  gfx->fillRect(cardStartX, cardY, 5, 5, TANJIRO_CHECK_GREEN);
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(80, 110, 90));
+  gfx->setCursor(cardStartX + 10, cardY + 8);
+  gfx->print("STEPS");
+  gfx->setTextSize(2);
+  gfx->setTextColor(TANJIRO_CHECK_GREEN);
+  gfx->setCursor(cardStartX + 10, cardY + 28);
+  gfx->printf("%d", system_state.steps_today);
+  
+  // Breathing/Battery card
+  int card2X = cardStartX + cardW + cardGap;
+  int battPct = getBatteryPercentage();
+  system_state.battery_percentage = battPct;
+  uint16_t battColor = battPct > 20 ? TANJIRO_WATER_BLUE : RGB565(255, 80, 80);
+  gfx->fillRect(card2X, cardY, cardW, cardH, RGB565(15, 18, 25));
+  gfx->drawRect(card2X, cardY, cardW, cardH, battColor);
+  gfx->fillRect(card2X, cardY, 5, 5, battColor);
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(70, 100, 140));
+  gfx->setCursor(card2X + 10, cardY + 8);
+  gfx->print("BREATH");
+  gfx->setTextSize(2);
+  gfx->setTextColor(battColor);
+  gfx->setCursor(card2X + 10, cardY + 28);
+  gfx->printf("%d%%", battPct);
+  
+  // Sun form card
+  int card3X = card2X + cardW + cardGap;
+  gfx->fillRect(card3X, cardY, cardW, cardH, RGB565(25, 18, 12));
+  gfx->drawRect(card3X, cardY, cardW, cardH, TANJIRO_FIRE_ORANGE);
+  gfx->fillRect(card3X, cardY, 5, 5, TANJIRO_FIRE_ORANGE);
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(140, 90, 50));
+  gfx->setCursor(card3X + 10, cardY + 8);
+  gfx->print("FORMS");
+  gfx->setTextSize(2);
+  gfx->setTextColor(TANJIRO_FIRE_ORANGE);
+  gfx->setCursor(card3X + 10, cardY + 28);
+  gfx->print("13");
+  
+  drawTanjiroActivityRings(centerX, 435);
 }
 
 void drawGojoWatchFace() {
   // CRITICAL FIX: Clear entire screen first to prevent overlap from other watchfaces
   gfx->fillScreen(RGB565(2, 2, 5));
   gfx->fillScreen(COLOR_BLACK);
-  drawGojoInfinityAura();
+  drawGojoInfinityAuraEnhanced();
   
   WatchTime time = getCurrentTime();
+  int centerX = LCD_WIDTH / 2;
+  int centerY = 180;
+  
   char timeStr[16];
   sprintf(timeStr, "%02d:%02d", time.hour, time.minute);
   
-  gfx->setTextColor(GOJO_INFINITY_BLUE);
+  // Title with infinity glow
+  gfx->setTextColor(RGB565(20, 30, 50));
   gfx->setTextSize(3);
+  gfx->setCursor(137, 37);
+  gfx->print("INFINITY");
+  gfx->setTextColor(GOJO_INFINITY_BLUE);
   gfx->setCursor(135, 35);
   gfx->print("INFINITY");
   
-  gfx->setTextSize(7);
+  // Time with shadow
+  gfx->setTextSize(8);
+  gfx->setTextColor(RGB565(20, 30, 50));
+  gfx->setCursor(37, 142);
+  gfx->print(timeStr);
   gfx->setTextColor(GOJO_SIX_EYES_BLUE);
-  gfx->setCursor(50, 180);
+  gfx->setCursor(35, 140);
   gfx->print(timeStr);
   
-  drawGojoSixEyesGlow();
+  // Seconds
+  gfx->setTextSize(3);
+  gfx->setTextColor(GOJO_HOLLOW_PURPLE);
+  gfx->setCursor(310, 175);
+  gfx->printf("%02d", time.second);
   
+  // Six Eyes glow
+  drawGojoSixEyesGlowEnhanced();
+  
+  // Infinity arc
+  float secAngle = (time.second / 60.0) * 2 * PI - PI/2;
+  for (float a = -PI/2; a < secAngle; a += 0.04) {
+    int sx = centerX + cos(a) * 145;
+    int sy = centerY - 20 + sin(a) * 55;
+    gfx->fillCircle(sx, sy, 3, GOJO_INFINITY_BLUE);
+  }
+  
+  // Tagline
   gfx->setTextColor(GOJO_LIGHT_BLUE_GLOW);
   gfx->setTextSize(1);
-  gfx->setCursor(70, 290);
-  gfx->print("I alone am the honored one");
+  gfx->setCursor(55, 270);
+  gfx->print("Throughout Heaven and Earth...");
   
-  drawGojoActivityRings(LCD_WIDTH/2, 390);
-  drawBatteryIndicator();
-  drawStepCounter();
+  // === DATE SECTION ===
+  const char* days[] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
+  int dateY = 292;
+  gfx->setTextSize(2);
+  gfx->setTextColor(RGB565(120, 140, 170));
+  gfx->setCursor(centerX - 80, dateY);
+  gfx->printf("%s  %02d.%02d", days[time.weekday % 7], time.day, time.month);
+  
+  // === STATS CARDS ===
+  int cardY = 330;
+  int cardH = 55;
+  int cardW = 115;
+  int cardGap = 12;
+  int cardStartX = (LCD_WIDTH - (3 * cardW + 2 * cardGap)) / 2;
+  
+  // Steps card
+  gfx->fillRect(cardStartX, cardY, cardW, cardH, RGB565(12, 15, 25));
+  gfx->drawRect(cardStartX, cardY, cardW, cardH, GOJO_INFINITY_BLUE);
+  gfx->fillRect(cardStartX, cardY, 5, 5, GOJO_INFINITY_BLUE);
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(70, 100, 150));
+  gfx->setCursor(cardStartX + 10, cardY + 8);
+  gfx->print("STEPS");
+  gfx->setTextSize(2);
+  gfx->setTextColor(GOJO_INFINITY_BLUE);
+  gfx->setCursor(cardStartX + 10, cardY + 28);
+  gfx->printf("%d", system_state.steps_today);
+  
+  // Cursed Energy/Battery card
+  int card2X = cardStartX + cardW + cardGap;
+  int battPct = getBatteryPercentage();
+  system_state.battery_percentage = battPct;
+  uint16_t battColor = battPct > 20 ? GOJO_LIGHT_BLUE_GLOW : RGB565(255, 80, 80);
+  gfx->fillRect(card2X, cardY, cardW, cardH, RGB565(15, 18, 28));
+  gfx->drawRect(card2X, cardY, cardW, cardH, battColor);
+  gfx->fillRect(card2X, cardY, 5, 5, battColor);
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(80, 120, 170));
+  gfx->setCursor(card2X + 10, cardY + 8);
+  gfx->print("CURSED E");
+  gfx->setTextSize(2);
+  gfx->setTextColor(battColor);
+  gfx->setCursor(card2X + 10, cardY + 28);
+  gfx->printf("%d%%", battPct);
+  
+  // Domain card
+  int card3X = card2X + cardW + cardGap;
+  gfx->fillRect(card3X, cardY, cardW, cardH, RGB565(18, 12, 25));
+  gfx->drawRect(card3X, cardY, cardW, cardH, GOJO_HOLLOW_PURPLE);
+  gfx->fillRect(card3X, cardY, 5, 5, GOJO_HOLLOW_PURPLE);
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(100, 70, 140));
+  gfx->setCursor(card3X + 10, cardY + 8);
+  gfx->print("DOMAIN");
+  gfx->setTextSize(2);
+  gfx->setTextColor(GOJO_HOLLOW_PURPLE);
+  gfx->setCursor(card3X + 10, cardY + 28);
+  gfx->print("VOID");
+  
+  drawGojoActivityRings(centerX, 425);
 }
 
 void drawLeviWatchFace() {
@@ -1213,28 +1679,116 @@ void drawLeviWatchFace() {
   gfx->fillScreen(LEVI_CHARCOAL_DARK);
   
   WatchTime time = getCurrentTime();
+  int centerX = LCD_WIDTH / 2;
+  int centerY = 180;
+  
   char timeStr[16];
   sprintf(timeStr, "%02d:%02d", time.hour, time.minute);
   
-  gfx->setTextColor(LEVI_SURVEY_GREEN);
+  // Survey Corps wings effect
+  drawLeviWingsEffect();
+  
+  // Title with military precision
+  gfx->setTextColor(RGB565(20, 30, 25));
   gfx->setTextSize(2);
+  gfx->setCursor(57, 37);
+  gfx->print("HUMANITY'S STRONGEST");
+  gfx->setTextColor(LEVI_SURVEY_GREEN);
   gfx->setCursor(55, 35);
   gfx->print("HUMANITY'S STRONGEST");
   
-  gfx->setTextSize(7);
+  // Time with shadow
+  gfx->setTextSize(8);
+  gfx->setTextColor(RGB565(25, 30, 35));
+  gfx->setCursor(37, 142);
+  gfx->print(timeStr);
   gfx->setTextColor(LEVI_CLEAN_WHITE);
-  gfx->setCursor(50, 180);
+  gfx->setCursor(35, 140);
   gfx->print(timeStr);
   
+  // Seconds
   gfx->setTextSize(3);
   gfx->setTextColor(LEVI_SILVER_BLADE);
-  gfx->setCursor(310, 210);
+  gfx->setCursor(310, 175);
   gfx->printf("%02d", time.second);
   
-  drawLeviBladeShine();
-  drawLeviActivityRings(LCD_WIDTH/2, 390);
-  drawBatteryIndicator();
-  drawStepCounter();
+  // Blade shine effect
+  drawLeviBladeShineEnhanced();
+  
+  // Steel arc
+  float secAngle = (time.second / 60.0) * 2 * PI - PI/2;
+  for (float a = -PI/2; a < secAngle; a += 0.04) {
+    int sx = centerX + cos(a) * 145;
+    int sy = centerY - 20 + sin(a) * 55;
+    gfx->fillCircle(sx, sy, 3, LEVI_SILVER_BLADE);
+  }
+  
+  // Tagline
+  gfx->setTextColor(LEVI_MILITARY_GREY);
+  gfx->setTextSize(1);
+  gfx->setCursor(85, 270);
+  gfx->print("Give up on your dreams and die.");
+  
+  // === DATE SECTION ===
+  const char* days[] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
+  int dateY = 292;
+  gfx->setTextSize(2);
+  gfx->setTextColor(RGB565(120, 125, 130));
+  gfx->setCursor(centerX - 80, dateY);
+  gfx->printf("%s  %02d.%02d", days[time.weekday % 7], time.day, time.month);
+  
+  // === STATS CARDS ===
+  int cardY = 330;
+  int cardH = 55;
+  int cardW = 115;
+  int cardGap = 12;
+  int cardStartX = (LCD_WIDTH - (3 * cardW + 2 * cardGap)) / 2;
+  
+  // Steps/Distance card
+  gfx->fillRect(cardStartX, cardY, cardW, cardH, RGB565(15, 18, 20));
+  gfx->drawRect(cardStartX, cardY, cardW, cardH, LEVI_SURVEY_GREEN);
+  gfx->fillRect(cardStartX, cardY, 5, 5, LEVI_SURVEY_GREEN);
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(80, 100, 90));
+  gfx->setCursor(cardStartX + 10, cardY + 8);
+  gfx->print("ODM DIST");
+  gfx->setTextSize(2);
+  gfx->setTextColor(LEVI_SURVEY_GREEN);
+  gfx->setCursor(cardStartX + 10, cardY + 28);
+  gfx->printf("%d", system_state.steps_today);
+  
+  // Gas/Battery card
+  int card2X = cardStartX + cardW + cardGap;
+  int battPct = getBatteryPercentage();
+  system_state.battery_percentage = battPct;
+  uint16_t battColor = battPct > 20 ? LEVI_SILVER_BLADE : RGB565(255, 80, 80);
+  gfx->fillRect(card2X, cardY, cardW, cardH, RGB565(18, 20, 22));
+  gfx->drawRect(card2X, cardY, cardW, cardH, battColor);
+  gfx->fillRect(card2X, cardY, 5, 5, battColor);
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(100, 110, 120));
+  gfx->setCursor(card2X + 10, cardY + 8);
+  gfx->print("GAS");
+  gfx->setTextSize(2);
+  gfx->setTextColor(battColor);
+  gfx->setCursor(card2X + 10, cardY + 28);
+  gfx->printf("%d%%", battPct);
+  
+  // Titan Kills card
+  int card3X = card2X + cardW + cardGap;
+  gfx->fillRect(card3X, cardY, cardW, cardH, RGB565(20, 15, 15));
+  gfx->drawRect(card3X, cardY, cardW, cardH, RGB565(150, 80, 80));
+  gfx->fillRect(card3X, cardY, 5, 5, RGB565(150, 80, 80));
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(130, 90, 90));
+  gfx->setCursor(card3X + 10, cardY + 8);
+  gfx->print("KILLS");
+  gfx->setTextSize(2);
+  gfx->setTextColor(RGB565(180, 100, 100));
+  gfx->setCursor(card3X + 10, cardY + 28);
+  gfx->print("58+");
+  
+  drawLeviActivityRings(centerX, 425);
 }
 
 void drawSaitamaWatchFace() {
@@ -1243,57 +1797,226 @@ void drawSaitamaWatchFace() {
   gfx->fillScreen(COLOR_BLACK);
   
   WatchTime time = getCurrentTime();
+  int centerX = LCD_WIDTH / 2;
+  int centerY = 180;
+  
   char timeStr[16];
   sprintf(timeStr, "%02d:%02d", time.hour, time.minute);
   
-  gfx->setTextColor(SAITAMA_HERO_YELLOW);
+  // Impact lines background
+  drawSaitamaImpactLines();
+  
+  // Title with punch impact
+  gfx->setTextColor(RGB565(50, 40, 10));
   gfx->setTextSize(3);
+  gfx->setCursor(122, 37);
+  gfx->print("ONE PUNCH");
+  gfx->setTextColor(SAITAMA_HERO_YELLOW);
   gfx->setCursor(120, 35);
   gfx->print("ONE PUNCH");
   
-  gfx->setTextSize(7);
+  // Time with shadow
+  gfx->setTextSize(8);
+  gfx->setTextColor(RGB565(40, 40, 45));
+  gfx->setCursor(37, 142);
+  gfx->print(timeStr);
   gfx->setTextColor(SAITAMA_BALD_WHITE);
-  gfx->setCursor(50, 180);
+  gfx->setCursor(35, 140);
   gfx->print(timeStr);
   
+  // Seconds
+  gfx->setTextSize(3);
+  gfx->setTextColor(SAITAMA_CAPE_RED);
+  gfx->setCursor(310, 175);
+  gfx->printf("%02d", time.second);
+  
+  // Impact arc
+  float secAngle = (time.second / 60.0) * 2 * PI - PI/2;
+  for (float a = -PI/2; a < secAngle; a += 0.04) {
+    int sx = centerX + cos(a) * 145;
+    int sy = centerY - 20 + sin(a) * 55;
+    gfx->fillCircle(sx, sy, 3, SAITAMA_HERO_YELLOW);
+  }
+  
+  // THE iconic "OK."
   gfx->setTextColor(SAITAMA_CAPE_RED);
   gfx->setTextSize(4);
-  gfx->setCursor(170, 290);
+  gfx->setCursor(168, 265);
   gfx->print("OK.");
   
-  drawSaitamaActivityRings(LCD_WIDTH/2, 390);
-  drawBatteryIndicator();
-  drawStepCounter();
+  // === DATE SECTION ===
+  const char* days[] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
+  int dateY = 310;
+  gfx->setTextSize(2);
+  gfx->setTextColor(RGB565(140, 140, 140));
+  gfx->setCursor(centerX - 80, dateY);
+  gfx->printf("%s  %02d.%02d", days[time.weekday % 7], time.day, time.month);
+  
+  // === STATS CARDS ===
+  int cardY = 350;
+  int cardH = 55;
+  int cardW = 115;
+  int cardGap = 12;
+  int cardStartX = (LCD_WIDTH - (3 * cardW + 2 * cardGap)) / 2;
+  
+  // Steps card
+  gfx->fillRect(cardStartX, cardY, cardW, cardH, RGB565(18, 18, 15));
+  gfx->drawRect(cardStartX, cardY, cardW, cardH, SAITAMA_HERO_YELLOW);
+  gfx->fillRect(cardStartX, cardY, 5, 5, SAITAMA_HERO_YELLOW);
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(120, 110, 60));
+  gfx->setCursor(cardStartX + 10, cardY + 8);
+  gfx->print("10KM RUN");
+  gfx->setTextSize(2);
+  gfx->setTextColor(SAITAMA_HERO_YELLOW);
+  gfx->setCursor(cardStartX + 10, cardY + 28);
+  gfx->printf("%d", system_state.steps_today);
+  
+  // Power/Battery card
+  int card2X = cardStartX + cardW + cardGap;
+  int battPct = getBatteryPercentage();
+  system_state.battery_percentage = battPct;
+  uint16_t battColor = battPct > 20 ? SAITAMA_BALD_WHITE : RGB565(255, 80, 80);
+  gfx->fillRect(card2X, cardY, cardW, cardH, RGB565(15, 15, 18));
+  gfx->drawRect(card2X, cardY, cardW, cardH, battColor);
+  gfx->fillRect(card2X, cardY, 5, 5, battColor);
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(120, 120, 130));
+  gfx->setCursor(card2X + 10, cardY + 8);
+  gfx->print("POWER");
+  gfx->setTextSize(2);
+  gfx->setTextColor(battColor);
+  gfx->setCursor(card2X + 10, cardY + 28);
+  gfx->printf("%d%%", battPct);
+  
+  // Hero Rank card
+  int card3X = card2X + cardW + cardGap;
+  gfx->fillRect(card3X, cardY, cardW, cardH, RGB565(25, 15, 15));
+  gfx->drawRect(card3X, cardY, cardW, cardH, SAITAMA_CAPE_RED);
+  gfx->fillRect(card3X, cardY, 5, 5, SAITAMA_CAPE_RED);
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(140, 80, 80));
+  gfx->setCursor(card3X + 10, cardY + 8);
+  gfx->print("RANK");
+  gfx->setTextSize(2);
+  gfx->setTextColor(SAITAMA_CAPE_RED);
+  gfx->setCursor(card3X + 10, cardY + 28);
+  gfx->print("B #7");
+  
+  drawSaitamaActivityRings(centerX, 440);
 }
 
 void drawDekuWatchFace() {
   // CRITICAL FIX: Clear entire screen first to prevent overlap from other watchfaces
   gfx->fillScreen(RGB565(2, 2, 5));
   gfx->fillScreen(DEKU_DARK_HERO);
-  drawDekuOFALightning();
+  drawDekuOFALightningEnhanced();
   
   WatchTime time = getCurrentTime();
+  int centerX = LCD_WIDTH / 2;
+  int centerY = 180;
+  
   char timeStr[16];
   sprintf(timeStr, "%02d:%02d", time.hour, time.minute);
   
-  gfx->setTextColor(DEKU_HERO_GREEN);
+  // Title with lightning glow
+  gfx->setTextColor(RGB565(20, 40, 30));
   gfx->setTextSize(3);
+  gfx->setCursor(117, 37);
+  gfx->print("PLUS ULTRA");
+  gfx->setTextColor(DEKU_HERO_GREEN);
   gfx->setCursor(115, 35);
   gfx->print("PLUS ULTRA");
   
-  gfx->setTextSize(7);
+  // Time with shadow
+  gfx->setTextSize(8);
+  gfx->setTextColor(RGB565(20, 40, 30));
+  gfx->setCursor(37, 142);
+  gfx->print(timeStr);
   gfx->setTextColor(DEKU_FULL_COWL);
-  gfx->setCursor(50, 180);
+  gfx->setCursor(35, 140);
   gfx->print(timeStr);
   
+  // Seconds
+  gfx->setTextSize(3);
+  gfx->setTextColor(DEKU_OFA_LIGHTNING);
+  gfx->setCursor(310, 175);
+  gfx->printf("%02d", time.second);
+  
+  // Lightning arc
+  float secAngle = (time.second / 60.0) * 2 * PI - PI/2;
+  for (float a = -PI/2; a < secAngle; a += 0.04) {
+    int sx = centerX + cos(a) * 145;
+    int sy = centerY - 20 + sin(a) * 55;
+    gfx->fillCircle(sx, sy, 3, DEKU_OFA_LIGHTNING);
+  }
+  
+  // Tagline with current OFA percentage
   gfx->setTextColor(DEKU_ALLMIGHT_GOLD);
   gfx->setTextSize(2);
-  gfx->setCursor(130, 290);
-  gfx->print("Full Cowl: 45%");
+  gfx->setCursor(100, 270);
+  gfx->print("Full Cowl: 100%");
   
-  drawDekuActivityRings(LCD_WIDTH/2, 390);
-  drawBatteryIndicator();
-  drawStepCounter();
+  // === DATE SECTION ===
+  const char* days[] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
+  int dateY = 302;
+  gfx->setTextSize(2);
+  gfx->setTextColor(RGB565(120, 150, 130));
+  gfx->setCursor(centerX - 80, dateY);
+  gfx->printf("%s  %02d.%02d", days[time.weekday % 7], time.day, time.month);
+  
+  // === STATS CARDS ===
+  int cardY = 340;
+  int cardH = 55;
+  int cardW = 115;
+  int cardGap = 12;
+  int cardStartX = (LCD_WIDTH - (3 * cardW + 2 * cardGap)) / 2;
+  
+  // Steps card
+  gfx->fillRect(cardStartX, cardY, cardW, cardH, RGB565(15, 22, 18));
+  gfx->drawRect(cardStartX, cardY, cardW, cardH, DEKU_HERO_GREEN);
+  gfx->fillRect(cardStartX, cardY, 5, 5, DEKU_HERO_GREEN);
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(70, 120, 90));
+  gfx->setCursor(cardStartX + 10, cardY + 8);
+  gfx->print("STEPS");
+  gfx->setTextSize(2);
+  gfx->setTextColor(DEKU_HERO_GREEN);
+  gfx->setCursor(cardStartX + 10, cardY + 28);
+  gfx->printf("%d", system_state.steps_today);
+  
+  // OFA Power/Battery card
+  int card2X = cardStartX + cardW + cardGap;
+  int battPct = getBatteryPercentage();
+  system_state.battery_percentage = battPct;
+  uint16_t battColor = battPct > 20 ? DEKU_OFA_LIGHTNING : RGB565(255, 80, 80);
+  gfx->fillRect(card2X, cardY, cardW, cardH, RGB565(18, 18, 25));
+  gfx->drawRect(card2X, cardY, cardW, cardH, battColor);
+  gfx->fillRect(card2X, cardY, 5, 5, battColor);
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(80, 100, 150));
+  gfx->setCursor(card2X + 10, cardY + 8);
+  gfx->print("OFA");
+  gfx->setTextSize(2);
+  gfx->setTextColor(battColor);
+  gfx->setCursor(card2X + 10, cardY + 28);
+  gfx->printf("%d%%", battPct);
+  
+  // Quirks card
+  int card3X = card2X + cardW + cardGap;
+  gfx->fillRect(card3X, cardY, cardW, cardH, RGB565(22, 20, 15));
+  gfx->drawRect(card3X, cardY, cardW, cardH, DEKU_ALLMIGHT_GOLD);
+  gfx->fillRect(card3X, cardY, 5, 5, DEKU_ALLMIGHT_GOLD);
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(140, 120, 70));
+  gfx->setCursor(card3X + 10, cardY + 8);
+  gfx->print("QUIRKS");
+  gfx->setTextSize(2);
+  gfx->setTextColor(DEKU_ALLMIGHT_GOLD);
+  gfx->setCursor(card3X + 10, cardY + 28);
+  gfx->print("9/9");
+  
+  drawDekuActivityRings(centerX, 435);
 }
 
 void drawSleepWatchFace() {
@@ -1327,176 +2050,185 @@ void drawBoboiboyWatchFace() {
   
   WatchTime time = getCurrentTime();
   int centerX = LCD_WIDTH / 2;  // 205
-  int centerY = 180;  // Adjusted for taller display
+  int centerY = 200;  // Center for powerband display
   
-  // Element colors array
+  // Element colors array matching the Powerband icons
   uint16_t elementColors[] = {
-    BBB_LIGHTNING_YELLOW, BBB_WIND_BLUE, BBB_EARTH_BROWN,
-    BBB_FIRE_RED, BBB_WATER_CYAN, BBB_LEAF_GREEN, BBB_LIGHT_GOLD
+    BBB_LIGHTNING_YELLOW,  // Halilintar - Yellow
+    BBB_WIND_BLUE,         // Taufan - Cyan/Blue
+    BBB_EARTH_BROWN,       // Gempa - Brown
+    BBB_FIRE_RED,          // Blaze - Red/Orange
+    BBB_WATER_CYAN,        // Ice - Light Blue
+    BBB_LEAF_GREEN,        // Thorn - Green
+    BBB_LIGHT_GOLD         // Solar - Gold/Yellow
   };
   const char* elementNames[] = {
     "HALILINTAR", "TAUFAN", "GEMPA", "BLAZE", "ICE", "THORN", "SOLAR"
   };
   
-  // Use manually selected element (tap-to-switch) instead of auto-cycle
+  // Element icons/symbols (simplified representations)
+  const char* elementSymbols[] = {
+    "Z", "~", "#", "*", "+", "@", "O"  // Simplified element representations
+  };
+  
+  // Use manually selected element (tap-to-switch)
   int currentElement = getCurrentBoboiboyElement();
   uint16_t currentColor = elementColors[currentElement];
   
-  // === POWER BAND RING - Larger ===
-  // Outer ring with element color
-  for (int r = 155; r > 138; r -= 3) {
-    gfx->drawCircle(centerX, centerY - 10, r, currentColor);
+  // ============================================================================
+  // POWERBAND STYLE DESIGN - Circular with metallic frame
+  // ============================================================================
+  
+  // === OUTER METALLIC FRAME ===
+  // Gold/orange outer ring (like the Powerband frame)
+  for (int r = 155; r > 145; r--) {
+    uint8_t shade = map(r, 145, 155, 120, 200);
+    gfx->drawCircle(centerX, centerY, r, RGB565(shade, shade/2, 20));
   }
   
-  // Inner glow effect
-  for (int r = 132; r > 115; r -= 5) {
-    uint8_t alpha = map(r, 115, 132, 10, 40);
-    gfx->drawCircle(centerX, centerY - 10, r, RGB565(alpha, alpha, alpha + 10));
+  // Silver/grey inner frame
+  for (int r = 144; r > 138; r--) {
+    uint8_t shade = map(r, 138, 144, 80, 140);
+    gfx->drawCircle(centerX, centerY, r, RGB565(shade, shade, shade + 20));
   }
   
-  // === ELEMENT INDICATOR - Larger dots ===
-  // Draw 7 element dots around the ring
+  // === INNER GLOWING CIRCLE (cyan/blue like in images) ===
+  // Fill the inner circle with cyan glow
+  for (int r = 137; r > 0; r--) {
+    uint8_t cyan_r = map(r, 0, 137, 30, 80);
+    uint8_t cyan_g = map(r, 0, 137, 80, 180);
+    uint8_t cyan_b = map(r, 0, 137, 100, 220);
+    gfx->drawCircle(centerX, centerY, r, RGB565(cyan_r, cyan_g, cyan_b));
+  }
+  
+  // Central yellow/orange glow ring (when active)
+  for (int r = 55; r > 35; r--) {
+    uint8_t glow = map(r, 35, 55, 200, 100);
+    gfx->drawCircle(centerX, centerY, r, RGB565(glow, glow/2, 10));
+  }
+  
+  // === 7 ELEMENT ICONS IN CIRCLE ===
+  // Draw element icons arranged like the Powerband
+  float iconRadius = 95;  // Distance from center
   for (int i = 0; i < 7; i++) {
-    float angle = (i * 51.4 - 90) * PI / 180.0;  // 360/7 = ~51.4 degrees
-    int dotX = centerX + cos(angle) * 150;
-    int dotY = centerY - 10 + sin(angle) * 60;
+    // Arrange icons in a circle starting from top
+    float angle = (i * (360.0 / 7) - 90) * PI / 180.0;
+    int iconX = centerX + cos(angle) * iconRadius;
+    int iconY = centerY + sin(angle) * iconRadius;
     
+    // Icon background circle
     if (i == currentElement) {
-      // Active element - filled and larger
-      gfx->fillCircle(dotX, dotY, 10, elementColors[i]);
-      gfx->drawCircle(dotX, dotY, 12, COLOR_WHITE);
+      // Active element - larger with white glow
+      gfx->fillCircle(iconX, iconY, 22, RGB565(40, 50, 60));
+      gfx->fillCircle(iconX, iconY, 18, elementColors[i]);
+      gfx->drawCircle(iconX, iconY, 23, COLOR_WHITE);
+      gfx->drawCircle(iconX, iconY, 24, COLOR_WHITE);
+      
+      // Draw element symbol in center
+      gfx->setTextColor(COLOR_WHITE);
+      gfx->setTextSize(2);
+      gfx->setCursor(iconX - 6, iconY - 7);
+      gfx->print(elementSymbols[i]);
     } else {
-      // Inactive - smaller outline
-      gfx->drawCircle(dotX, dotY, 6, elementColors[i]);
+      // Inactive element - smaller, muted
+      gfx->fillCircle(iconX, iconY, 15, RGB565(30, 35, 45));
+      gfx->fillCircle(iconX, iconY, 12, elementColors[i]);
+      
+      // Draw element symbol
+      gfx->setTextColor(RGB565(200, 200, 200));
+      gfx->setTextSize(1);
+      gfx->setCursor(iconX - 3, iconY - 4);
+      gfx->print(elementSymbols[i]);
     }
   }
   
-  // === TIME DISPLAY - Larger ===
+  // === CENTER LIGHTNING BOLT (Powerband signature) ===
+  // Draw a stylized lightning bolt in center
+  int boltX = centerX;
+  int boltY = centerY;
+  gfx->fillTriangle(boltX - 5, boltY - 15, boltX + 10, boltY - 5, boltX - 2, boltY, BBB_LIGHTNING_YELLOW);
+  gfx->fillTriangle(boltX + 2, boltY, boltX - 10, boltY + 5, boltX + 5, boltY + 15, BBB_LIGHTNING_YELLOW);
+  
+  // === TIME DISPLAY - Above the Powerband ===
   char hourStr[3], minStr[3];
   sprintf(hourStr, "%02d", time.hour);
   sprintf(minStr, "%02d", time.minute);
   
-  int timeY = 110;
+  int timeY = 25;
   
-  // Glow effect with current element color
-  gfx->setTextSize(10);
+  // Shadow
+  gfx->setTextSize(6);
   gfx->setTextColor(RGB565(30, 25, 20));
-  gfx->setCursor(15, timeY);
+  gfx->setCursor(centerX - 95 + 2, timeY + 2);
   gfx->print(hourStr);
-  gfx->setCursor(215, timeY);
+  gfx->print(":");
   gfx->print(minStr);
   
   // Main time
   gfx->setTextColor(COLOR_WHITE);
-  gfx->setCursor(18, timeY);
+  gfx->setCursor(centerX - 95, timeY);
   gfx->print(hourStr);
-  gfx->setCursor(218, timeY);
+  gfx->setTextColor(currentColor);
+  gfx->print(":");
+  gfx->setTextColor(COLOR_WHITE);
   gfx->print(minStr);
   
-  // Animated colon with element color - larger
-  int colonX = 200;
-  int colonY = timeY + 40;
-  float pulse = 0.5 + 0.5 * sin(millis() / 250.0);
-  uint8_t colAlpha = 150 + pulse * 105;
-  gfx->fillCircle(colonX, colonY - 20, 7, currentColor);
-  gfx->fillCircle(colonX, colonY + 20, 7, currentColor);
+  // Seconds
+  gfx->setTextSize(2);
+  gfx->setTextColor(currentColor);
+  gfx->setCursor(centerX + 78, timeY + 20);
+  gfx->printf("%02d", time.second);
   
-  // Seconds arc - larger radius
-  float secAngle = (time.second / 60.0) * 2 * PI - PI/2;
-  for (float a = -PI/2; a < secAngle; a += 0.04) {
-    int sx = centerX + cos(a) * 128;
-    int sy = centerY - 10 + sin(a) * 55;
-    gfx->fillCircle(sx, sy, 3, currentColor);
-  }
+  // === ELEMENT NAME BADGE ===
+  int badgeY = 360;
+  int badgeW = 200;
+  gfx->fillRect(centerX - badgeW/2, badgeY, badgeW, 40, RGB565(15, 18, 25));
+  gfx->drawRect(centerX - badgeW/2, badgeY, badgeW, 40, currentColor);
+  gfx->fillRect(centerX - badgeW/2, badgeY, 6, 6, currentColor);
+  gfx->fillRect(centerX + badgeW/2 - 6, badgeY, 6, 6, currentColor);
   
-  // === ELEMENT NAME BADGE - Wider ===
-  int badgeY = 265;
-  int badgeW = 180;
-  gfx->fillRect(centerX - badgeW/2, badgeY, badgeW, 35, RGB565(20, 22, 28));
-  gfx->drawRect(centerX - badgeW/2, badgeY, badgeW, 35, currentColor);
-  gfx->fillRect(centerX - badgeW/2, badgeY, 5, 5, currentColor);
-  
+  // Element name
   gfx->setTextColor(currentColor);
   gfx->setTextSize(3);
   int nameLen = strlen(elementNames[currentElement]) * 18;
-  gfx->setCursor(centerX - nameLen/2, badgeY + 6);
+  gfx->setCursor(centerX - nameLen/2, badgeY + 8);
   gfx->print(elementNames[currentElement]);
   
-  // === DATE SECTION - Larger ===
+  // === DATE & STATS ROW ===
   const char* days[] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
-  int dateY = 315;
+  int statsY = 410;
   
-  gfx->setTextSize(2);
+  // Date
+  gfx->setTextSize(1);
   gfx->setTextColor(RGB565(150, 150, 160));
-  char dateStr[20];
-  sprintf(dateStr, "%s  %02d.%02d.%04d", days[time.weekday % 7], time.day, time.month, time.year);
-  gfx->setCursor(centerX - 90, dateY);
-  gfx->print(dateStr);
+  gfx->setCursor(30, statsY);
+  gfx->printf("%s %02d.%02d", days[time.weekday % 7], time.day, time.month);
   
-  // === STATS CARDS - Larger ===
-  int cardY = 355;
-  int cardH = 58;
-  int cardW = 120;
-  int cardGap = 12;
-  int cardStartX = (LCD_WIDTH - (3 * cardW + 2 * cardGap)) / 2;
+  // Steps
+  gfx->setTextColor(BBB_LEAF_GREEN);
+  gfx->setCursor(130, statsY);
+  gfx->printf("STEPS: %d", system_state.steps_today);
   
-  // Power card
-  gfx->fillRect(cardStartX, cardY, cardW, cardH, RGB565(20, 15, 10));
-  gfx->drawRect(cardStartX, cardY, cardW, cardH, BBB_BAND_ORANGE);
-  gfx->fillRect(cardStartX, cardY, 5, 5, BBB_BAND_ORANGE);
-  gfx->setTextSize(1);
-  gfx->setTextColor(BBB_BAND_ORANGE);
-  gfx->setCursor(cardStartX + 12, cardY + 10);
-  gfx->print("POWER");
-  gfx->setTextSize(2);
-  gfx->setTextColor(BBB_BAND_GLOW);
-  gfx->setCursor(cardStartX + 12, cardY + 30);
-  gfx->printf("%d%%", 100);
-  
-  // Steps card
-  int card2X = cardStartX + cardW + cardGap;
-  gfx->fillRect(card2X, cardY, cardW, cardH, RGB565(15, 20, 15));
-  gfx->drawRect(card2X, cardY, cardW, cardH, BBB_LEAF_GREEN);
-  gfx->fillRect(card2X, cardY, 5, 5, BBB_LEAF_GREEN);
-  gfx->setTextSize(1);
-  gfx->setTextColor(RGB565(100, 160, 100));
-  gfx->setCursor(card2X + 12, cardY + 10);
-  gfx->print("STEPS");
-  gfx->setTextSize(2);
-  gfx->setTextColor(RGB565(150, 230, 150));
-  gfx->setCursor(card2X + 12, cardY + 30);
-  gfx->printf("%d", system_state.steps_today);
-  
-  // Battery card - FIX: Use actual PMU reading
-  int card3X = card2X + cardW + cardGap;
-  int battPct = getBatteryPercentage();  // Read from AXP2101 PMU
-  system_state.battery_percentage = battPct;  // Update cached value
+  // Battery with percentage
+  int battPct = getBatteryPercentage();
+  system_state.battery_percentage = battPct;
   uint16_t battColor = battPct > 20 ? BBB_WIND_BLUE : BBB_FIRE_RED;
-  gfx->fillRect(card3X, cardY, cardW, cardH, RGB565(15, 18, 22));
-  gfx->drawRect(card3X, cardY, cardW, cardH, battColor);
-  gfx->fillRect(card3X, cardY, 5, 5, battColor);
-  gfx->setTextSize(1);
-  gfx->setTextColor(RGB565(80, 120, 160));
-  gfx->setCursor(card3X + 12, cardY + 10);
-  gfx->print("BATTERY");
-  gfx->setTextSize(2);
   gfx->setTextColor(battColor);
-  gfx->setCursor(card3X + 12, cardY + 30);
-  gfx->printf("%d%%", battPct);
+  gfx->setCursor(280, statsY);
+  gfx->printf("PWR: %d%%", battPct);
   
-  // === ACTIVITY RINGS - positioned for taller display ===
-  drawBoboiboyActivityRings(centerX, 450);
+  // === ACTIVITY RINGS ===
+  drawBoboiboyActivityRings(centerX, 465);
   
   // === OCHOBOT ASSISTANT ===
-  // Draw Ochobot in corner
   if (ochobot_pos.visible) {
-    drawOchobot(LCD_WIDTH - 50, 75, OCHOBOT_IDLE, 0.9);
+    drawOchobot(LCD_WIDTH - 50, 75, OCHOBOT_IDLE, 0.8);
   }
   
   // === TAP HINT ===
   gfx->setTextColor(RGB565(80, 85, 95));
   gfx->setTextSize(1);
-  gfx->setCursor(centerX - 65, 480);
+  gfx->setCursor(centerX - 65, 485);
   gfx->print("Tap center to switch!");
 }
 
@@ -1511,6 +2243,23 @@ void drawYugoPortals() {
   gfx->drawCircle(LCD_WIDTH - 70, 110, 30, YUGO_WAKFU_ENERGY);
 }
 
+// Enhanced effect functions for improved watchfaces
+void drawYugoPortalEffects() {
+  // Left portal with multiple rings
+  for (int r = 30; r <= 45; r += 5) {
+    gfx->drawCircle(70, 100, r, YUGO_PORTAL_CYAN);
+  }
+  gfx->fillCircle(70, 100, 20, RGB565(20, 60, 70));
+  gfx->fillCircle(70, 100, 12, YUGO_WAKFU_ENERGY);
+  
+  // Right portal
+  for (int r = 30; r <= 45; r += 5) {
+    gfx->drawCircle(LCD_WIDTH - 70, 100, r, YUGO_PORTAL_CYAN);
+  }
+  gfx->fillCircle(LCD_WIDTH - 70, 100, 20, RGB565(20, 60, 70));
+  gfx->fillCircle(LCD_WIDTH - 70, 100, 12, YUGO_WAKFU_ENERGY);
+}
+
 void drawNarutoSageAura() {
   int cx = LCD_WIDTH / 2;
   int cy = LCD_HEIGHT / 2 - 60;
@@ -1519,12 +2268,37 @@ void drawNarutoSageAura() {
   }
 }
 
+void drawNarutoSageAuraEnhanced() {
+  int cx = LCD_WIDTH / 2;
+  int cy = 120;
+  // Chakra aura with gradient effect
+  for (int r = 50; r < 85; r += 4) {
+    uint8_t alpha = map(r, 50, 85, 40, 15);
+    gfx->drawCircle(cx, cy, r, RGB565(alpha * 3, alpha, 0));
+  }
+  // Sage eye marks
+  gfx->fillRect(cx - 50, 75, 8, 20, NARUTO_SAGE_GOLD);
+  gfx->fillRect(cx + 42, 75, 8, 20, NARUTO_SAGE_GOLD);
+}
+
 void drawGokuUIAura() {
   int cx = LCD_WIDTH / 2;
   int cy = 140;
   for (int r = 60; r < 85; r += 4) {
     gfx->drawCircle(cx, cy, r, GOKU_SILVER_GLOW);
   }
+}
+
+void drawGokuUIAuraEnhanced() {
+  int cx = LCD_WIDTH / 2;
+  int cy = 120;
+  // Silver divine aura
+  for (int r = 45; r < 80; r += 3) {
+    uint8_t alpha = map(r, 45, 80, 50, 15);
+    gfx->drawCircle(cx, cy, r, RGB565(alpha, alpha + 5, alpha + 10));
+  }
+  // Inner glow
+  gfx->fillCircle(cx, cy, 35, RGB565(15, 18, 25));
 }
 
 void drawGokuSpeedLines() {
@@ -1543,6 +2317,19 @@ void drawTanjiroSunFlames() {
   }
 }
 
+void drawTanjiroSunFlamesEnhanced() {
+  // Sun flames across the top
+  for (int i = 0; i < 9; i++) {
+    int x = 30 + i * 42;
+    int y = 75;
+    int h = 25 + (i % 2) * 10;
+    // Outer flame (orange)
+    gfx->fillTriangle(x, y, x - 10, y + h, x + 10, y + h, TANJIRO_FIRE_ORANGE);
+    // Inner flame (bright)
+    gfx->fillTriangle(x, y + 8, x - 5, y + h - 3, x + 5, y + h - 3, TANJIRO_FLAME_GLOW);
+  }
+}
+
 void drawGojoInfinityAura() {
   int cx = LCD_WIDTH / 2;
   int cy = 140;
@@ -1551,9 +2338,34 @@ void drawGojoInfinityAura() {
   }
 }
 
+void drawGojoInfinityAuraEnhanced() {
+  int cx = LCD_WIDTH / 2;
+  int cy = 120;
+  // Infinity void effect
+  for (int r = 40; r < 75; r += 3) {
+    uint8_t alpha = map(r, 40, 75, 60, 15);
+    gfx->drawCircle(cx, cy, r, RGB565(alpha/3, alpha/2, alpha));
+  }
+  // Central void
+  gfx->fillCircle(cx, cy, 30, RGB565(5, 8, 15));
+}
+
 void drawGojoSixEyesGlow() {
   gfx->fillCircle(LCD_WIDTH / 2 - 25, 60, 10, GOJO_SIX_EYES_BLUE);
   gfx->fillCircle(LCD_WIDTH / 2 + 25, 60, 10, GOJO_SIX_EYES_BLUE);
+}
+
+void drawGojoSixEyesGlowEnhanced() {
+  // Six Eyes with glow effect
+  int eyeY = 85;
+  // Left eye
+  gfx->fillCircle(LCD_WIDTH/2 - 30, eyeY, 14, RGB565(10, 20, 40));
+  gfx->fillCircle(LCD_WIDTH/2 - 30, eyeY, 10, GOJO_SIX_EYES_BLUE);
+  gfx->fillCircle(LCD_WIDTH/2 - 30, eyeY, 5, RGB565(200, 230, 255));
+  // Right eye
+  gfx->fillCircle(LCD_WIDTH/2 + 30, eyeY, 14, RGB565(10, 20, 40));
+  gfx->fillCircle(LCD_WIDTH/2 + 30, eyeY, 10, GOJO_SIX_EYES_BLUE);
+  gfx->fillCircle(LCD_WIDTH/2 + 30, eyeY, 5, RGB565(200, 230, 255));
 }
 
 void drawLeviBladeShine() {
@@ -1561,11 +2373,61 @@ void drawLeviBladeShine() {
   gfx->drawLine(LCD_WIDTH - 35, 85, LCD_WIDTH - 60, 150, LEVI_SILVER_BLADE);
 }
 
+void drawLeviWingsEffect() {
+  // Survey Corps Wings of Freedom
+  int cx = LCD_WIDTH / 2;
+  // Left wing (white)
+  gfx->fillTriangle(cx - 15, 95, cx - 60, 70, cx - 45, 110, RGB565(200, 200, 210));
+  gfx->fillTriangle(cx - 55, 75, cx - 85, 60, cx - 70, 100, RGB565(180, 180, 190));
+  // Right wing (blue)
+  gfx->fillTriangle(cx + 15, 95, cx + 60, 70, cx + 45, 110, RGB565(60, 100, 160));
+  gfx->fillTriangle(cx + 55, 75, cx + 85, 60, cx + 70, 100, RGB565(50, 80, 140));
+}
+
+void drawLeviBladeShineEnhanced() {
+  // Dual blades with shine effect
+  // Left blade
+  gfx->drawLine(30, 75, 55, 130, LEVI_SILVER_BLADE);
+  gfx->drawLine(31, 75, 56, 130, RGB565(200, 200, 210));
+  gfx->drawLine(32, 76, 55, 128, RGB565(255, 255, 255));
+  // Right blade
+  gfx->drawLine(LCD_WIDTH - 30, 75, LCD_WIDTH - 55, 130, LEVI_SILVER_BLADE);
+  gfx->drawLine(LCD_WIDTH - 31, 75, LCD_WIDTH - 56, 130, RGB565(200, 200, 210));
+  gfx->drawLine(LCD_WIDTH - 32, 76, LCD_WIDTH - 55, 128, RGB565(255, 255, 255));
+}
+
+void drawSaitamaImpactLines() {
+  // Impact lines radiating from center
+  int cx = LCD_WIDTH / 2;
+  int cy = 160;
+  for (int i = 0; i < 16; i++) {
+    float angle = (i * 22.5) * PI / 180.0;
+    int x1 = cx + cos(angle) * 60;
+    int y1 = cy + sin(angle) * 30;
+    int x2 = cx + cos(angle) * 180;
+    int y2 = cy + sin(angle) * 90;
+    gfx->drawLine(x1, y1, x2, y2, RGB565(40, 35, 30));
+  }
+}
+
 void drawDekuOFALightning() {
   for (int i = 0; i < 7; i++) {
     int x1 = random(35, LCD_WIDTH - 35);
     int y1 = random(55, 110);
     gfx->drawLine(x1, y1, x1 + random(-25, 25), y1 + random(25, 50), DEKU_OFA_LIGHTNING);
+  }
+}
+
+void drawDekuOFALightningEnhanced() {
+  // Full Cowl lightning effect around the screen
+  for (int i = 0; i < 10; i++) {
+    int x1 = 30 + (i * 38);
+    int y1 = 70 + (i % 3) * 15;
+    // Main bolt
+    gfx->drawLine(x1, y1, x1 + 15, y1 + 25, DEKU_OFA_LIGHTNING);
+    gfx->drawLine(x1 + 15, y1 + 25, x1 + 5, y1 + 40, DEKU_OFA_LIGHTNING);
+    // Glow
+    gfx->drawLine(x1 + 1, y1, x1 + 16, y1 + 25, DEKU_FULL_COWL);
   }
 }
 
@@ -2022,6 +2884,113 @@ void drawCharacterStatsScreen() {
   gfx->print("SIGNATURE: ");
   gfx->setTextColor(theme->accent);
   gfx->print(profile->signature_move);
+  
+  // ============================================================================
+  // CHARACTER SPECIAL ABILITY BOX - Fills empty space
+  // ============================================================================
+  int abilityY = moveY + 25;
+  int abilityH = 65;
+  
+  gfx->fillRect(30, abilityY, LCD_WIDTH - 60, abilityH, RGB565(12, 10, 18));
+  gfx->drawRect(30, abilityY, LCD_WIDTH - 60, abilityH, theme->primary);
+  gfx->fillRect(30, abilityY, 5, 5, theme->accent);
+  gfx->fillRect(LCD_WIDTH - 35, abilityY, 5, 5, theme->accent);
+  
+  // Ability label
+  gfx->setTextColor(theme->primary);
+  gfx->setTextSize(1);
+  gfx->setCursor(40, abilityY + 8);
+  gfx->print(">> SPECIAL ABILITY <<");
+  
+  // Ability description based on character
+  gfx->setTextColor(COLOR_WHITE);
+  gfx->setCursor(40, abilityY + 25);
+  
+  switch(system_state.current_theme) {
+    case THEME_LUFFY_GEAR5:
+      gfx->print("Toon Force: Reality bends to joy");
+      gfx->setCursor(40, abilityY + 40);
+      gfx->setTextColor(LUFFY_SUN_GOLD);
+      gfx->print("Conqueror's Haki: King's ambition");
+      break;
+    case THEME_SUNG_JINWOO:
+      gfx->print("Shadow Extraction: Arise the dead");
+      gfx->setCursor(40, abilityY + 40);
+      gfx->setTextColor(JINWOO_ARISE_GLOW);
+      gfx->print("Ruler's Authority: Telekinesis");
+      break;
+    case THEME_YUGO_WAKFU:
+      gfx->print("Portal Creation: Dimension travel");
+      gfx->setCursor(40, abilityY + 40);
+      gfx->setTextColor(YUGO_WAKFU_ENERGY);
+      gfx->print("Wakfu Manipulation: Life energy");
+      break;
+    case THEME_NARUTO_SAGE:
+      gfx->print("Sage Mode: Nature energy fusion");
+      gfx->setCursor(40, abilityY + 40);
+      gfx->setTextColor(NARUTO_KURAMA_FLAME);
+      gfx->print("Kurama Link: Nine-tails chakra");
+      break;
+    case THEME_GOKU_UI:
+      gfx->print("Ultra Instinct: Body moves alone");
+      gfx->setCursor(40, abilityY + 40);
+      gfx->setTextColor(GOKU_KI_BLAST_BLUE);
+      gfx->print("Ki Mastery: Limitless energy");
+      break;
+    case THEME_TANJIRO_SUN:
+      gfx->print("Sun Breathing: 13 forms mastered");
+      gfx->setCursor(40, abilityY + 40);
+      gfx->setTextColor(TANJIRO_WATER_BLUE);
+      gfx->print("Demon Slayer Mark: Power boost");
+      break;
+    case THEME_GOJO_INFINITY:
+      gfx->print("Infinity: Untouchable barrier");
+      gfx->setCursor(40, abilityY + 40);
+      gfx->setTextColor(GOJO_HOLLOW_PURPLE);
+      gfx->print("Domain: Unlimited Void");
+      break;
+    case THEME_LEVI_STRONGEST:
+      gfx->print("ODM Mastery: Unmatched mobility");
+      gfx->setCursor(40, abilityY + 40);
+      gfx->setTextColor(LEVI_SILVER_BLADE);
+      gfx->print("Ackerman Power: Superhuman");
+      break;
+    case THEME_SAITAMA_OPM:
+      gfx->print("One Punch: Infinite strength");
+      gfx->setCursor(40, abilityY + 40);
+      gfx->setTextColor(SAITAMA_CAPE_RED);
+      gfx->print("Limiter Broken: No ceiling");
+      break;
+    case THEME_DEKU_PLUSULTRA:
+      gfx->print("One For All: 9 quirks combined");
+      gfx->setCursor(40, abilityY + 40);
+      gfx->setTextColor(DEKU_OFA_LIGHTNING);
+      gfx->print("Full Cowl: Body reinforcement");
+      break;
+    case THEME_BOBOIBOY:
+      gfx->print("Elemental Split: 7 forms active");
+      gfx->setCursor(40, abilityY + 40);
+      gfx->setTextColor(BBB_BAND_ORANGE);
+      gfx->print("Fusion: Combine elements");
+      break;
+    default:
+      gfx->print("Special powers unlocked!");
+      break;
+  }
+  
+  // ============================================================================
+  // CATCHPHRASE BOX
+  // ============================================================================
+  int catchY = abilityY + abilityH + 10;
+  gfx->fillRect(30, catchY, LCD_WIDTH - 60, 30, RGB565(15, 12, 8));
+  gfx->drawRect(30, catchY, LCD_WIDTH - 60, 30, RGB565(100, 80, 40));
+  
+  gfx->setTextColor(RGB565(200, 180, 100));
+  gfx->setTextSize(1);
+  gfx->setCursor(40, catchY + 10);
+  gfx->print("\"");
+  gfx->print(profile->catchphrase);
+  gfx->print("\"");
   
   // ============================================================================
   // NAVIGATION HINT
@@ -2701,7 +3670,7 @@ void handleProgressionTouch(TouchGesture& gesture) {
         // Check if this title index is valid
         if (titleIdx >= title_count) break;
         
-        // Get title list
+        // Get title list - FIXED: Handle ALL character themes
         Title* titles;
         switch(system_state.current_theme) {
           case THEME_LUFFY_GEAR5:
@@ -2712,6 +3681,30 @@ void handleProgressionTouch(TouchGesture& gesture) {
             break;
           case THEME_SUNG_JINWOO:
             titles = JINWOO_TITLE_LIST;
+            break;
+          case THEME_GOJO_INFINITY:
+            titles = GOJO_TITLE_LIST;
+            break;
+          case THEME_NARUTO_SAGE:
+            titles = NARUTO_TITLE_LIST;
+            break;
+          case THEME_GOKU_UI:
+            titles = GOKU_TITLE_LIST;
+            break;
+          case THEME_SAITAMA_OPM:
+            titles = SAITAMA_TITLE_LIST;
+            break;
+          case THEME_TANJIRO_SUN:
+            titles = TANJIRO_TITLE_LIST;
+            break;
+          case THEME_LEVI_STRONGEST:
+            titles = LEVI_TITLE_LIST;
+            break;
+          case THEME_DEKU_PLUSULTRA:
+            titles = DEKU_TITLE_LIST;
+            break;
+          case THEME_BOBOIBOY:
+            titles = BOBOIBOY_TITLE_LIST;
             break;
           default:
             titles = GENERIC_TITLE_LIST;
@@ -2909,9 +3902,23 @@ void handleThemeSelectorTouch(TouchGesture& gesture) {
         ThemeType newTheme = (ThemeType)i;
         playThemeTransition(newTheme);  // Play cool animation
         setTheme(newTheme);
+        
+        // CRITICAL: Load XP data for the new character to fix title bug
+        loadXPDataForTheme(newTheme);
+        
+        // Update system_state with loaded character's level
+        CharacterXPData* char_xp = getCurrentCharacterXP();
+        if (char_xp) {
+          system_state.player_level = char_xp->level;
+          system_state.player_xp = char_xp->xp;
+        }
+        
         saveAllGameData();  // Save theme to NVS
-        system_state.current_screen = SCREEN_WATCHFACE;  // Go to watch face
-        drawWatchFace();
+        
+        // Reboot watch to ensure all systems update properly
+        Serial.println("[THEME] Theme changed - initiating reboot for full system update");
+        delay(500);
+        ESP.restart();
         return;
       }
     }
@@ -2932,9 +3939,23 @@ void handleThemeSelectorTouch(TouchGesture& gesture) {
       if (x >= tx && x < tx + 155 && y >= ty && y < ty + 90) {
         playThemeTransition(types[i]);  // Play cool animation
         setTheme(types[i]);
+        
+        // CRITICAL: Load XP data for the new character to fix title bug
+        loadXPDataForTheme(types[i]);
+        
+        // Update system_state with loaded character's level
+        CharacterXPData* char_xp = getCurrentCharacterXP();
+        if (char_xp) {
+          system_state.player_level = char_xp->level;
+          system_state.player_xp = char_xp->xp;
+        }
+        
         saveAllGameData();  // Save theme to NVS
-        system_state.current_screen = SCREEN_WATCHFACE;  // Go to watch face
-        drawWatchFace();
+        
+        // Reboot watch to ensure all systems update properly
+        Serial.println("[THEME] Theme changed - initiating reboot for full system update");
+        delay(500);
+        ESP.restart();
         return;
       }
     }
