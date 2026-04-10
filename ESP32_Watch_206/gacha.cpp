@@ -1,3 +1,4 @@
+
 /*
  * gacha.cpp - Gacha Collection System Implementation
  * Complete collectible card game with gem economy
@@ -23,6 +24,16 @@ extern SystemState system_state;
 GachaCard gacha_cards[GACHA_TOTAL_CARDS];
 bool cards_owned[GACHA_TOTAL_CARDS];
 int cards_duplicates[GACHA_TOTAL_CARDS];
+
+// =============================================================================
+// COLLECTION BROWSER STATE - Swipe-based card viewing
+// =============================================================================
+static int collection_view_index = 0;      // Current card being viewed
+static int collection_filter = 0;          // 0=ALL, 1-5=rarity filter (by star count)
+static int collection_sort = 0;            // 0=Rarity, 1=Power, 2=Name, 3=Series
+static int filtered_cards[GACHA_TOTAL_CARDS]; // Filtered card indices
+static int filtered_count = 0;             // Number of cards after filter
+static bool collection_needs_rebuild = true; // Flag to rebuild filtered list
 
 // Series names
 const char* GACHA_SERIES_NAMES[10] = {
@@ -522,6 +533,8 @@ void addCardToCollection(GachaCard& card) {
         Serial.printf("[Gacha] Duplicate: %s (x%d)\n", card.character_name.c_str(), cards_duplicates[i]);
       }
       
+            collection_needs_rebuild = true;  // Force collection to refresh with new card
+
       checkCollectionRewards();
       return;
     }
@@ -600,6 +613,65 @@ int getPowerRange(GachaRarity rarity, bool max) {
     {7001, 9999}    // Mythic
   };
   return ranges[(int)rarity][max ? 1 : 0];
+}
+
+// =============================================================================
+// COLLECTION BROWSER - Build filtered card list for swipe navigation
+// =============================================================================
+
+void buildFilteredCardList() {
+    filtered_count = 0;
+    
+    for (int i = 0; i < GACHA_TOTAL_CARDS; i++) {
+        // Only show owned cards
+        if (!cards_owned[i]) continue;
+        
+        // Apply rarity filter (0 = ALL, 1-5 = specific star count)
+        if (collection_filter > 0) {
+            int card_stars = getRarityStars(gacha_cards[i].rarity);
+            if (card_stars != collection_filter) continue;
+        }
+        
+        filtered_cards[filtered_count] = i;
+        filtered_count++;
+    }
+    
+    // Sort the filtered list
+    for (int i = 0; i < filtered_count - 1; i++) {
+        for (int j = i + 1; j < filtered_count; j++) {
+            bool swap = false;
+            int a = filtered_cards[i];
+            int b = filtered_cards[j];
+            
+            switch (collection_sort) {
+                case 0: // Sort by Rarity (highest first)
+                    swap = gacha_cards[a].rarity < gacha_cards[b].rarity;
+                    break;
+                case 1: // Sort by Power (highest first)
+                    swap = gacha_cards[a].power_rating < gacha_cards[b].power_rating;
+                    break;
+                case 2: // Sort by Name (A-Z)
+                    swap = gacha_cards[a].character_name > gacha_cards[b].character_name;
+                    break;
+                case 3: // Sort by Series (A-Z)
+                    swap = gacha_cards[a].series > gacha_cards[b].series;
+                    break;
+            }
+            
+            if (swap) {
+                int temp = filtered_cards[i];
+                filtered_cards[i] = filtered_cards[j];
+                filtered_cards[j] = temp;
+            }
+        }
+    }
+    
+    // Reset view index if out of bounds
+    if (collection_view_index >= filtered_count) {
+        collection_view_index = max(0, filtered_count - 1);
+    }
+    
+    collection_needs_rebuild = false;
 }
 
 // =============================================================================
@@ -1092,82 +1164,304 @@ void drawCardGlow(int x, int y, int w, int h, GachaRarity rarity) {
 
 void drawGachaCollection() {
   // ========================================
-  // RETRO ANIME COLLECTION - CRT Style
+  // IMPROVED SWIPE-BASED CARD COLLECTION UI
+  // Features: Large card view, swipe navigation, filter by rarity, sort options
   // ========================================
+  
+  // Rebuild filtered list if needed
+  if (collection_needs_rebuild) {
+      buildFilteredCardList();
+  }
+  
   gfx->fillScreen(RGB565(2, 2, 5));
   
+  // CRT scan lines
   for (int y = 0; y < LCD_HEIGHT; y += 4) {
-    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+      gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
   }
   
   ThemeColors* theme = getCurrentTheme();
   
-  // Retro header
-  gfx->fillRect(0, 0, LCD_WIDTH, 48, RGB565(10, 12, 18));
+  // === HEADER ===
+  gfx->fillRect(0, 0, LCD_WIDTH, 50, RGB565(10, 12, 18));
   for (int x = 0; x < LCD_WIDTH; x += 8) {
-    gfx->fillRect(x, 46, 6, 3, theme->accent);
+      gfx->fillRect(x, 48, 6, 3, theme->accent);
   }
   
+  // Title with swipe indicators
   gfx->setTextSize(2);
   gfx->setTextColor(theme->primary);
-  gfx->setCursor(LCD_WIDTH/2 - 60, 14);
+  gfx->setCursor(LCD_WIDTH/2 - 60, 8);
   gfx->print("COLLECTION");
   
-  // Progress
-  gfx->setTextColor(RGB565(120, 130, 150));
+  // Progress counter
   gfx->setTextSize(1);
-  gfx->setCursor(LCD_WIDTH/2 - 40, 55);
-  gfx->printf("%d / %d cards", getCardsOwned(), getTotalCards());
+  gfx->setTextColor(RGB565(150, 155, 170));
+  gfx->setCursor(LCD_WIDTH/2 - 45, 32);
+  gfx->printf("%d / %d cards owned", getCardsOwned(), getTotalCards());
   
-  // Card grid - 3x4 small cards - retro style
-  int cardW = 100, cardH = 80;
-  int startX = 25, startY = 70;
-  int spacing = 10;
+  // === FILTER TABS ===
+  int filterY = 55;
+  int tabW = 58;
+  int tabSpacing = 5;
+  int filterStartX = (LCD_WIDTH - (6 * tabW + 5 * tabSpacing)) / 2;
   
-  for (int i = 0; i < 12; i++) {
-    int col = i % 3;
-    int row = i / 3;
-    int x = startX + col * (cardW + spacing);
-    int y = startY + row * (cardH + spacing);
-    
-    if (i < GACHA_TOTAL_CARDS && cards_owned[i]) {
-      // Owned card - retro style with pixel corners
-      gfx->fillRect(x, y, cardW, cardH, RGB565(15, 18, 25));
-      gfx->fillRect(x, y, 4, 4, gacha_cards[i].card_color);
-      gfx->fillRect(x + cardW - 4, y, 4, 4, gacha_cards[i].card_color);
-      gfx->fillRect(x, y + cardH - 4, 4, 4, gacha_cards[i].card_color);
-      gfx->fillRect(x + cardW - 4, y + cardH - 4, 4, 4, gacha_cards[i].card_color);
-      gfx->drawRect(x, y, cardW, cardH, getRarityBorderColor(gacha_cards[i].rarity));
+  const char* filterLabels[] = {"ALL", "*", "**", "***", "****", "*****"};
+  uint16_t filterColors[] = {
+      RGB565(100, 105, 120),  // ALL - Gray
+      RGB565(150, 150, 160),  // Common - Light gray
+      RGB565(30, 144, 255),   // Rare - Blue
+      RGB565(160, 32, 240),   // Epic - Purple
+      RGB565(255, 215, 0),    // Legendary - Gold
+      RGB565(255, 100, 200)   // Mythic - Pink
+  };
+  
+  for (int f = 0; f < 6; f++) {
+      int fx = filterStartX + f * (tabW + tabSpacing);
+      bool selected = (collection_filter == f);
       
-      gfx->setTextColor(COLOR_WHITE);
+      if (selected) {
+          gfx->fillRect(fx, filterY, tabW, 22, RGB565(25, 28, 35));
+          gfx->drawRect(fx, filterY, tabW, 22, filterColors[f]);
+          gfx->fillRect(fx, filterY, 4, 4, filterColors[f]);
+          gfx->fillRect(fx + tabW - 4, filterY, 4, 4, filterColors[f]);
+      } else {
+          gfx->fillRect(fx, filterY, tabW, 22, RGB565(12, 14, 20));
+          gfx->drawRect(fx, filterY, tabW, 22, RGB565(40, 45, 60));
+      }
+      
       gfx->setTextSize(1);
-      gfx->setCursor(x + 5, y + 30);
-      String name = gacha_cards[i].character_name;
-      if (name.length() > 10) name = name.substring(0, 8) + "..";
-      gfx->print(name);
-    } else {
-      // Empty slot - retro dim
-      gfx->fillRect(x, y, cardW, cardH, RGB565(10, 12, 18));
-      gfx->drawRect(x, y, cardW, cardH, RGB565(30, 35, 50));
-      gfx->setTextColor(RGB565(40, 45, 60));
-      gfx->setTextSize(2);
-      gfx->setCursor(x + 40, y + 30);
-      gfx->print("?");
-    }
+      gfx->setTextColor(selected ? filterColors[f] : RGB565(80, 85, 100));
+      int labelLen = strlen(filterLabels[f]) * 6;
+      gfx->setCursor(fx + (tabW - labelLen) / 2, filterY + 7);
+      gfx->print(filterLabels[f]);
   }
   
-  gfx->setTextSize(1);
-  gfx->setTextColor(RGB565(50, 55, 70));
-  gfx->setCursor(LCD_WIDTH/2 - 40, 400);
-  gfx->print("Swipe for more");
+  // === MAIN CARD DISPLAY AREA ===
+  if (filtered_count == 0) {
+      // No cards message
+      gfx->setTextSize(2);
+      gfx->setTextColor(RGB565(80, 85, 100));
+      gfx->setCursor(LCD_WIDTH/2 - 55, 200);
+      gfx->print("NO CARDS");
+      
+      gfx->setTextSize(1);
+      gfx->setCursor(LCD_WIDTH/2 - 70, 230);
+      if (collection_filter == 0) {
+          gfx->print("Pull cards from Gacha!");
+      } else {
+          gfx->print("No cards of this rarity");
+      }
+  } else {
+      // Get current card
+      int cardIdx = filtered_cards[collection_view_index];
+      GachaCard& card = gacha_cards[cardIdx];
+      
+      // === SWIPE INDICATORS ===
+      // Left arrow (if not first card)
+      if (collection_view_index > 0) {
+          gfx->setTextSize(3);
+          gfx->setTextColor(RGB565(80, 85, 100));
+          gfx->setCursor(15, 220);
+          gfx->print("<");
+      }
+      
+      // Right arrow (if not last card)
+      if (collection_view_index < filtered_count - 1) {
+          gfx->setTextSize(3);
+          gfx->setTextColor(RGB565(80, 85, 100));
+          gfx->setCursor(LCD_WIDTH - 35, 220);
+          gfx->print(">");
+      }
+      
+      // === LARGE CARD DISPLAY ===
+      int cardW = 260;
+      int cardH = 280;
+      int cardX = (LCD_WIDTH - cardW) / 2;
+      int cardY = 90;
+      
+      // Card glow based on rarity
+      uint16_t glowColor = getRarityGlowColor(card.rarity);
+      uint16_t borderColor = getRarityBorderColor(card.rarity);
+      
+      // Outer glow
+      for (int g = 5; g > 0; g--) {
+          gfx->drawRoundRect(cardX - g, cardY - g, cardW + g*2, cardH + g*2, 12, glowColor);
+      }
+      
+      // Card background
+      gfx->fillRoundRect(cardX, cardY, cardW, cardH, 10, RGB565(15, 18, 25));
+      gfx->drawRoundRect(cardX, cardY, cardW, cardH, 10, borderColor);
+      
+      // CRT scan lines on card
+      for (int sy = cardY + 2; sy < cardY + cardH - 2; sy += 4) {
+          gfx->drawFastHLine(cardX + 2, sy, cardW - 4, RGB565(10, 12, 18));
+      }
+      
+      // Pixel corner accents
+      gfx->fillRect(cardX, cardY, 12, 12, borderColor);
+      gfx->fillRect(cardX + cardW - 12, cardY, 12, 12, borderColor);
+      gfx->fillRect(cardX, cardY + cardH - 12, 12, 12, borderColor);
+      gfx->fillRect(cardX + cardW - 12, cardY + cardH - 12, 12, 12, borderColor);
+      
+      // === RARITY BANNER ===
+      const char* rarityName = getRarityName(card.rarity);
+      int bannerW = strlen(rarityName) * 12 + 20;
+      int bannerX = cardX + (cardW - bannerW) / 2;
+      gfx->fillRoundRect(bannerX, cardY + 10, bannerW, 24, 5, borderColor);
+      gfx->setTextSize(2);
+      gfx->setTextColor(RGB565(0, 0, 0));
+      gfx->setCursor(bannerX + 10, cardY + 14);
+      gfx->print(rarityName);
+      
+      // === CHARACTER PORTRAIT AREA ===
+      int portraitY = cardY + 45;
+      int portraitH = 80;
+      gfx->fillRect(cardX + 20, portraitY, cardW - 40, portraitH, card.card_color);
+      gfx->drawRect(cardX + 20, portraitY, cardW - 40, portraitH, RGB565(50, 55, 70));
+      
+      // CRT effect on portrait
+      for (int py = portraitY + 2; py < portraitY + portraitH - 2; py += 3) {
+          gfx->drawFastHLine(cardX + 22, py, cardW - 44, RGB565(0, 0, 0));
+      }
+      
+      // Character initial
+      gfx->setTextSize(5);
+      gfx->setTextColor(COLOR_WHITE);
+      char initial[2] = {card.character_name[0], 0};
+      gfx->setCursor(cardX + cardW/2 - 15, portraitY + 20);
+      gfx->print(initial);
+      
+      // === CHARACTER NAME ===
+      gfx->setTextSize(2);
+      gfx->setTextColor(COLOR_WHITE);
+      int nameLen = card.character_name.length() * 12;
+      gfx->setCursor(cardX + (cardW - nameLen) / 2, cardY + 140);
+      gfx->print(card.character_name);
+      
+      // === SERIES NAME ===
+      gfx->setTextSize(1);
+      gfx->setTextColor(RGB565(120, 125, 140));
+      int seriesLen = card.series.length() * 6;
+      gfx->setCursor(cardX + (cardW - seriesLen) / 2, cardY + 165);
+      gfx->print(card.series);
+      
+      // === RARITY STARS ===
+      int starCount = getRarityStars(card.rarity);
+      int starSpacing = 25;
+      int starStartX = cardX + (cardW - (starCount * starSpacing)) / 2;
+      for (int s = 0; s < starCount; s++) {
+          drawStar(starStartX + s * starSpacing + 10, cardY + 190, 10, COLOR_GOLD);
+      }
+      
+      // === POWER RATING ===
+      gfx->setTextSize(4);
+      gfx->setTextColor(borderColor);
+      char powerStr[10];
+      sprintf(powerStr, "%d", card.power_rating);
+      int powerLen = strlen(powerStr) * 24;
+      gfx->setCursor(cardX + (cardW - powerLen) / 2, cardY + 210);
+      gfx->print(powerStr);
+      
+      gfx->setTextSize(1);
+      gfx->setTextColor(RGB565(100, 105, 120));
+      gfx->setCursor(cardX + cardW/2 - 18, cardY + 250);
+      gfx->print("POWER");
+      
+      // === OWNED COUNT BADGE ===
+      int ownedCount = cards_duplicates[cardIdx] + 1; // +1 for original
+      char ownedStr[15];
+      sprintf(ownedStr, "Owned: %dx", ownedCount);
+      int ownedBadgeW = strlen(ownedStr) * 6 + 16;
+      gfx->fillRoundRect(cardX + cardW/2 - ownedBadgeW/2, cardY + cardH - 28, ownedBadgeW, 20, 5, RGB565(20, 25, 35));
+      gfx->drawRoundRect(cardX + cardW/2 - ownedBadgeW/2, cardY + cardH - 28, ownedBadgeW, 20, 5, RGB565(60, 65, 80));
+      gfx->setTextSize(1);
+      gfx->setTextColor(COLOR_CYAN);
+      gfx->setCursor(cardX + cardW/2 - (strlen(ownedStr) * 6) / 2, cardY + cardH - 23);
+      gfx->print(ownedStr);
+      
+      // === EVOLUTION BADGE (if evolved) ===
+      if (card.evolution_level > 0) {
+          const char* evoName = getEvolutionName(card.evolution_level);
+          uint16_t evoColor = getEvolutionColor(card.evolution_level);
+          int evoBadgeW = strlen(evoName) * 6 + 12;
+          gfx->fillRoundRect(cardX + 10, cardY + 40, evoBadgeW, 16, 3, evoColor);
+          gfx->setTextSize(1);
+          gfx->setTextColor(RGB565(0, 0, 0));
+          gfx->setCursor(cardX + 16, cardY + 44);
+          gfx->print(evoName);
+      }
+  }
   
-  // Back button - retro
-  gfx->fillRect(LCD_WIDTH/2 - 40, 415, 80, 28, RGB565(15, 18, 25));
-  gfx->drawRect(LCD_WIDTH/2 - 40, 415, 80, 28, RGB565(40, 45, 60));
+  // === CARD POSITION INDICATOR ===
+  if (filtered_count > 0) {
+      gfx->setTextSize(1);
+      gfx->setTextColor(RGB565(100, 105, 120));
+      char posStr[15];
+      sprintf(posStr, "< %d / %d >", collection_view_index + 1, filtered_count);
+      int posLen = strlen(posStr) * 6;
+      gfx->setCursor(LCD_WIDTH/2 - posLen/2, 380);
+      gfx->print(posStr);
+  }
+  
+  // === SORT BUTTON ===
+  const char* sortLabels[] = {"RARITY", "POWER", "NAME", "SERIES"};
+  char sortStr[20];
+  sprintf(sortStr, "Sort: %s", sortLabels[collection_sort]);
+  int sortBtnW = strlen(sortStr) * 6 + 16;
+  
+  gfx->fillRect(LCD_WIDTH/2 - sortBtnW/2, 398, sortBtnW, 24, RGB565(15, 18, 25));
+  gfx->drawRect(LCD_WIDTH/2 - sortBtnW/2, 398, sortBtnW, 24, RGB565(50, 55, 70));
+  gfx->fillRect(LCD_WIDTH/2 - sortBtnW/2, 398, 4, 4, theme->accent);
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(150, 155, 170));
+  gfx->setCursor(LCD_WIDTH/2 - (strlen(sortStr) * 6) / 2, 406);
+  gfx->print(sortStr);
+  
+  // === STATS BAR ===
+  int statsY = 430;
+  gfx->fillRect(10, statsY, LCD_WIDTH - 20, 30, RGB565(10, 12, 18));
+  gfx->drawRect(10, statsY, LCD_WIDTH - 20, 30, RGB565(30, 35, 50));
+  
+  if (filtered_count > 0) {
+      int cardIdx = filtered_cards[collection_view_index];
+      GachaCard& card = gacha_cards[cardIdx];
+      
+      gfx->setTextSize(1);
+      // HP
+      gfx->setTextColor(COLOR_GREEN);
+      gfx->setCursor(20, statsY + 11);
+      gfx->printf("HP:%d", card.hp);
+      
+      // ATK
+      gfx->setTextColor(COLOR_RED);
+      gfx->setCursor(100, statsY + 11);
+      gfx->printf("ATK:%d", card.attack);
+      
+      // DEF
+      gfx->setTextColor(COLOR_BLUE);
+      gfx->setCursor(180, statsY + 11);
+      gfx->printf("DEF:%d", card.defense);
+      
+      // Evolution level
+      gfx->setTextColor(getEvolutionColor(card.evolution_level));
+      gfx->setCursor(260, statsY + 11);
+      gfx->printf("EVO:%d", card.evolution_level);
+  }
+  
+  // === BACK BUTTON ===
+  gfx->fillRect(LCD_WIDTH/2 - 40, 468, 80, 28, RGB565(15, 18, 25));
+  gfx->drawRect(LCD_WIDTH/2 - 40, 468, 80, 28, RGB565(40, 45, 60));
   gfx->setTextColor(RGB565(180, 185, 200));
   gfx->setTextSize(1);
-  gfx->setCursor(LCD_WIDTH/2 - 12, 424);
+  gfx->setCursor(LCD_WIDTH/2 - 12, 478);
   gfx->print("Back");
+  
+  // === SWIPE HINT ===
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(50, 55, 70));
+  gfx->setCursor(LCD_WIDTH/2 - 55, LCD_HEIGHT - 8);
+  gfx->print("< SWIPE TO BROWSE >");
 }
 
 // Global state for gacha reveal
@@ -1220,6 +1514,11 @@ void handleGachaTouch(TouchGesture& gesture) {
   // Collection button
   if (y >= 365 && y < 405 && x >= 10 && x < 105) {
     system_state.current_screen = SCREEN_COLLECTION;
+    // Reset collection browser state
+    collection_view_index = 0;
+    collection_filter = 0;
+    collection_sort = 0;
+    collection_needs_rebuild = true;
     drawGachaCollection();
     return;
   }
@@ -1247,8 +1546,103 @@ void handleGachaTouch(TouchGesture& gesture) {
 }
 
 void handleCollectionTouch(TouchGesture& gesture) {
-  if (gesture.event == TOUCH_TAP && gesture.y >= 420) {
-    system_state.current_screen = SCREEN_GACHA;
+  int x = gesture.x;
+  int y = gesture.y;
+  
+  // === HANDLE SWIPE GESTURES ===
+  if (gesture.event == TOUCH_SWIPE_LEFT) {
+      // Next card
+      if (filtered_count > 0 && collection_view_index < filtered_count - 1) {
+          collection_view_index++;
+          drawGachaCollection();
+      }
+      return;
+  }
+  
+  if (gesture.event == TOUCH_SWIPE_RIGHT) {
+      // Previous card
+      if (filtered_count > 0 && collection_view_index > 0) {
+          collection_view_index--;
+          drawGachaCollection();
+      }
+      return;
+  }
+  
+  // === HANDLE TAP GESTURES ===
+  if (gesture.event != TOUCH_TAP) return;
+  
+  // Filter tabs (y: 55-77)
+  if (y >= 55 && y < 77) {
+      int tabW = 58;
+      int tabSpacing = 5;
+      int filterStartX = (LCD_WIDTH - (6 * tabW + 5 * tabSpacing)) / 2;
+      
+      for (int f = 0; f < 6; f++) {
+          int fx = filterStartX + f * (tabW + tabSpacing);
+          if (x >= fx && x < fx + tabW) {
+              if (collection_filter != f) {
+                  collection_filter = f;
+                  collection_view_index = 0;
+                  collection_needs_rebuild = true;
+                  drawGachaCollection();
+              }
+              return;
+          }
+      }
+  }
+  
+  // Sort button (y: 398-422)
+  int sortBtnW = 100;
+  if (y >= 398 && y < 422 && x >= LCD_WIDTH/2 - sortBtnW/2 && x < LCD_WIDTH/2 + sortBtnW/2) {
+      collection_sort = (collection_sort + 1) % 4; // Cycle through sort options
+      collection_needs_rebuild = true;
+      drawGachaCollection();
+      return;
+  }
+  
+  // Left arrow tap (quick navigation)
+  if (x < 60 && y >= 180 && y < 280) {
+      if (filtered_count > 0 && collection_view_index > 0) {
+          collection_view_index--;
+          drawGachaCollection();
+      }
+      return;
+  }
+  
+  // Right arrow tap (quick navigation)
+  if (x > LCD_WIDTH - 60 && y >= 180 && y < 280) {
+      if (filtered_count > 0 && collection_view_index < filtered_count - 1) {
+          collection_view_index++;
+          drawGachaCollection();
+      }
+      return;
+  }
+  
+  // Card tap - visual feedback flash
+  int cardX = (LCD_WIDTH - 260) / 2;
+  int cardY = 90;
+  if (x >= cardX && x < cardX + 260 && y >= cardY && y < cardY + 280) {
+      if (filtered_count > 0) {
+          int cardIdx = filtered_cards[collection_view_index];
+          // Flash the card
+          gfx->fillRoundRect(cardX, cardY, 260, 280, 10, getRarityBorderColor(gacha_cards[cardIdx].rarity));
+          delay(50);
+          drawGachaCollection();
+      }
+      return;
+  }
+  
+  // Back button (y: 468-496)
+  if (y >= 468 && y < 496 && x >= LCD_WIDTH/2 - 40 && x < LCD_WIDTH/2 + 40) {
+      // Reset view state before leaving
+      collection_view_index = 0;
+      collection_filter = 0;
+      collection_sort = 0;
+      collection_needs_rebuild = true;
+      
+      system_state.current_screen = SCREEN_GACHA;
+      drawGachaScreen();
+      return;
   }
 }
 
@@ -1838,3 +2232,5 @@ void handleDeckBuilderTap(int x, int y) {
     return;
   }
 }
+
+
