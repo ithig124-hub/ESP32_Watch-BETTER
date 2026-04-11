@@ -486,7 +486,7 @@ bool restoreTimeBackup() {
             if (c == '\n' || c == '\r') break;
             line[lineLen++] = c;
         }
-        line[lineLen] = '';
+        line[lineLen] = (char)0;
         
         if (lineLen == 0) continue;
         

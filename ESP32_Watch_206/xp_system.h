@@ -1,186 +1,146 @@
 /*
- * xp_system.h - XP & Leveling System with Character Titles
+ * xp_system.h - XP & Leveling System Header
  * FUSION OS RPG Integration
- * 
- * Features:
- * - XP gain from boss rush, steps, gacha, daily login, hourly shop
- * - Character-specific XP and levels
- * - 22 titles per character
- * - Level-based title unlocking
- * - Persistent storage (per-character XP, persistent gems)
+ *
+ * UPDATED: Added XP rewards for card selling, battles, quests, evolution
  */
 
 #ifndef XP_SYSTEM_H
 #define XP_SYSTEM_H
 
-#include <Arduino.h>
-#include "config.h"
+#include "config.h"    // FIXED: Changed from types.h - ThemeType is defined in config.h
 
 // =============================================================================
-// XP CONFIGURATION
+// XP CONSTANTS
 // =============================================================================
-// Players can level up infinitely, but titles only unlock up to level 110
-// Title unlocks: Level 1, 5, 10, 15, 16, 20, 25, 30, 31, 35, 40, 45, 50, 51, 
-//                60, 65, 70, 71, 80, 85, 90, 95 (22 titles total)
-// After level 95, players can continue leveling but no new titles unlock
 
-#define MAX_TITLE_LEVEL          95     // Last title unlocks at level 95
-#define BASE_XP_PER_LEVEL        100    // XP required for level 2
-#define XP_SCALING_FACTOR        1.15   // Exponential growth per level
+// Base XP values
+#define BASE_XP_PER_LEVEL 100
+#define XP_SCALING_FACTOR 1.15f
 
-// XP Formula: XP_needed = BASE_XP_PER_LEVEL * (SCALING_FACTOR ^ (level - 2))
-// Examples:
-//   Level 1→2:   100 XP
-//   Level 2→3:   115 XP
-//   Level 5→6:   152 XP
-//   Level 10→11: 303 XP
-//   Level 20→21: 918 XP
-//   Level 50→51: 10,834 XP
-//   Level 95→96: 229,686 XP
-//   Level 100→101: 369,830 XP
+// Daily/Hourly rewards
+#define XP_DAILY_LOGIN 50
+#define XP_HOURLY_SHOP 10
+#define XP_DAILY_GOAL_BONUS 150     // Daily goal completion bonus
 
-// XP Rewards
-#define XP_BOSS_TIER_1           10
-#define XP_BOSS_TIER_2           25
-#define XP_BOSS_TIER_3           50
-#define XP_BOSS_TIER_4           100
-#define XP_STEPS_PER_100         1     // 1 XP per 100 steps
-#define XP_DAILY_GOAL_BONUS      50    // Big bonus for hitting step goal
-#define XP_GACHA_PULL            5     // XP per gacha pull
-#define XP_GACHA_LEGENDARY       20    // Bonus for legendary pull
-#define XP_DAILY_LOGIN           25    // Daily login bonus
-#define XP_HOURLY_SHOP           10    // Hourly shop claim
+// Gacha XP rewards
+#define XP_GACHA_PULL 5
+#define XP_GACHA_LEGENDARY 20
 
 // =============================================================================
-// CHARACTER TITLES
+// XP REWARDS - Card Selling
 // =============================================================================
+#define XP_SELL_MYTHIC      10000   // Selling a Mythic card
+#define XP_SELL_LEGENDARY   5000    // Selling a Legendary card
+#define XP_SELL_OTHER       500     // Selling Epic/Rare/Common cards
+
+// =============================================================================
+// XP REWARDS - Battles
+// =============================================================================
+#define XP_BATTLE_WIN       100     // Winning a battle
+#define XP_BATTLE_LOSE      25      // Losing a battle (participation)
+#define XP_BOSS_DEFEAT      500     // Defeating a boss
+#define XP_BOSS_RUSH_CLEAR  1000    // Clearing boss rush mode
+
+// Boss tier XP rewards
+#define XP_BOSS_TIER_1      100     // Tier 1 boss
+#define XP_BOSS_TIER_2      250     // Tier 2 boss
+#define XP_BOSS_TIER_3      500     // Tier 3 boss
+#define XP_BOSS_TIER_4      750     // Tier 4 boss
+#define XP_BOSS_TIER_5      1000    // Tier 5 boss (final)
+
+// =============================================================================
+// XP REWARDS - Daily Quests
+// =============================================================================
+#define XP_QUEST_EASY       50      // Easy quest completion
+#define XP_QUEST_MEDIUM     100     // Medium quest completion
+#define XP_QUEST_HARD       200     // Hard quest completion
+#define XP_QUEST_ALL_DAILY  500     // Completing all daily quests
+
+// =============================================================================
+// XP REWARDS - Card Evolution
+// =============================================================================
+#define XP_EVOLVE_TO_LV1    100     // Evolving to EVOLVED
+#define XP_EVOLVE_TO_LV2    250     // Evolving to AWAKENED
+#define XP_EVOLVE_TO_LV3    500     // Evolving to TRANSCENDED
+
+// =============================================================================
+// XP REWARDS - Miscellaneous
+// =============================================================================
+#define XP_STEP_GOAL        100     // Reaching daily step goal
+#define XP_NEW_CARD         50      // Getting a new unique card
+#define XP_COLLECTION_10    200     // Every 10 cards collected milestone
+#define XP_DECK_COMPLETE    300     // Completing a full 5-card deck
+
+// =============================================================================
+// GEM REWARDS - Card Selling
+// =============================================================================
+#define GEMS_SELL_MYTHIC    500     // Gems from selling Mythic
+#define GEMS_SELL_LEGENDARY 200     // Gems from selling Legendary
+#define GEMS_SELL_EPIC      50      // Gems from selling Epic
+#define GEMS_SELL_RARE      20      // Gems from selling Rare
+#define GEMS_SELL_COMMON    5       // Gems from selling Common
+
+// =============================================================================
+// LEVELING SYSTEM
+// =============================================================================
+
 #define MAX_TITLES_PER_CHARACTER 22
+#define MAX_TITLE_LEVEL 100
+
+// =============================================================================
+// DATA STRUCTURES
+// =============================================================================
 
 struct CharacterTitle {
-  const char* name;
-  int level_required;
-  bool unlocked;
+    const char* name;
+    int level_required;
+    bool unlocked;
 };
 
-// =============================================================================
-// CHARACTER XP DATA (PER CHARACTER)
-// =============================================================================
 struct CharacterXPData {
-  ThemeType character;
-  int level;
-  long xp;
-  long xp_to_next_level;
-  int equipped_title_index;
-  CharacterTitle titles[MAX_TITLES_PER_CHARACTER];
+    ThemeType theme;              // FIXED: Use ThemeType (defined in config.h)
+    int level;
+    long xp;
+    long xp_to_next_level;
+    int equipped_title_index;
+    CharacterTitle titles[MAX_TITLES_PER_CHARACTER];
 };
 
-// =============================================================================
-// XP SYSTEM STATE
-// =============================================================================
 struct XPSystemState {
-  CharacterXPData* current_character;
-  int total_gems;  // Persistent across all characters
-  int last_login_day;
-  int last_hourly_claim_hour;
-  bool daily_step_goal_claimed;
+    CharacterXPData* current_character;
+    int total_gems;
+    int last_login_day;
+    int last_hourly_claim_hour;
+    bool daily_step_goal_claimed;
 };
 
 extern XPSystemState xp_system;
 
-// Character XP data for all characters
-extern CharacterXPData luffy_xp;
-extern CharacterXPData jinwoo_xp;
-extern CharacterXPData yugo_xp;
-extern CharacterXPData boboiboy_xp;
-extern CharacterXPData gojo_xp;
-extern CharacterXPData naruto_xp;
-extern CharacterXPData goku_xp;
-extern CharacterXPData saitama_xp;
-extern CharacterXPData tanjiro_xp;
-extern CharacterXPData levi_xp;
-extern CharacterXPData deku_xp;
-
 // =============================================================================
-// FUNCTIONS
+// FUNCTION DECLARATIONS
 // =============================================================================
 
-// Initialize XP system
 void initXPSystem();
-
-// Gain experience points
-void gainExperience(int amount, const char* source);
-
-// Calculate XP required for a level
-long calculateXPForLevel(int level);
-
-// Get current character's XP data
-CharacterXPData* getCurrentCharacterXP();
-
-// Switch character (when theme changes)
-void switchCharacter(ThemeType theme);
-
-// Get equipped title name
-const char* getEquippedTitle();
-
-// Unlock title by index
-void unlockTitle(int title_index);
-
-// Equip title
-void equipTitle(int title_index);
-
-// Check for daily login bonus
-void checkDailyLoginBonus();
-
-// Check for hourly shop claim
-void checkHourlyShopClaim();
-
-// Level up handler (called when level increases)
-void handleLevelUp(int new_level);
-
-// Save XP data to NVS
 void saveXPData();
-
-// Load XP data from NVS
 void loadXPData();
 
-// Get level-up XP bar progress (0.0 to 1.0)
+// Character management
+CharacterXPData* getCurrentCharacterXP();
+void switchCharacter(ThemeType theme);    // FIXED: Use ThemeType
+
+// XP operations
+void gainExperience(int amount, const char* source);
+void handleLevelUp(int new_level);
+long calculateXPForLevel(int level);
 float getXPProgress();
 
-// =============================================================================
-// TITLE DEFINITIONS
-// =============================================================================
+// Title system
+const char* getEquippedTitle();
+void equipTitle(int title_index);
 
-// Luffy Gear 5 Titles (from themes.cpp)
-extern const char* luffy_title_names[MAX_TITLES_PER_CHARACTER];
-
-// Sung Jin-Woo Titles (from themes.cpp)
-extern const char* jinwoo_title_names[MAX_TITLES_PER_CHARACTER];
-
-// Yugo - Portal Master Titles (from themes.cpp)
-extern const char* yugo_title_names[MAX_TITLES_PER_CHARACTER];
-
-// BoBoiBoy Titles
-extern const char* boboiboy_title_names[MAX_TITLES_PER_CHARACTER];
-
-// Gojo Satoru Titles
-extern const char* gojo_title_names[MAX_TITLES_PER_CHARACTER];
-
-// Naruto Uzumaki Titles
-extern const char* naruto_title_names[MAX_TITLES_PER_CHARACTER];
-
-// Son Goku Titles
-extern const char* goku_title_names[MAX_TITLES_PER_CHARACTER];
-
-// Saitama Titles
-extern const char* saitama_title_names[MAX_TITLES_PER_CHARACTER];
-
-// Tanjiro Kamado Titles
-extern const char* tanjiro_title_names[MAX_TITLES_PER_CHARACTER];
-
-// Levi Ackerman Titles
-extern const char* levi_title_names[MAX_TITLES_PER_CHARACTER];
-
-// Deku Titles
-extern const char* deku_title_names[MAX_TITLES_PER_CHARACTER];
+// Daily/hourly rewards
+void checkDailyLoginBonus();
+void checkHourlyShopClaim();
 
 #endif // XP_SYSTEM_H
