@@ -32,7 +32,8 @@
 // =============================================================================
 #define XP_SELL_MYTHIC      10000   // Selling a Mythic card
 #define XP_SELL_LEGENDARY   5000    // Selling a Legendary card
-#define XP_SELL_OTHER       500     // Selling Epic/Rare/Common cards
+#define XP_SELL_EPIC        1000    // Selling an Epic card
+#define XP_SELL_OTHER       500     // Selling Rare/Uncommon/Common cards
 
 // =============================================================================
 // XP REWARDS - Battles
@@ -77,9 +78,8 @@
 // =============================================================================
 #define GEMS_SELL_MYTHIC    500     // Gems from selling Mythic
 #define GEMS_SELL_LEGENDARY 200     // Gems from selling Legendary
-#define GEMS_SELL_EPIC      50      // Gems from selling Epic
-#define GEMS_SELL_RARE      20      // Gems from selling Rare
-#define GEMS_SELL_COMMON    5       // Gems from selling Common
+#define GEMS_SELL_EPIC      100     // Gems from selling Epic
+#define GEMS_SELL_OTHER     50      // Gems from selling Rare/Uncommon/Common
 
 // =============================================================================
 // LEVELING SYSTEM

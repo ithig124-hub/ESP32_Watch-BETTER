@@ -371,17 +371,18 @@ bool spendGems(int amount) {
 // XP/Gems rewards for selling cards by rarity
 #define XP_SELL_MYTHIC     10000
 #define XP_SELL_LEGENDARY  5000
+#define XP_SELL_EPIC       1000
 #define XP_SELL_OTHER      500
 #define GEMS_SELL_MYTHIC   500
 #define GEMS_SELL_LEGENDARY 200
-#define GEMS_SELL_EPIC     50
-#define GEMS_SELL_RARE     20
-#define GEMS_SELL_COMMON   5
+#define GEMS_SELL_EPIC     100
+#define GEMS_SELL_OTHER    50
 
 int getCardSellXP(GachaRarity rarity) {
     switch(rarity) {
         case RARITY_MYTHIC:    return XP_SELL_MYTHIC;     // 10000 XP
         case RARITY_LEGENDARY: return XP_SELL_LEGENDARY;  // 5000 XP
+        case RARITY_EPIC:      return XP_SELL_EPIC;       // 1000 XP
         default:               return XP_SELL_OTHER;      // 500 XP
     }
 }
@@ -390,9 +391,8 @@ int getCardSellGems(GachaRarity rarity) {
     switch(rarity) {
         case RARITY_MYTHIC:    return GEMS_SELL_MYTHIC;    // 500 gems
         case RARITY_LEGENDARY: return GEMS_SELL_LEGENDARY; // 200 gems
-        case RARITY_EPIC:      return GEMS_SELL_EPIC;      // 50 gems
-        case RARITY_RARE:      return GEMS_SELL_RARE;      // 20 gems
-        default:               return GEMS_SELL_COMMON;    // 5 gems
+        case RARITY_EPIC:      return GEMS_SELL_EPIC;      // 100 gems
+        default:               return GEMS_SELL_OTHER;     // 50 gems
     }
 }
 
@@ -1004,52 +1004,60 @@ void drawGachaScreen() {
     gfx->drawFastHLine(32, sy, LCD_WIDTH - 64, RGB565(6, 6, 10));
   }
 
-  // === NAVIGATION BUTTONS WITH CLEAR LABELS ===
+  // === NAVIGATION BUTTONS - LARGER, MORE VISIBLE ===
+  int btnY = 365;
+  int btnH = 40;
   
-  // Collection button - view & sell cards
-  gfx->fillRect(10, 365, 95, 40, RGB565(15, 18, 25));
-  gfx->fillRect(10, 365, 5, 5, theme->primary);
-  gfx->drawRect(10, 365, 95, 40, RGB565(40, 45, 60));
+  // Collection button
+  gfx->fillRoundRect(10, btnY, 92, btnH, 5, RGB565(15, 20, 30));
+  gfx->drawRoundRect(10, btnY, 92, btnH, 5, theme->primary);
+  gfx->drawFastHLine(14, btnY + 1, 84, theme->primary);
   gfx->setTextColor(theme->primary);
+  gfx->setTextSize(2);
+  gfx->setCursor(14, btnY + 4);
+  gfx->print("CARDS");
   gfx->setTextSize(1);
-  gfx->setCursor(18, 371);
-  gfx->print("COLLECTION");
-  gfx->setTextColor(RGB565(100, 105, 120));
-  gfx->setCursor(18, 385);
+  gfx->setTextColor(RGB565(140, 145, 165));
+  gfx->setCursor(14, btnY + 24);
   gfx->print("View & Sell");
 
-  // Evolve button - power up cards
-  gfx->fillRect(115, 365, 75, 40, RGB565(20, 18, 10));
-  gfx->drawRect(115, 365, 75, 40, COLOR_GOLD);
-  gfx->fillRect(115, 365, 4, 4, COLOR_GOLD);
-  gfx->fillRect(186, 365, 4, 4, COLOR_GOLD);
+  // Evolve button
+  gfx->fillRoundRect(110, btnY, 80, btnH, 5, RGB565(22, 20, 10));
+  gfx->drawRoundRect(110, btnY, 80, btnH, 5, COLOR_GOLD);
+  gfx->drawFastHLine(114, btnY + 1, 72, COLOR_GOLD);
   gfx->setTextColor(COLOR_GOLD);
-  gfx->setCursor(123, 371);
+  gfx->setTextSize(2);
+  gfx->setCursor(114, btnY + 4);
   gfx->print("EVOLVE");
-  gfx->setTextColor(RGB565(120, 100, 50));
-  gfx->setCursor(123, 385);
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(160, 140, 60));
+  gfx->setCursor(114, btnY + 24);
   gfx->print("Power Up");
 
-  // Deck button - build battle deck
-  gfx->fillRect(200, 365, 65, 40, RGB565(10, 18, 20));
-  gfx->drawRect(200, 365, 65, 40, COLOR_CYAN);
-  gfx->fillRect(200, 365, 4, 4, COLOR_CYAN);
-  gfx->fillRect(261, 365, 4, 4, COLOR_CYAN);
+  // Deck button
+  gfx->fillRoundRect(198, btnY, 72, btnH, 5, RGB565(10, 20, 22));
+  gfx->drawRoundRect(198, btnY, 72, btnH, 5, COLOR_CYAN);
+  gfx->drawFastHLine(202, btnY + 1, 64, COLOR_CYAN);
   gfx->setTextColor(COLOR_CYAN);
-  gfx->setCursor(212, 371);
+  gfx->setTextSize(2);
+  gfx->setCursor(206, btnY + 4);
   gfx->print("DECK");
-  gfx->setTextColor(RGB565(50, 100, 100));
-  gfx->setCursor(208, 385);
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(60, 130, 140));
+  gfx->setCursor(206, btnY + 24);
   gfx->print("Battle");
 
-  // Back button - return to games menu
-  gfx->fillRect(275, 365, 75, 40, RGB565(15, 18, 25));
-  gfx->drawRect(275, 365, 75, 40, RGB565(60, 45, 60));
-  gfx->setTextColor(RGB565(180, 140, 180));
-  gfx->setCursor(293, 371);
+  // Back button
+  gfx->fillRoundRect(278, btnY, 78, btnH, 5, RGB565(18, 14, 20));
+  gfx->drawRoundRect(278, btnY, 78, btnH, 5, RGB565(140, 100, 160));
+  gfx->drawFastHLine(282, btnY + 1, 70, RGB565(120, 80, 140));
+  gfx->setTextColor(RGB565(200, 160, 220));
+  gfx->setTextSize(2);
+  gfx->setCursor(286, btnY + 4);
   gfx->print("BACK");
-  gfx->setTextColor(RGB565(100, 80, 100));
-  gfx->setCursor(283, 385);
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(130, 100, 140));
+  gfx->setCursor(282, btnY + 24);
   gfx->print("Games Menu");
 
   // Pity counter at bottom
@@ -1235,6 +1243,185 @@ void drawGachaRevealImproved(GachaCard& card) {
     gfx->print("> CONTINUE <");
   }
 }
+
+// =============================================================================
+// 10-CARD GRID REVEAL for 10x Pull
+// Shows all 10 pulled cards in a 5x2 grid layout
+// =============================================================================
+void drawTenPullGrid(GachaCard* results) {
+  // Brief pull animation
+  gfx->fillScreen(RGB565(2, 2, 5));
+  uint16_t flashColor = getRarityGlowColor(results[9].rarity);
+  for (int r = 10; r < 80; r += 15) {
+    gfx->drawRect(LCD_WIDTH/2 - r, LCD_HEIGHT/2 - r, r*2, r*2, flashColor);
+    delay(30);
+  }
+  gfx->fillScreen(flashColor);
+  delay(60);
+
+  // Draw the grid screen
+  gfx->fillScreen(RGB565(2, 2, 5));
+  for (int y = 0; y < LCD_HEIGHT; y += 4) {
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+  }
+
+  ThemeColors* theme = getCurrentTheme();
+
+  // Header
+  gfx->fillRect(0, 0, LCD_WIDTH, 38, RGB565(10, 12, 18));
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, 36, 6, 3, theme->accent);
+  }
+  gfx->setTextSize(2);
+  gfx->setTextColor(theme->primary);
+  gfx->setCursor(LCD_WIDTH/2 - 60, 10);
+  gfx->print("10x PULL!");
+
+  // Grid layout: 5 columns x 2 rows
+  int cols = 5;
+  int rows = 2;
+  int cardW = 72;
+  int cardH = 170;
+  int gapX = 5;
+  int gapY = 8;
+  int gridW = cols * cardW + (cols - 1) * gapX;
+  int startX = (LCD_WIDTH - gridW) / 2;
+  int startY = 46;
+
+  // Count rarities for summary
+  int rarCount[5] = {0, 0, 0, 0, 0}; // Common, Rare, Epic, Legendary, Mythic
+
+  for (int i = 0; i < 10; i++) {
+    int col = i % cols;
+    int row = i / cols;
+    int cx = startX + col * (cardW + gapX);
+    int cy = startY + row * (cardH + gapY);
+
+    GachaCard& card = results[i];
+    uint16_t borderColor = getRarityBorderColor(card.rarity);
+    uint16_t glowColor = getRarityGlowColor(card.rarity);
+    int rarIdx = min((int)card.rarity, 4);
+    rarCount[rarIdx]++;
+
+    // Card glow (subtle)
+    for (int g = 2; g > 0; g--) {
+      gfx->drawRoundRect(cx - g, cy - g, cardW + g*2, cardH + g*2, 4, glowColor);
+    }
+
+    // Card background
+    gfx->fillRoundRect(cx, cy, cardW, cardH, 4, RGB565(12, 14, 22));
+    gfx->drawRoundRect(cx, cy, cardW, cardH, 4, borderColor);
+
+    // Rarity banner (compact)
+    const char* rarName = getRarityName(card.rarity);
+    int bannerW = cardW - 8;
+    gfx->fillRect(cx + 4, cy + 4, bannerW, 14, borderColor);
+    gfx->setTextSize(1);
+    gfx->setTextColor(RGB565(0, 0, 0));
+    int rnLen = strlen(rarName) * 6;
+    gfx->setCursor(cx + 4 + (bannerW - rnLen) / 2, cy + 7);
+    gfx->print(rarName);
+
+    // Portrait area
+    gfx->fillRect(cx + 6, cy + 22, cardW - 12, 50, card.card_color);
+    for (int sy = cy + 23; sy < cy + 71; sy += 3) {
+      gfx->drawFastHLine(cx + 7, sy, cardW - 14, RGB565(0, 0, 0));
+    }
+
+    // Character initial
+    gfx->setTextSize(3);
+    gfx->setTextColor(COLOR_WHITE);
+    char init[2] = {card.character_name[0], 0};
+    gfx->setCursor(cx + cardW/2 - 9, cy + 32);
+    gfx->print(init);
+
+    // Character name (truncated)
+    gfx->setTextSize(1);
+    gfx->setTextColor(COLOR_WHITE);
+    String name = card.character_name;
+    if (name.length() > 10) name = name.substring(0, 9) + ".";
+    int nLen = name.length() * 6;
+    gfx->setCursor(cx + (cardW - nLen) / 2, cy + 78);
+    gfx->print(name);
+
+    // Series (small)
+    gfx->setTextColor(RGB565(100, 105, 120));
+    String ser = card.series;
+    if (ser.length() > 10) ser = ser.substring(0, 9) + ".";
+    int sLen = ser.length() * 6;
+    gfx->setCursor(cx + (cardW - sLen) / 2, cy + 92);
+    gfx->print(ser);
+
+    // Stars
+    int starCount = getRarityStars(card.rarity);
+    int starW = starCount * 8;
+    int starSX = cx + (cardW - starW) / 2;
+    gfx->setTextColor(COLOR_GOLD);
+    for (int s = 0; s < starCount; s++) {
+      gfx->setCursor(starSX + s * 8, cy + 106);
+      gfx->print("*");
+    }
+
+    // Power
+    gfx->setTextSize(2);
+    gfx->setTextColor(borderColor);
+    char pwrStr[8];
+    sprintf(pwrStr, "%d", card.power_rating);
+    int pLen = strlen(pwrStr) * 12;
+    gfx->setCursor(cx + (cardW - pLen) / 2, cy + 122);
+    gfx->print(pwrStr);
+
+    // Power label
+    gfx->setTextSize(1);
+    gfx->setTextColor(RGB565(80, 85, 100));
+    gfx->setCursor(cx + cardW/2 - 12, cy + 142);
+    gfx->print("PWR");
+
+    // New badge indicator
+    gfx->setTextColor(COLOR_GREEN);
+    gfx->setCursor(cx + cardW/2 - 6, cy + cardH - 14);
+    gfx->print("NEW");
+  }
+
+  // Bottom summary bar
+  int sumY = startY + rows * (cardH + gapY) + 4;
+  gfx->fillRoundRect(10, sumY, LCD_WIDTH - 20, 24, 4, RGB565(10, 14, 22));
+  gfx->drawRoundRect(10, sumY, LCD_WIDTH - 20, 24, 4, RGB565(40, 45, 60));
+
+  gfx->setTextSize(1);
+  int sx2 = 18;
+  const char* rNames[] = {"C", "R", "E", "L", "M"};
+  uint16_t rColors[] = {
+    RGB565(150, 150, 160), RGB565(30, 144, 255), RGB565(160, 32, 240),
+    RGB565(255, 215, 0), RGB565(255, 100, 200)
+  };
+  for (int r = 0; r < 5; r++) {
+    if (rarCount[r] > 0) {
+      gfx->setTextColor(rColors[r]);
+      gfx->setCursor(sx2, sumY + 8);
+      gfx->printf("%s:%d", rNames[r], rarCount[r]);
+      sx2 += 40 + (rarCount[r] > 9 ? 6 : 0);
+    }
+  }
+
+  // Tap to continue
+  gfx->setTextSize(2);
+  gfx->setTextColor(COLOR_GOLD);
+  gfx->setCursor(LCD_WIDTH/2 - 96, sumY + 30);
+  gfx->print("> CONTINUE <");
+
+  // Blink prompt
+  for (int i = 0; i < 2; i++) {
+    delay(400);
+    gfx->fillRect(0, sumY + 26, LCD_WIDTH, 22, RGB565(2, 2, 5));
+    delay(400);
+    gfx->setTextSize(2);
+    gfx->setTextColor(COLOR_GOLD);
+    gfx->setCursor(LCD_WIDTH/2 - 96, sumY + 30);
+    gfx->print("> CONTINUE <");
+  }
+}
+
 
 void drawGachaCard(int x, int y, int w, int h, GachaCard& card) {
   // FUSION OS: FANCY GACHA CARD VISUALS
@@ -1494,286 +1681,394 @@ void drawGachaCollection() {
     int cardIdx = filtered_cards[collection_view_index];
     GachaCard& card = gacha_cards[cardIdx];
 
-    // === SWIPE INDICATORS ===
+    // === SWIPE INDICATORS - Enhanced ===
     // Left arrow (if not first card)
     if (collection_view_index > 0) {
       gfx->setTextSize(3);
-      gfx->setTextColor(RGB565(80, 85, 100));
-      gfx->setCursor(15, 220);
+      gfx->setTextColor(RGB565(60, 65, 85));
+      gfx->setCursor(8, 210);
       gfx->print("<");
+      // Small dot indicator
+      gfx->fillCircle(18, 240, 3, theme->accent);
     }
 
     // Right arrow (if not last card)
     if (collection_view_index < filtered_count - 1) {
       gfx->setTextSize(3);
-      gfx->setTextColor(RGB565(80, 85, 100));
-      gfx->setCursor(LCD_WIDTH - 35, 220);
+      gfx->setTextColor(RGB565(60, 65, 85));
+      gfx->setCursor(LCD_WIDTH - 28, 210);
       gfx->print(">");
+      gfx->fillCircle(LCD_WIDTH - 18, 240, 3, theme->accent);
     }
 
     // === LARGE CARD DISPLAY ===
-    int cardW = 260;
-    int cardH = 280;
+    int cardW = 280;
+    int cardH = 270;
     int cardX = (LCD_WIDTH - cardW) / 2;
-    int cardY = 90;
+    int cardY = 88;
 
     // Card glow based on rarity
     uint16_t glowColor = getRarityGlowColor(card.rarity);
     uint16_t borderColor = getRarityBorderColor(card.rarity);
 
-    // Outer glow
-    for (int g = 5; g > 0; g--) {
-      gfx->drawRoundRect(cardX - g, cardY - g, cardW + g*2, cardH + g*2, 12, glowColor);
+    // Enhanced outer glow - wider, softer
+    for (int g = 8; g > 0; g--) {
+      uint16_t fadeGlow = RGB565(
+        ((glowColor >> 11) & 0x1F) * g / 10,
+        ((glowColor >> 5) & 0x3F) * g / 12,
+        (glowColor & 0x1F) * g / 10
+      );
+      gfx->drawRoundRect(cardX - g, cardY - g, cardW + g*2, cardH + g*2, 14, fadeGlow);
     }
 
-    // Card background
-    gfx->fillRoundRect(cardX, cardY, cardW, cardH, 10, RGB565(15, 18, 25));
-    gfx->drawRoundRect(cardX, cardY, cardW, cardH, 10, borderColor);
+    // Card background with subtle gradient effect
+    gfx->fillRoundRect(cardX, cardY, cardW, cardH, 12, RGB565(12, 14, 22));
+    // Inner lighter area for depth
+    gfx->fillRoundRect(cardX + 3, cardY + 3, cardW - 6, cardH - 6, 10, RGB565(18, 20, 30));
 
-    // CRT scan lines on card
-    for (int sy = cardY + 2; sy < cardY + cardH - 2; sy += 4) {
-      gfx->drawFastHLine(cardX + 2, sy, cardW - 4, RGB565(10, 12, 18));
+    // Double border for premium feel
+    gfx->drawRoundRect(cardX, cardY, cardW, cardH, 12, borderColor);
+    gfx->drawRoundRect(cardX + 2, cardY + 2, cardW - 4, cardH - 4, 10, RGB565(
+      ((borderColor >> 11) & 0x1F) * 12 / 31,
+      ((borderColor >> 5) & 0x3F) * 12 / 63,
+      (borderColor & 0x1F) * 12 / 31
+    ));
+
+    // CRT scan lines on card (subtler)
+    for (int sy = cardY + 4; sy < cardY + cardH - 4; sy += 5) {
+      gfx->drawFastHLine(cardX + 4, sy, cardW - 8, RGB565(8, 10, 16));
     }
 
-    // Pixel corner accents
-    gfx->fillRect(cardX, cardY, 12, 12, borderColor);
-    gfx->fillRect(cardX + cardW - 12, cardY, 12, 12, borderColor);
-    gfx->fillRect(cardX, cardY + cardH - 12, 12, 12, borderColor);
-    gfx->fillRect(cardX + cardW - 12, cardY + cardH - 12, 12, 12, borderColor);
+    // Corner accents - diamond style
+    for (int c = 0; c < 3; c++) {
+      gfx->fillRect(cardX + c, cardY + c, 10 - c*2, 10 - c*2, borderColor);
+      gfx->fillRect(cardX + cardW - 10 + c, cardY + c, 10 - c*2, 10 - c*2, borderColor);
+      gfx->fillRect(cardX + c, cardY + cardH - 10 + c, 10 - c*2, 10 - c*2, borderColor);
+      gfx->fillRect(cardX + cardW - 10 + c, cardY + cardH - 10 + c, 10 - c*2, 10 - c*2, borderColor);
+    }
 
-    // === RARITY BANNER ===
+    // === RARITY BANNER - Enhanced ===
     const char* rarityName = getRarityName(card.rarity);
-    int bannerW = strlen(rarityName) * 12 + 20;
+    int bannerW = strlen(rarityName) * 12 + 28;
     int bannerX = cardX + (cardW - bannerW) / 2;
-    gfx->fillRoundRect(bannerX, cardY + 10, bannerW, 24, 5, borderColor);
+    // Banner shadow
+    gfx->fillRoundRect(bannerX + 2, cardY + 10, bannerW, 26, 6, RGB565(0, 0, 0));
+    // Banner fill
+    gfx->fillRoundRect(bannerX, cardY + 8, bannerW, 26, 6, borderColor);
+    // Banner highlight line
+    gfx->drawFastHLine(bannerX + 4, cardY + 9, bannerW - 8, COLOR_WHITE);
     gfx->setTextSize(2);
     gfx->setTextColor(RGB565(0, 0, 0));
-    gfx->setCursor(bannerX + 10, cardY + 14);
+    gfx->setCursor(bannerX + 14, cardY + 13);
     gfx->print(rarityName);
 
-    // === CHARACTER PORTRAIT AREA ===
-    int portraitY = cardY + 45;
-    int portraitH = 80;
-    gfx->fillRect(cardX + 20, portraitY, cardW - 40, portraitH, card.card_color);
-    gfx->drawRect(cardX + 20, portraitY, cardW - 40, portraitH, RGB565(50, 55, 70));
-
-    // CRT effect on portrait
-    for (int py = portraitY + 2; py < portraitY + portraitH - 2; py += 3) {
-      gfx->drawFastHLine(cardX + 22, py, cardW - 44, RGB565(0, 0, 0));
+    // === CHARACTER PORTRAIT AREA - Enhanced ===
+    int portraitY = cardY + 42;
+    int portraitH = 85;
+    int portraitX = cardX + 18;
+    int portraitW = cardW - 36;
+    
+    // Portrait border glow
+    gfx->drawRect(portraitX - 1, portraitY - 1, portraitW + 2, portraitH + 2, borderColor);
+    // Portrait fill with card color
+    gfx->fillRect(portraitX, portraitY, portraitW, portraitH, card.card_color);
+    // Vignette corners (darken edges)
+    for (int v = 0; v < 15; v++) {
+      uint8_t alpha = 15 - v;
+      gfx->drawFastHLine(portraitX, portraitY + v, portraitW, RGB565(alpha, alpha, alpha + 2));
+      gfx->drawFastHLine(portraitX, portraitY + portraitH - 1 - v, portraitW, RGB565(alpha, alpha, alpha + 2));
+    }
+    // Subtle scanlines on portrait
+    for (int py = portraitY + 2; py < portraitY + portraitH - 2; py += 4) {
+      gfx->drawFastHLine(portraitX + 1, py, portraitW - 2, RGB565(0, 0, 0));
     }
 
-    // Character initial
-    gfx->setTextSize(5);
-    gfx->setTextColor(COLOR_WHITE);
+    // Character initial - larger with shadow
+    gfx->setTextSize(6);
+    gfx->setTextColor(RGB565(0, 0, 0));
     char initial[2] = {card.character_name[0], 0};
-    gfx->setCursor(cardX + cardW/2 - 15, portraitY + 20);
+    gfx->setCursor(cardX + cardW/2 - 16, portraitY + 15);
+    gfx->print(initial);
+    gfx->setTextColor(COLOR_WHITE);
+    gfx->setCursor(cardX + cardW/2 - 18, portraitY + 13);
     gfx->print(initial);
 
-    // === CHARACTER NAME ===
+    // === CHARACTER NAME - Enhanced ===
     gfx->setTextSize(2);
     gfx->setTextColor(COLOR_WHITE);
     int nameLen = card.character_name.length() * 12;
-    gfx->setCursor(cardX + (cardW - nameLen) / 2, cardY + 140);
+    gfx->setCursor(cardX + (cardW - nameLen) / 2, cardY + 135);
     gfx->print(card.character_name);
 
-    // === SERIES NAME ===
+    // === SERIES NAME with decorative line ===
     gfx->setTextSize(1);
-    gfx->setTextColor(RGB565(120, 125, 140));
+    gfx->setTextColor(RGB565(140, 145, 165));
     int seriesLen = card.series.length() * 6;
-    gfx->setCursor(cardX + (cardW - seriesLen) / 2, cardY + 165);
+    int seriesX = cardX + (cardW - seriesLen) / 2;
+    gfx->setCursor(seriesX, cardY + 157);
     gfx->print(card.series);
+    // Decorative lines beside series
+    gfx->drawFastHLine(cardX + 20, cardY + 161, seriesX - cardX - 26, RGB565(40, 45, 60));
+    gfx->drawFastHLine(seriesX + seriesLen + 6, cardY + 161, cardX + cardW - 20 - seriesX - seriesLen - 6, RGB565(40, 45, 60));
 
-    // === RARITY STARS ===
+    // === RARITY STARS - Enhanced ===
     int starCount = getRarityStars(card.rarity);
-    int starSpacing = 25;
+    int starSpacing = 22;
     int starStartX = cardX + (cardW - (starCount * starSpacing)) / 2;
     for (int s = 0; s < starCount; s++) {
-      drawStar(starStartX + s * starSpacing + 10, cardY + 190, 10, COLOR_GOLD);
+      // Star shadow
+      drawStar(starStartX + s * starSpacing + 11, cardY + 178, 9, RGB565(80, 60, 0));
+      drawStar(starStartX + s * starSpacing + 10, cardY + 177, 9, COLOR_GOLD);
     }
 
-    // === POWER RATING ===
-    gfx->setTextSize(4);
+    // === POWER RATING - Enhanced with label ===
+    // Power background plate
+    int pwrPlateW = 120;
+    int pwrPlateX = cardX + (cardW - pwrPlateW) / 2;
+    gfx->fillRoundRect(pwrPlateX, cardY + 192, pwrPlateW, 42, 6, RGB565(8, 10, 16));
+    gfx->drawRoundRect(pwrPlateX, cardY + 192, pwrPlateW, 42, 6, RGB565(40, 45, 60));
+    
+    gfx->setTextSize(1);
+    gfx->setTextColor(RGB565(120, 125, 140));
+    gfx->setCursor(pwrPlateX + pwrPlateW/2 - 18, cardY + 195);
+    gfx->print("POWER");
+    
+    gfx->setTextSize(3);
     gfx->setTextColor(borderColor);
     char powerStr[10];
     sprintf(powerStr, "%d", card.power_rating);
-    int powerLen = strlen(powerStr) * 24;
-    gfx->setCursor(cardX + (cardW - powerLen) / 2, cardY + 210);
+    int powerLen = strlen(powerStr) * 18;
+    gfx->setCursor(pwrPlateX + (pwrPlateW - powerLen) / 2, cardY + 208);
     gfx->print(powerStr);
 
-    gfx->setTextSize(1);
-    gfx->setTextColor(RGB565(100, 105, 120));
-    gfx->setCursor(cardX + cardW/2 - 18, cardY + 250);
-    gfx->print("POWER");
-
-    // === OWNED COUNT BADGE ===
-    int ownedCount = cards_duplicates[cardIdx] + 1; // +1 for original
+    // === OWNED COUNT BADGE - Enhanced ===
+    int ownedCount = cards_duplicates[cardIdx] + 1;
     char ownedStr[15];
-    sprintf(ownedStr, "Owned: %dx", ownedCount);
-    int ownedBadgeW = strlen(ownedStr) * 6 + 16;
-    gfx->fillRoundRect(cardX + cardW/2 - ownedBadgeW/2, cardY + cardH - 28, ownedBadgeW, 20, 5, RGB565(20, 25, 35));
-    gfx->drawRoundRect(cardX + cardW/2 - ownedBadgeW/2, cardY + cardH - 28, ownedBadgeW, 20, 5, RGB565(60, 65, 80));
+    sprintf(ownedStr, "x%d", ownedCount);
+    int ownedBadgeW = strlen(ownedStr) * 6 + 20;
+    int ownedBadgeX = cardX + cardW - ownedBadgeW - 8;
+    gfx->fillRoundRect(ownedBadgeX, cardY + cardH - 26, ownedBadgeW, 20, 4, RGB565(0, 40, 50));
+    gfx->drawRoundRect(ownedBadgeX, cardY + cardH - 26, ownedBadgeW, 20, 4, COLOR_CYAN);
     gfx->setTextSize(1);
     gfx->setTextColor(COLOR_CYAN);
-    gfx->setCursor(cardX + cardW/2 - (strlen(ownedStr) * 6) / 2, cardY + cardH - 23);
+    gfx->setCursor(ownedBadgeX + 10, cardY + cardH - 21);
     gfx->print(ownedStr);
 
-    // === EVOLUTION BADGE (if evolved) ===
+    // === EVOLUTION BADGE (if evolved) - Enhanced ===
     if (card.evolution_level > 0) {
       const char* evoName = getEvolutionName(card.evolution_level);
       uint16_t evoColor = getEvolutionColor(card.evolution_level);
-      int evoBadgeW = strlen(evoName) * 6 + 12;
-      gfx->fillRoundRect(cardX + 10, cardY + 40, evoBadgeW, 16, 3, evoColor);
+      int evoBadgeW = strlen(evoName) * 6 + 16;
+      gfx->fillRoundRect(cardX + 8, cardY + cardH - 26, evoBadgeW, 20, 4, evoColor);
+      gfx->drawRoundRect(cardX + 8, cardY + cardH - 26, evoBadgeW, 20, 4, COLOR_WHITE);
       gfx->setTextSize(1);
       gfx->setTextColor(RGB565(0, 0, 0));
-      gfx->setCursor(cardX + 16, cardY + 44);
+      gfx->setCursor(cardX + 16, cardY + cardH - 21);
       gfx->print(evoName);
     }
     
     // =============================================================================
-    // SELL INFO & BUTTONS
+    // SELL INFO & BUTTONS - Enhanced with rarity-aware values
     // =============================================================================
-    int infoY = cardY + cardH + 8;
-    int ownedCount2 = cards_duplicates[cardIdx] + 1;
+    int infoY = cardY + cardH + 6;
     int sellXP = getCardSellXP(card.rarity);
     int sellGems = getCardSellGems(card.rarity);
     
-    // Sell value preview
+    // Sell value banner with background
+    int sellInfoW = cardW;
+    int sellInfoX = cardX;
+    gfx->fillRoundRect(sellInfoX, infoY, sellInfoW, 20, 4, RGB565(10, 15, 10));
+    gfx->drawRoundRect(sellInfoX, infoY, sellInfoW, 20, 4, RGB565(40, 60, 40));
     gfx->setTextSize(1);
-    gfx->setTextColor(RGB565(100, 105, 120));
-    gfx->setCursor(cardX + 10, infoY);
-    gfx->printf("Sell: +%d XP +%d G", sellXP, sellGems);
+    gfx->setTextColor(COLOR_GREEN);
+    gfx->setCursor(sellInfoX + 8, infoY + 6);
+    gfx->printf("SELL VALUE: +%d XP", sellXP);
+    gfx->setTextColor(COLOR_GOLD);
+    // Right-align gems
+    char gemsStr[16];
+    sprintf(gemsStr, "+%d GEMS", sellGems);
+    int gemsLen = strlen(gemsStr) * 6;
+    gfx->setCursor(sellInfoX + sellInfoW - gemsLen - 8, infoY + 6);
+    gfx->print(gemsStr);
     
-    // SELL CARD button
-    int sellBtnY = infoY + 18;
-    int sellBtnW = 100;
-    int sellBtnH = 28;
-    int sellBtnX = cardX + 10;
+    // SELL CARD button - Enhanced with gradient feel
+    int sellBtnY = infoY + 24;
+    int sellBtnW = 120;
+    int sellBtnH = 32;
+    int sellBtnX = cardX;
     
-    gfx->fillRect(sellBtnX, sellBtnY, sellBtnW, sellBtnH, RGB565(50, 20, 20));
-    gfx->drawRect(sellBtnX, sellBtnY, sellBtnW, sellBtnH, COLOR_RED);
-    gfx->fillRect(sellBtnX, sellBtnY, 4, 4, COLOR_RED);
+    // Button shadow
+    gfx->fillRoundRect(sellBtnX + 2, sellBtnY + 2, sellBtnW, sellBtnH, 5, RGB565(30, 0, 0));
+    // Button fill
+    gfx->fillRoundRect(sellBtnX, sellBtnY, sellBtnW, sellBtnH, 5, RGB565(60, 15, 15));
+    // Button border
+    gfx->drawRoundRect(sellBtnX, sellBtnY, sellBtnW, sellBtnH, 5, RGB565(220, 60, 60));
+    // Highlight top edge
+    gfx->drawFastHLine(sellBtnX + 4, sellBtnY + 1, sellBtnW - 8, RGB565(180, 40, 40));
     gfx->setTextSize(1);
-    gfx->setTextColor(COLOR_RED);
-    gfx->setCursor(sellBtnX + 15, sellBtnY + 10);
+    gfx->setTextColor(RGB565(255, 100, 100));
+    gfx->setCursor(sellBtnX + 12, sellBtnY + 6);
     gfx->print("SELL CARD");
+    gfx->setTextColor(RGB565(180, 80, 80));
+    gfx->setCursor(sellBtnX + 12, sellBtnY + 18);
+    gfx->printf("%dXP +%dG", sellXP, sellGems);
     
-    // SELL ALL DUPES button (only if there are duplicates across collection)
+    // SELL ALL DUPES button - Enhanced
     int totalDupes = getSellableCardCount(true);
     if (totalDupes > 0) {
-        int sellAllBtnX = cardX + cardW - 115;
-        gfx->fillRect(sellAllBtnX, sellBtnY, 115, sellBtnH, RGB565(60, 30, 15));
-        gfx->drawRect(sellAllBtnX, sellBtnY, 115, sellBtnH, RGB565(255, 150, 50));
-        gfx->fillRect(sellAllBtnX, sellBtnY, 4, 4, RGB565(255, 150, 50));
-        gfx->setTextColor(RGB565(255, 150, 50));
-        gfx->setCursor(sellAllBtnX + 8, sellBtnY + 4);
-        gfx->print("SELL ALL");
-        gfx->setCursor(sellAllBtnX + 8, sellBtnY + 16);
-        gfx->printf("DUPES (%d)", totalDupes);
+        int sellAllBtnW2 = cardW - sellBtnW - 8;
+        int sellAllBtnX = cardX + sellBtnW + 8;
+        // Button shadow
+        gfx->fillRoundRect(sellAllBtnX + 2, sellBtnY + 2, sellAllBtnW2, sellBtnH, 5, RGB565(30, 15, 0));
+        // Button fill
+        gfx->fillRoundRect(sellAllBtnX, sellBtnY, sellAllBtnW2, sellBtnH, 5, RGB565(55, 30, 10));
+        // Button border
+        gfx->drawRoundRect(sellAllBtnX, sellBtnY, sellAllBtnW2, sellBtnH, 5, RGB565(255, 160, 50));
+        // Highlight
+        gfx->drawFastHLine(sellAllBtnX + 4, sellBtnY + 1, sellAllBtnW2 - 8, RGB565(200, 120, 30));
+        gfx->setTextSize(1);
+        gfx->setTextColor(RGB565(255, 180, 80));
+        gfx->setCursor(sellAllBtnX + 8, sellBtnY + 6);
+        gfx->printf("SELL DUPES (%d)", totalDupes);
+        gfx->setTextColor(RGB565(200, 140, 60));
+        gfx->setCursor(sellAllBtnX + 8, sellBtnY + 18);
+        gfx->print("ALL DUPLICATES");
     }
   }
 
-  // === CARD POSITION INDICATOR ===
+  // === CARD POSITION INDICATOR - Enhanced ===
   if (filtered_count > 0) {
     gfx->setTextSize(1);
-    gfx->setTextColor(RGB565(100, 105, 120));
+    gfx->setTextColor(RGB565(120, 125, 145));
     char posStr[15];
-    sprintf(posStr, "< %d / %d >", collection_view_index + 1, filtered_count);
+    sprintf(posStr, "%d / %d", collection_view_index + 1, filtered_count);
     int posLen = strlen(posStr) * 6;
-    gfx->setCursor(LCD_WIDTH/2 - posLen/2, 380);
+    int posY = 388;
+    // Arrow indicators
+    if (collection_view_index > 0) {
+      gfx->setTextColor(theme->accent);
+      gfx->setCursor(LCD_WIDTH/2 - posLen/2 - 18, posY);
+      gfx->print("<");
+    }
+    gfx->setTextColor(RGB565(150, 155, 175));
+    gfx->setCursor(LCD_WIDTH/2 - posLen/2, posY);
     gfx->print(posStr);
+    if (collection_view_index < filtered_count - 1) {
+      gfx->setTextColor(theme->accent);
+      gfx->setCursor(LCD_WIDTH/2 + posLen/2 + 6, posY);
+      gfx->print(">");
+    }
   }
 
-  // === SORT BUTTON ===
+  // === SORT BUTTON - Enhanced ===
   const char* sortLabels[] = {"RARITY", "POWER", "NAME", "SERIES"};
   char sortStr[20];
   sprintf(sortStr, "Sort: %s", sortLabels[collection_sort]);
-  int sortBtnW = strlen(sortStr) * 6 + 16;
+  int sortBtnW = strlen(sortStr) * 6 + 20;
 
-  gfx->fillRect(LCD_WIDTH/2 - sortBtnW/2, 398, sortBtnW, 24, RGB565(15, 18, 25));
-  gfx->drawRect(LCD_WIDTH/2 - sortBtnW/2, 398, sortBtnW, 24, RGB565(50, 55, 70));
-  gfx->fillRect(LCD_WIDTH/2 - sortBtnW/2, 398, 4, 4, theme->accent);
+  gfx->fillRoundRect(LCD_WIDTH/2 - sortBtnW/2, 400, sortBtnW, 24, 5, RGB565(15, 18, 28));
+  gfx->drawRoundRect(LCD_WIDTH/2 - sortBtnW/2, 400, sortBtnW, 24, 5, RGB565(60, 65, 80));
+  gfx->drawFastHLine(LCD_WIDTH/2 - sortBtnW/2 + 3, 401, sortBtnW - 6, theme->accent);
   gfx->setTextSize(1);
-  gfx->setTextColor(RGB565(150, 155, 170));
-  gfx->setCursor(LCD_WIDTH/2 - (strlen(sortStr) * 6) / 2, 406);
+  gfx->setTextColor(RGB565(170, 175, 195));
+  gfx->setCursor(LCD_WIDTH/2 - (strlen(sortStr) * 6) / 2, 408);
   gfx->print(sortStr);
 
-  // === STATS BAR ===
+  // === STATS BAR - Enhanced ===
   int statsY = 430;
-  gfx->fillRect(10, statsY, LCD_WIDTH - 20, 30, RGB565(10, 12, 18));
-  gfx->drawRect(10, statsY, LCD_WIDTH - 20, 30, RGB565(30, 35, 50));
+  gfx->fillRoundRect(10, statsY, LCD_WIDTH - 20, 28, 5, RGB565(10, 12, 18));
+  gfx->drawRoundRect(10, statsY, LCD_WIDTH - 20, 28, 5, RGB565(35, 40, 55));
 
-  // Show rarity breakdown instead of card stats
+  // Show rarity breakdown with colored dots
   int cCommon, cRare, cEpic, cLegendary, cMythic;
   getCardCountByRarity(&cCommon, &cRare, &cEpic, &cLegendary, &cMythic);
   
   gfx->setTextSize(1);
+  int statX = 18;
+  
   // Common
+  gfx->fillCircle(statX, statsY + 14, 3, RGB565(150, 150, 160));
   gfx->setTextColor(RGB565(150, 150, 160));
-  gfx->setCursor(15, statsY + 11);
-  gfx->printf("C:%d", cCommon);
+  gfx->setCursor(statX + 6, statsY + 10);
+  gfx->printf("%d", cCommon);
   
   // Rare
+  statX = 60;
+  gfx->fillCircle(statX, statsY + 14, 3, RGB565(30, 144, 255));
   gfx->setTextColor(RGB565(30, 144, 255));
-  gfx->setCursor(65, statsY + 11);
-  gfx->printf("R:%d", cRare);
+  gfx->setCursor(statX + 6, statsY + 10);
+  gfx->printf("%d", cRare);
   
   // Epic
+  statX = 100;
+  gfx->fillCircle(statX, statsY + 14, 3, RGB565(160, 32, 240));
   gfx->setTextColor(RGB565(160, 32, 240));
-  gfx->setCursor(115, statsY + 11);
-  gfx->printf("E:%d", cEpic);
+  gfx->setCursor(statX + 6, statsY + 10);
+  gfx->printf("%d", cEpic);
   
   // Legendary
+  statX = 145;
+  gfx->fillCircle(statX, statsY + 14, 3, RGB565(255, 215, 0));
   gfx->setTextColor(RGB565(255, 215, 0));
-  gfx->setCursor(165, statsY + 11);
-  gfx->printf("L:%d", cLegendary);
+  gfx->setCursor(statX + 6, statsY + 10);
+  gfx->printf("%d", cLegendary);
   
   // Mythic
+  statX = 195;
+  gfx->fillCircle(statX, statsY + 14, 3, RGB565(255, 100, 200));
   gfx->setTextColor(RGB565(255, 100, 200));
-  gfx->setCursor(215, statsY + 11);
-  gfx->printf("M:%d", cMythic);
+  gfx->setCursor(statX + 6, statsY + 10);
+  gfx->printf("%d", cMythic);
   
-  // Total cards
+  // Total
   int totalCards = cCommon + cRare + cEpic + cLegendary + cMythic;
   gfx->setTextColor(COLOR_WHITE);
-  gfx->setCursor(265, statsY + 11);
-  gfx->printf("=%d", totalCards);
+  gfx->setCursor(245, statsY + 10);
+  gfx->printf("TOTAL:%d", totalCards);
 
-  // === SELL ALL CARDS BUTTON ===
+  // === BOTTOM ROW: SELL ALL + BACK (side by side) ===
+  int bottomY = 464;
+  
+  // SELL ALL CARDS button - Enhanced
   if (totalCards > 0) {
-    int sellAllY = 465;
-    int sellAllW = 130;
-    int sellAllH = 26;
-    int sellAllX = 15;
+    int sellAllW = LCD_WIDTH/2 - 20;
+    int sellAllH = 30;
+    int sellAllX = 12;
     
     // Get total value
     int totalXP, totalGems;
     getCollectionValue(&totalXP, &totalGems);
     
-    gfx->fillRect(sellAllX, sellAllY, sellAllW, sellAllH, RGB565(60, 15, 15));
-    gfx->drawRect(sellAllX, sellAllY, sellAllW, sellAllH, RGB565(200, 50, 50));
-    gfx->fillRect(sellAllX, sellAllY, 4, 4, RGB565(200, 50, 50));
+    // Button shadow
+    gfx->fillRoundRect(sellAllX + 2, bottomY + 2, sellAllW, sellAllH, 5, RGB565(30, 0, 0));
+    // Button fill
+    gfx->fillRoundRect(sellAllX, bottomY, sellAllW, sellAllH, 5, RGB565(55, 10, 10));
+    // Button border
+    gfx->drawRoundRect(sellAllX, bottomY, sellAllW, sellAllH, 5, RGB565(200, 50, 50));
     gfx->setTextSize(1);
-    gfx->setTextColor(RGB565(200, 50, 50));
-    gfx->setCursor(sellAllX + 8, sellAllY + 5);
+    gfx->setTextColor(RGB565(220, 70, 70));
+    gfx->setCursor(sellAllX + 8, bottomY + 4);
     gfx->print("SELL ALL CARDS");
-    gfx->setTextColor(RGB565(150, 100, 100));
-    gfx->setCursor(sellAllX + 8, sellAllY + 15);
-    gfx->printf("%dXP %dG", totalXP, totalGems);
+    gfx->setTextColor(RGB565(160, 80, 80));
+    gfx->setCursor(sellAllX + 8, bottomY + 16);
+    gfx->printf("%dXP +%dG", totalXP, totalGems);
   }
 
-  // === BACK BUTTON ===
-  gfx->fillRect(LCD_WIDTH/2 + 20, 468, 80, 28, RGB565(15, 18, 25));
-  gfx->drawRect(LCD_WIDTH/2 + 20, 468, 80, 28, RGB565(40, 45, 60));
-  gfx->setTextColor(RGB565(180, 185, 200));
-  gfx->setTextSize(1);
-  gfx->setCursor(LCD_WIDTH/2 + 44, 478);
-  gfx->print("Back");
+  // === BACK BUTTON - Enhanced ===
+  int backBtnW = LCD_WIDTH/2 - 20;
+  int backBtnH = 30;
+  int backBtnX = LCD_WIDTH/2 + 8;
+  
+  gfx->fillRoundRect(backBtnX + 2, bottomY + 2, backBtnW, backBtnH, 5, RGB565(8, 8, 12));
+  gfx->fillRoundRect(backBtnX, bottomY, backBtnW, backBtnH, 5, RGB565(18, 22, 32));
+  gfx->drawRoundRect(backBtnX, bottomY, backBtnW, backBtnH, 5, RGB565(60, 65, 85));
+  gfx->drawFastHLine(backBtnX + 4, bottomY + 1, backBtnW - 8, RGB565(45, 50, 65));
+  gfx->setTextColor(RGB565(200, 205, 225));
+  gfx->setTextSize(2);
+  gfx->setCursor(backBtnX + backBtnW/2 - 24, bottomY + 8);
+  gfx->print("BACK");
 
-  // === SWIPE HINT ===
-  gfx->setTextSize(1);
-  gfx->setTextColor(RGB565(50, 55, 70));
-  gfx->setCursor(LCD_WIDTH/2 - 55, LCD_HEIGHT - 8);
-  gfx->print("< SWIPE TO BROWSE >");
+  // === BOTTOM SWIPE HINT (removed - replaced by BACK button) ===
 }
 
 // Global state for gacha reveal
@@ -1811,22 +2106,21 @@ void handleGachaTouch(TouchGesture& gesture) {
     if (canPullTen()) {
       GachaCard results[10];
       performTenPull(results);
-      // Show each card with save
+      // Save all cards to collection
       for (int i = 0; i < 10; i++) {
         saveGachaCard(results[i]);
       }
-      // Show last card
+      // Show 10-card grid reveal
+      drawTenPullGrid(results);
       last_revealed_card = results[9];
-      drawGachaRevealImproved(results[9]);
       showing_gacha_result = true;
     }
     return;
   }
 
   // Collection button
-  if (y >= 365 && y < 405 && x >= 10 && x < 105) {
+  if (y >= 365 && y < 405 && x >= 10 && x < 102) {
     system_state.current_screen = SCREEN_COLLECTION;
-    // Reset collection browser state
     collection_view_index = 0;
     collection_filter = 0;
     collection_sort = 0;
@@ -1836,21 +2130,21 @@ void handleGachaTouch(TouchGesture& gesture) {
   }
 
   // Evolve button
-  if (y >= 365 && y < 405 && x >= 115 && x < 190) {
+  if (y >= 365 && y < 405 && x >= 110 && x < 190) {
     system_state.current_screen = SCREEN_CARD_EVOLUTION;
     drawCardEvolutionScreen();
     return;
   }
 
   // Deck button
-  if (y >= 365 && y < 405 && x >= 200 && x < 265) {
+  if (y >= 365 && y < 405 && x >= 198 && x < 270) {
     system_state.current_screen = SCREEN_DECK_BUILDER;
     drawDeckBuilderScreen();
     return;
   }
 
   // Back button
-  if (y >= 365 && y < 405 && x >= 275 && x < 350) {
+  if (y >= 365 && y < 405 && x >= 278 && x < 356) {
     system_state.current_screen = SCREEN_GAMES;
     drawGameMenu();
     return;
@@ -1903,9 +2197,9 @@ void handleCollectionTouch(TouchGesture& gesture) {
     }
   }
 
-  // Sort button (y: 398-422)
+  // Sort button (y: 400-424)
   int sortBtnW = 100;
-  if (y >= 398 && y < 422 && x >= LCD_WIDTH/2 - sortBtnW/2 && x < LCD_WIDTH/2 + sortBtnW/2) {
+  if (y >= 400 && y < 424 && x >= LCD_WIDTH/2 - sortBtnW/2 && x < LCD_WIDTH/2 + sortBtnW/2) {
     collection_sort = (collection_sort + 1) % 4; // Cycle through sort options
     collection_needs_rebuild = true;
     drawGachaCollection();
@@ -1913,7 +2207,7 @@ void handleCollectionTouch(TouchGesture& gesture) {
   }
 
   // Left arrow tap (quick navigation)
-  if (x < 60 && y >= 180 && y < 280) {
+  if (x < 60 && y >= 150 && y < 300) {
     if (filtered_count > 0 && collection_view_index > 0) {
       collection_view_index--;
       drawGachaCollection();
@@ -1922,7 +2216,7 @@ void handleCollectionTouch(TouchGesture& gesture) {
   }
 
   // Right arrow tap (quick navigation)
-  if (x > LCD_WIDTH - 60 && y >= 180 && y < 280) {
+  if (x > LCD_WIDTH - 60 && y >= 150 && y < 300) {
     if (filtered_count > 0 && collection_view_index < filtered_count - 1) {
       collection_view_index++;
       drawGachaCollection();
@@ -1931,13 +2225,15 @@ void handleCollectionTouch(TouchGesture& gesture) {
   }
 
   // Card tap - visual feedback flash
-  int cardX = (LCD_WIDTH - 260) / 2;
-  int cardY = 90;
-  if (x >= cardX && x < cardX + 260 && y >= cardY && y < cardY + 280) {
+  int cardW = 280;
+  int cardH = 270;
+  int cardX = (LCD_WIDTH - cardW) / 2;
+  int cardY = 88;
+  if (x >= cardX && x < cardX + cardW && y >= cardY && y < cardY + cardH) {
     if (filtered_count > 0) {
       int cardIdx = filtered_cards[collection_view_index];
       // Flash the card
-      gfx->fillRoundRect(cardX, cardY, 260, 280, 10, getRarityBorderColor(gacha_cards[cardIdx].rarity));
+      gfx->fillRoundRect(cardX, cardY, cardW, cardH, 12, getRarityBorderColor(gacha_cards[cardIdx].rarity));
       delay(50);
       drawGachaCollection();
     }
@@ -1945,40 +2241,68 @@ void handleCollectionTouch(TouchGesture& gesture) {
   }
 
   // =============================================================================
-  // SELL CARD button
+  // SELL CARD button - Updated coordinates
   // =============================================================================
-  int cardX2 = (LCD_WIDTH - 260) / 2;
-  int cardH2 = 280;
-  int cardY2 = 90;
-  int infoY = cardY2 + cardH2 + 8;
-  int sellBtnY = infoY + 18;
-  int sellBtnH = 28;
-  int sellBtnW = 100;
-  int sellBtnX = cardX2 + 10;
+  int cardX2 = (LCD_WIDTH - 280) / 2;
+  int cardH2 = 270;
+  int cardY2 = 88;
+  int infoY = cardY2 + cardH2 + 6;
+  int sellBtnY = infoY + 24;
+  int sellBtnH = 32;
+  int sellBtnW2 = 120;
+  int sellBtnX = cardX2;
   
-  if (y >= sellBtnY && y < sellBtnY + sellBtnH && x >= sellBtnX && x < sellBtnX + sellBtnW) {
+  if (y >= sellBtnY && y < sellBtnY + sellBtnH && x >= sellBtnX && x < sellBtnX + sellBtnW2) {
       if (filtered_count > 0) {
           int cardIdx = filtered_cards[collection_view_index];
+          GachaCard& sellCard_ = gacha_cards[cardIdx];
+          int sellXP = getCardSellXP(sellCard_.rarity);
+          int sellGems_ = getCardSellGems(sellCard_.rarity);
           
-          // Show confirmation flash
-          gfx->fillScreen(COLOR_RED);
+          // Enhanced confirmation flash
+          gfx->fillScreen(RGB565(40, 5, 5));
           delay(50);
           
           // Sell the card
           int xpGained = sellCard(cardIdx);
           
           if (xpGained > 0) {
-              // Show XP gained
-              gfx->fillScreen(RGB565(10, 30, 10));
+              // Enhanced sell result screen
+              gfx->fillScreen(RGB565(5, 20, 8));
+              
+              // Title
+              gfx->setTextSize(2);
+              gfx->setTextColor(COLOR_WHITE);
+              gfx->setCursor(LCD_WIDTH/2 - 48, LCD_HEIGHT/2 - 60);
+              gfx->print("CARD SOLD!");
+              
+              // Card name
+              gfx->setTextSize(1);
+              gfx->setTextColor(getRarityBorderColor(sellCard_.rarity));
+              int nameLen2 = sellCard_.character_name.length() * 6;
+              gfx->setCursor(LCD_WIDTH/2 - nameLen2/2, LCD_HEIGHT/2 - 35);
+              gfx->print(sellCard_.character_name);
+              
+              // XP reward
               gfx->setTextSize(2);
               gfx->setTextColor(COLOR_GREEN);
-              gfx->setCursor(LCD_WIDTH/2 - 60, LCD_HEIGHT/2 - 20);
-              gfx->printf("+%d XP!", xpGained);
-              gfx->setTextSize(1);
+              gfx->setCursor(LCD_WIDTH/2 - 55, LCD_HEIGHT/2 - 10);
+              gfx->printf("+%d XP", sellXP);
+              
+              // Gems reward
               gfx->setTextColor(COLOR_GOLD);
-              gfx->setCursor(LCD_WIDTH/2 - 40, LCD_HEIGHT/2 + 10);
-              gfx->printf("+%d Gems!", getCardSellGems(gacha_cards[cardIdx].rarity));
-              delay(500);
+              gfx->setCursor(LCD_WIDTH/2 - 60, LCD_HEIGHT/2 + 15);
+              gfx->printf("+%d GEMS", sellGems_);
+              
+              // Rarity label
+              gfx->setTextSize(1);
+              gfx->setTextColor(RGB565(100, 105, 120));
+              const char* rarityStr = getRarityName(sellCard_.rarity);
+              int rarLen = strlen(rarityStr) * 6;
+              gfx->setCursor(LCD_WIDTH/2 - rarLen/2, LCD_HEIGHT/2 + 45);
+              gfx->print(rarityStr);
+              
+              delay(600);
               
               // Rebuild and redraw
               collection_needs_rebuild = true;
@@ -1989,47 +2313,118 @@ void handleCollectionTouch(TouchGesture& gesture) {
   }
   
   // =============================================================================
-  // SELL ALL DUPLICATES button
+  // SELL ALL DUPLICATES button - Updated coordinates
   // =============================================================================
-  int cardW2 = 260;
-  int sellAllBtnX = cardX2 + cardW2 - 115;
-  int sellAllBtnW = 115;
+  int cardW2 = 280;
+  int sellAllBtnW3 = cardW2 - 120 - 8;
+  int sellAllBtnX = cardX2 + 120 + 8;
   
-  if (y >= sellBtnY && y < sellBtnY + sellBtnH && x >= sellAllBtnX && x < sellAllBtnX + sellAllBtnW) {
+  if (y >= sellBtnY && y < sellBtnY + sellBtnH && x >= sellAllBtnX && x < sellAllBtnX + sellAllBtnW3) {
       int totalDupes = getSellableCardCount(true);
       
       if (totalDupes > 0) {
-          // Show confirmation flash
-          gfx->fillScreen(RGB565(60, 30, 15));
-          delay(50);
-          
-          // Calculate total rewards before selling
+          // Calculate per-rarity breakdown BEFORE selling
+          int dupesByRarity[5] = {0, 0, 0, 0, 0};
+          int xpByRarity[5] = {0, 0, 0, 0, 0};
+          int gemsByRarity[5] = {0, 0, 0, 0, 0};
           int previewXP = 0;
           int previewGems = 0;
+          
           for (int i = 0; i < GACHA_TOTAL_CARDS; i++) {
               if (cards_owned[i] && cards_duplicates[i] > 0) {
-                  previewXP += cards_duplicates[i] * getCardSellXP(gacha_cards[i].rarity);
-                  previewGems += cards_duplicates[i] * getCardSellGems(gacha_cards[i].rarity);
+                  int d = cards_duplicates[i];
+                  int r = min((int)gacha_cards[i].rarity, 4);
+                  int xp = d * getCardSellXP(gacha_cards[i].rarity);
+                  int gems = d * getCardSellGems(gacha_cards[i].rarity);
+                  dupesByRarity[r] += d;
+                  xpByRarity[r] += xp;
+                  gemsByRarity[r] += gems;
+                  previewXP += xp;
+                  previewGems += gems;
               }
           }
+          
+          // Flash
+          gfx->fillScreen(RGB565(40, 25, 5));
+          delay(50);
           
           // Sell all duplicates
           int xpGained = sellAllDuplicates();
           
           if (xpGained > 0) {
-              // Show rewards
-              gfx->fillScreen(RGB565(15, 35, 15));
+              // Enhanced rewards screen with RARITY BREAKDOWN
+              gfx->fillScreen(RGB565(5, 18, 8));
+              
+              // Border
+              gfx->drawRoundRect(5, 5, LCD_WIDTH - 10, LCD_HEIGHT - 10, 8, COLOR_GREEN);
+              
+              // Title
+              gfx->setTextSize(2);
+              gfx->setTextColor(COLOR_WHITE);
+              gfx->setCursor(LCD_WIDTH/2 - 72, 30);
+              gfx->print("DUPES SOLD!");
+              
+              gfx->setTextSize(1);
+              gfx->setTextColor(RGB565(160, 165, 180));
+              gfx->setCursor(LCD_WIDTH/2 - 55, 55);
+              gfx->printf("%d duplicates sold", totalDupes);
+              
+              // === RARITY BREAKDOWN TABLE ===
+              int tableY = 80;
+              const char* rarNames[] = {"Common", "Rare", "Epic", "Legendary", "Mythic"};
+              uint16_t rarColors[] = {
+                RGB565(150, 150, 160), RGB565(30, 144, 255), RGB565(160, 32, 240),
+                RGB565(255, 215, 0), RGB565(255, 100, 200)
+              };
+              
+              // Table header
+              gfx->fillRect(20, tableY, LCD_WIDTH - 40, 16, RGB565(10, 14, 10));
+              gfx->setTextColor(RGB565(100, 105, 120));
+              gfx->setCursor(28, tableY + 4);
+              gfx->print("RARITY      QTY    XP       GEMS");
+              tableY += 20;
+              
+              for (int r = 4; r >= 0; r--) {  // Mythic first
+                if (dupesByRarity[r] > 0) {
+                  gfx->fillRect(20, tableY, LCD_WIDTH - 40, 18, RGB565(8, 12, 8));
+                  gfx->drawFastHLine(20, tableY + 17, LCD_WIDTH - 40, RGB565(15, 25, 15));
+                  
+                  gfx->setTextColor(rarColors[r]);
+                  gfx->setCursor(28, tableY + 5);
+                  gfx->printf("%-10s", rarNames[r]);
+                  
+                  gfx->setTextColor(COLOR_WHITE);
+                  gfx->setCursor(100, tableY + 5);
+                  gfx->printf("x%-3d", dupesByRarity[r]);
+                  
+                  gfx->setTextColor(COLOR_GREEN);
+                  gfx->setCursor(145, tableY + 5);
+                  gfx->printf("+%d", xpByRarity[r]);
+                  
+                  gfx->setTextColor(COLOR_GOLD);
+                  gfx->setCursor(230, tableY + 5);
+                  gfx->printf("+%d", gemsByRarity[r]);
+                  
+                  tableY += 20;
+                }
+              }
+              
+              // Separator
+              tableY += 4;
+              gfx->drawFastHLine(20, tableY, LCD_WIDTH - 40, COLOR_GREEN);
+              tableY += 8;
+              
+              // TOTALS
               gfx->setTextSize(2);
               gfx->setTextColor(COLOR_GREEN);
-              gfx->setCursor(LCD_WIDTH/2 - 80, LCD_HEIGHT/2 - 30);
-              gfx->printf("SOLD %d DUPES!", totalDupes);
-              gfx->setCursor(LCD_WIDTH/2 - 60, LCD_HEIGHT/2);
-              gfx->printf("+%d XP!", xpGained);
-              gfx->setTextSize(1);
+              gfx->setCursor(LCD_WIDTH/2 - 55, tableY);
+              gfx->printf("+%d XP", xpGained);
+              
               gfx->setTextColor(COLOR_GOLD);
-              gfx->setCursor(LCD_WIDTH/2 - 40, LCD_HEIGHT/2 + 25);
-              gfx->printf("+%d Gems!", previewGems);
-              delay(800);
+              gfx->setCursor(LCD_WIDTH/2 - 60, tableY + 28);
+              gfx->printf("+%d GEMS", previewGems);
+              
+              delay(1200);
               
               collection_needs_rebuild = true;
               drawGachaCollection();
@@ -2039,12 +2434,12 @@ void handleCollectionTouch(TouchGesture& gesture) {
   }
 
   // =============================================================================
-  // SELL ALL CARDS button (DANGER!)
+  // SELL ALL CARDS button (DANGER!) - Updated coordinates
   // =============================================================================
-  int sellAllCardsX = 15;
-  int sellAllCardsY = 465;
-  int sellAllCardsW = 130;
-  int sellAllCardsH = 26;
+  int sellAllCardsX = 12;
+  int sellAllCardsY = 464;
+  int sellAllCardsW = LCD_WIDTH/2 - 20;
+  int sellAllCardsH = 30;
   
   if (y >= sellAllCardsY && y < sellAllCardsY + sellAllCardsH && 
       x >= sellAllCardsX && x < sellAllCardsX + sellAllCardsW) {
@@ -2055,34 +2450,57 @@ void handleCollectionTouch(TouchGesture& gesture) {
           int totalXP, totalGems;
           getCollectionValue(&totalXP, &totalGems);
           
-          // Warning flash - red
-          gfx->fillScreen(RGB565(80, 0, 0));
+          // Enhanced warning screen
+          gfx->fillScreen(RGB565(50, 0, 0));
+          
+          // Warning border
+          for (int b = 0; b < 4; b++) {
+            gfx->drawRect(b, b, LCD_WIDTH - b*2, LCD_HEIGHT - b*2, COLOR_RED);
+          }
+          
           gfx->setTextSize(2);
           gfx->setTextColor(COLOR_WHITE);
-          gfx->setCursor(LCD_WIDTH/2 - 70, LCD_HEIGHT/2 - 40);
+          gfx->setCursor(LCD_WIDTH/2 - 72, LCD_HEIGHT/2 - 55);
           gfx->print("SELLING ALL!");
+          
           gfx->setTextSize(1);
           gfx->setTextColor(COLOR_RED);
-          gfx->setCursor(LCD_WIDTH/2 - 50, LCD_HEIGHT/2 - 10);
-          gfx->printf("%d CARDS", totalCards);
-          delay(300);
+          gfx->setCursor(LCD_WIDTH/2 - 42, LCD_HEIGHT/2 - 30);
+          gfx->printf("%d CARDS TOTAL", totalCards);
+          
+          gfx->setTextColor(RGB565(150, 150, 160));
+          gfx->setCursor(LCD_WIDTH/2 - 60, LCD_HEIGHT/2 - 15);
+          gfx->print("This cannot be undone!");
+          
+          delay(400);
           
           // Sell entire collection
           int xpGained = sellEntireCollection();
           
           if (xpGained > 0) {
-              // Show massive rewards
-              gfx->fillScreen(RGB565(10, 40, 10));
+              // Enhanced massive rewards screen
+              gfx->fillScreen(RGB565(5, 25, 5));
+              
+              // Gold border
+              for (int b = 0; b < 3; b++) {
+                gfx->drawRect(b, b, LCD_WIDTH - b*2, LCD_HEIGHT - b*2, COLOR_GOLD);
+              }
+              
+              gfx->setTextSize(2);
+              gfx->setTextColor(COLOR_GOLD);
+              gfx->setCursor(LCD_WIDTH/2 - 96, LCD_HEIGHT/2 - 50);
+              gfx->print("COLLECTION SOLD!");
+              
               gfx->setTextSize(2);
               gfx->setTextColor(COLOR_GREEN);
-              gfx->setCursor(LCD_WIDTH/2 - 90, LCD_HEIGHT/2 - 40);
-              gfx->print("COLLECTION SOLD!");
-              gfx->setCursor(LCD_WIDTH/2 - 60, LCD_HEIGHT/2);
-              gfx->printf("+%d XP!", xpGained);
-              gfx->setTextSize(1);
+              gfx->setCursor(LCD_WIDTH/2 - 55, LCD_HEIGHT/2 - 15);
+              gfx->printf("+%d XP", xpGained);
+              
+              gfx->setTextSize(2);
               gfx->setTextColor(COLOR_GOLD);
-              gfx->setCursor(LCD_WIDTH/2 - 50, LCD_HEIGHT/2 + 30);
-              gfx->printf("+%d Gems!", totalGems);
+              gfx->setCursor(LCD_WIDTH/2 - 60, LCD_HEIGHT/2 + 15);
+              gfx->printf("+%d GEMS", totalGems);
+              
               delay(1200);
               
               collection_needs_rebuild = true;
@@ -2092,8 +2510,12 @@ void handleCollectionTouch(TouchGesture& gesture) {
       return;
   }
 
-  // Back button (y: 468-496) - moved to right side
-  if (y >= 468 && y < 496 && x >= LCD_WIDTH/2 + 20 && x < LCD_WIDTH/2 + 100) {
+  // Back button - Updated coordinates
+  int backBtnX = LCD_WIDTH/2 + 8;
+  int backBtnW = LCD_WIDTH/2 - 20;
+  int backBtnY = 464;
+  int backBtnH = 30;
+  if (y >= backBtnY && y < backBtnY + backBtnH && x >= backBtnX && x < backBtnX + backBtnW) {
     // Reset view state before leaving
     collection_view_index = 0;
     collection_filter = 0;
@@ -2234,95 +2656,160 @@ void drawCardEvolutionScreen() {
 
   ThemeColors* theme = getCurrentTheme();
 
-  // Retro header
+  // Enhanced header
   gfx->fillRect(0, 0, LCD_WIDTH, 48, RGB565(10, 12, 18));
   for (int x = 0; x < LCD_WIDTH; x += 8) {
     gfx->fillRect(x, 46, 6, 3, COLOR_GOLD);
   }
   gfx->setTextSize(2);
   gfx->setTextColor(RGB565(30, 35, 50));
-  gfx->setCursor(LCD_WIDTH/2 - 54 + 1, 14 + 1);
+  gfx->setCursor(LCD_WIDTH/2 - 54 + 1, 8 + 1);
   gfx->print("EVOLUTION");
   gfx->setTextColor(COLOR_GOLD);
-  gfx->setCursor(LCD_WIDTH/2 - 54, 14);
+  gfx->setCursor(LCD_WIDTH/2 - 54, 8);
   gfx->print("EVOLUTION");
 
-  // Card list - show owned cards that can be evolved
-  int cardY = 58;
+  // Evolution path legend
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(80, 85, 100));
+  gfx->setCursor(15, 30);
+  gfx->print("BASE");
+  gfx->setTextColor(RGB565(60, 65, 80));
+  gfx->print(" > ");
+  gfx->setTextColor(getEvolutionColor(1));
+  gfx->print("EVOLVED");
+  gfx->setTextColor(RGB565(60, 65, 80));
+  gfx->print(" > ");
+  gfx->setTextColor(getEvolutionColor(2));
+  gfx->print("AWAKENED");
+  gfx->setTextColor(RGB565(60, 65, 80));
+  gfx->print(" > ");
+  gfx->setTextColor(getEvolutionColor(3));
+  gfx->print("MAX");
+
+  // Card list - show owned cards
+  int cardY = 55;
   int shown = 0;
+  int rowH = 90;
 
   for (int i = 0; i < GACHA_TOTAL_CARDS && shown < 4; i++) {
     if (!cards_owned[i]) continue;
     if (shown < evo_scroll_offset) { shown++; continue; }
 
-    int cy = cardY + (shown - evo_scroll_offset) * 82;
+    int cy = cardY + (shown - evo_scroll_offset) * rowH;
     bool selected = (i == evo_selected_card);
     int evoLvl = gacha_cards[i].evolution_level;
     int dupes = cards_duplicates[i];
     int cost = getEvolveCost(evoLvl);
-    bool canEvolve = (evoLvl < 3 && dupes >= cost);
+    bool canEvo = (evoLvl < 3 && dupes >= cost);
+    float powerMult = getEvolvePowerMult(evoLvl + 1);
 
-    // Card row - retro
-    uint16_t bg = selected ? RGB565(18, 20, 30) : RGB565(12, 14, 20);
+    // Card row background
+    uint16_t bg = selected ? RGB565(18, 22, 32) : RGB565(12, 14, 20);
     uint16_t border = selected ? getEvolutionColor(evoLvl) : RGB565(40, 45, 60);
-    gfx->fillRect(10, cy, LCD_WIDTH - 20, 72, bg);
-    gfx->drawRect(10, cy, LCD_WIDTH - 20, 72, border);
-    gfx->fillRect(10, cy, 5, 5, getEvolutionColor(evoLvl));
-    gfx->fillRect(LCD_WIDTH - 15, cy, 5, 5, getEvolutionColor(evoLvl));
+    gfx->fillRoundRect(8, cy, LCD_WIDTH - 16, rowH - 4, 6, bg);
+    gfx->drawRoundRect(8, cy, LCD_WIDTH - 16, rowH - 4, 6, border);
 
-    // Card color swatch
-    gfx->fillRect(18, cy + 8, 40, 56, gacha_cards[i].card_color);
-    gfx->drawRect(18, cy + 8, 40, 56, RGB565(50, 55, 70));
-    // CRT on swatch
-    for (int sy = cy + 9; sy < cy + 63; sy += 3) {
-      gfx->drawFastHLine(19, sy, 38, RGB565(0, 0, 0));
+    // Left color accent bar
+    gfx->fillRect(8, cy, 5, rowH - 4, getEvolutionColor(evoLvl));
+
+    // Card color swatch + initial
+    gfx->fillRoundRect(18, cy + 8, 50, 66, 4, gacha_cards[i].card_color);
+    gfx->drawRoundRect(18, cy + 8, 50, 66, 4, border);
+    for (int sy = cy + 10; sy < cy + 72; sy += 3) {
+      gfx->drawFastHLine(19, sy, 48, RGB565(0, 0, 0));
     }
-    // Initial
     gfx->setTextColor(COLOR_WHITE);
-    gfx->setTextSize(2);
+    gfx->setTextSize(3);
     char init[2] = {gacha_cards[i].character_name[0], 0};
-    gfx->setCursor(28, cy + 28);
+    gfx->setCursor(30, cy + 20);
     gfx->print(init);
 
-    // Name + evolution level
-    gfx->setTextColor(RGB565(200, 205, 220));
+    // Rarity stars under portrait
+    int starCount = getRarityStars(gacha_cards[i].rarity);
     gfx->setTextSize(1);
-    gfx->setCursor(68, cy + 10);
-    gfx->print(gacha_cards[i].character_name);
-
-    gfx->setTextColor(getEvolutionColor(evoLvl));
-    gfx->setCursor(68, cy + 24);
-    gfx->printf("[%s]", getEvolutionName(evoLvl));
-
-    // Power
-    gfx->setTextColor(theme->accent);
-    gfx->setCursor(68, cy + 38);
-    gfx->printf("PWR: %d", gacha_cards[i].power_rating);
-
-    // Dupes and cost
-    gfx->setTextColor(RGB565(100, 105, 120));
-    gfx->setCursor(68, cy + 52);
-    if (evoLvl < 3) {
-      gfx->printf("Dupes: %d/%d", dupes, cost);
-    } else {
-      gfx->print("MAX LEVEL");
+    gfx->setTextColor(COLOR_GOLD);
+    for (int s = 0; s < starCount; s++) {
+      gfx->setCursor(20 + s * 10, cy + 60);
+      gfx->print("*");
     }
 
-    // Evolve button (if possible)
-    if (canEvolve) {
-      gfx->fillRect(LCD_WIDTH - 85, cy + 20, 65, 30, RGB565(20, 40, 15));
-      gfx->drawRect(LCD_WIDTH - 85, cy + 20, 65, 30, RGB565(0, 200, 80));
-      gfx->fillRect(LCD_WIDTH - 85, cy + 20, 4, 4, RGB565(0, 200, 80));
-      gfx->setTextColor(RGB565(0, 200, 80));
-      gfx->setTextSize(1);
-      gfx->setCursor(LCD_WIDTH - 78, cy + 31);
-      gfx->print("EVOLVE");
-    } else if (evoLvl >= 3) {
-      gfx->fillRect(LCD_WIDTH - 85, cy + 20, 65, 30, RGB565(25, 20, 30));
-      gfx->drawRect(LCD_WIDTH - 85, cy + 20, 65, 30, COLOR_PINK);
+    // Character name (larger)
+    gfx->setTextColor(COLOR_WHITE);
+    gfx->setTextSize(2);
+    gfx->setCursor(76, cy + 8);
+    gfx->print(gacha_cards[i].character_name);
+
+    // Evolution level + power
+    gfx->setTextSize(1);
+    gfx->setTextColor(getEvolutionColor(evoLvl));
+    gfx->setCursor(76, cy + 28);
+    gfx->printf("[%s]", getEvolutionName(evoLvl));
+
+    gfx->setTextColor(theme->accent);
+    gfx->setCursor(180, cy + 28);
+    gfx->printf("PWR: %d", gacha_cards[i].power_rating);
+
+    // Duplicate count + cost bar
+    if (evoLvl < 3) {
+      // Progress bar for dupes needed
+      int barX = 76;
+      int barY = cy + 44;
+      int barW = 140;
+      int barH = 10;
+      float progress = (float)min(dupes, cost) / (float)cost;
+      
+      gfx->fillRect(barX, barY, barW, barH, RGB565(15, 18, 25));
+      gfx->drawRect(barX, barY, barW, barH, RGB565(40, 45, 60));
+      int fillW = (int)(barW * progress);
+      if (fillW > 0) {
+        uint16_t fillColor = canEvo ? RGB565(0, 200, 80) : RGB565(200, 150, 30);
+        gfx->fillRect(barX + 1, barY + 1, fillW - 2, barH - 2, fillColor);
+      }
+      
+      gfx->setTextColor(canEvo ? COLOR_GREEN : RGB565(160, 130, 50));
+      gfx->setCursor(barX + barW + 6, barY + 1);
+      gfx->printf("%d/%d", min(dupes, cost), cost);
+      
+      // Show next level stats
+      gfx->setTextColor(RGB565(100, 105, 120));
+      gfx->setCursor(76, cy + 60);
+      gfx->printf("Next: %s (x%.1f PWR)", getEvolutionName(evoLvl + 1), powerMult);
+    } else {
       gfx->setTextColor(COLOR_PINK);
+      gfx->setCursor(76, cy + 44);
+      gfx->print("MAXIMUM EVOLUTION!");
+      gfx->setTextColor(RGB565(100, 105, 120));
+      gfx->setCursor(76, cy + 58);
+      gfx->print("This card is fully powered");
+    }
+
+    // EVOLVE BUTTON - Large and clear
+    if (canEvo) {
+      int btnX = LCD_WIDTH - 88;
+      int btnY2 = cy + 14;
+      int btnW = 75;
+      int btnH2 = 56;
+      gfx->fillRoundRect(btnX, btnY2, btnW, btnH2, 6, RGB565(15, 40, 12));
+      gfx->drawRoundRect(btnX, btnY2, btnW, btnH2, 6, RGB565(0, 220, 80));
+      gfx->drawFastHLine(btnX + 4, btnY2 + 1, btnW - 8, RGB565(0, 180, 60));
+      gfx->setTextColor(RGB565(0, 255, 100));
+      gfx->setTextSize(2);
+      gfx->setCursor(btnX + 4, btnY2 + 8);
+      gfx->print("EVO!");
       gfx->setTextSize(1);
-      gfx->setCursor(LCD_WIDTH - 75, cy + 31);
+      gfx->setTextColor(RGB565(0, 180, 60));
+      gfx->setCursor(btnX + 8, btnY2 + 30);
+      gfx->printf("-%d dupe", cost);
+      gfx->setCursor(btnX + 8, btnY2 + 42);
+      gfx->printf("x%.1f PWR", powerMult);
+    } else if (evoLvl >= 3) {
+      int btnX = LCD_WIDTH - 80;
+      gfx->fillRoundRect(btnX, cy + 22, 68, 40, 5, RGB565(25, 15, 30));
+      gfx->drawRoundRect(btnX, cy + 22, 68, 40, 5, COLOR_PINK);
+      gfx->setTextColor(COLOR_PINK);
+      gfx->setTextSize(2);
+      gfx->setCursor(btnX + 10, cy + 30);
       gfx->print("MAX");
     }
 
@@ -2331,47 +2818,64 @@ void drawCardEvolutionScreen() {
 
   if (shown == 0) {
     gfx->setTextColor(RGB565(80, 85, 100));
+    gfx->setTextSize(2);
+    gfx->setCursor(LCD_WIDTH/2 - 72, 180);
+    gfx->print("NO CARDS");
     gfx->setTextSize(1);
-    gfx->setCursor(LCD_WIDTH/2 - 50, 200);
-    gfx->print("No cards to evolve");
-    gfx->setCursor(LCD_WIDTH/2 - 60, 220);
-    gfx->print("Pull more from Gacha!");
+    gfx->setCursor(LCD_WIDTH/2 - 60, 210);
+    gfx->print("Pull cards from Gacha!");
   }
 
   // Scroll hint
-  gfx->setTextColor(RGB565(50, 55, 70));
-  gfx->setTextSize(1);
-  gfx->setCursor(LCD_WIDTH/2 - 40, 395);
-  gfx->print("> SWIPE <");
+  if (getCardsOwned() > 4) {
+    gfx->setTextColor(RGB565(60, 65, 80));
+    gfx->setTextSize(1);
+    gfx->setCursor(LCD_WIDTH/2 - 45, 425);
+    gfx->print("SWIPE FOR MORE");
+  }
 
-  // Back button
-  gfx->fillRect(LCD_WIDTH/2 - 35, 415, 70, 28, RGB565(15, 18, 25));
-  gfx->drawRect(LCD_WIDTH/2 - 35, 415, 70, 28, RGB565(40, 45, 60));
-  gfx->setTextColor(RGB565(180, 185, 200));
-  gfx->setCursor(LCD_WIDTH/2 - 12, 424);
-  gfx->print("Back");
+  // Back button - Enhanced
+  int backX = LCD_WIDTH/2 - 50;
+  gfx->fillRoundRect(backX, 445, 100, 32, 6, RGB565(18, 18, 25));
+  gfx->drawRoundRect(backX, 445, 100, 32, 6, RGB565(60, 65, 80));
+  gfx->setTextColor(RGB565(200, 205, 225));
+  gfx->setTextSize(2);
+  gfx->setCursor(backX + 22, 451);
+  gfx->print("BACK");
 }
 
 void handleCardEvolutionTap(int x, int y) {
   // Check evolve buttons
-  int cardY = 58;
+  int cardY = 55;
   int shown = 0;
+  int rowH = 90;
 
   for (int i = 0; i < GACHA_TOTAL_CARDS && shown < 4; i++) {
     if (!cards_owned[i]) continue;
     if (shown < evo_scroll_offset) { shown++; continue; }
 
-    int cy = cardY + (shown - evo_scroll_offset) * 82;
+    int cy = cardY + (shown - evo_scroll_offset) * rowH;
 
-    // Evolve button hit
-    if (x >= LCD_WIDTH - 85 && x < LCD_WIDTH - 20 && y >= cy + 20 && y < cy + 50) {
+    // Evolve button hit - larger area
+    if (x >= LCD_WIDTH - 88 && x < LCD_WIDTH - 8 && y >= cy + 14 && y < cy + 70) {
       if (gacha_cards[i].evolution_level < 3) {
         if (evolveCard(i)) {
-          // Flash animation
-          gfx->fillScreen(getEvolutionColor(gacha_cards[i].evolution_level));
-          delay(150);
-          gfx->fillScreen(RGB565(2, 2, 5));
+          // Enhanced evolution flash
+          uint16_t evoColor = getEvolutionColor(gacha_cards[i].evolution_level);
+          gfx->fillScreen(evoColor);
           delay(100);
+          gfx->fillScreen(RGB565(2, 2, 5));
+          
+          // Show result briefly
+          gfx->setTextSize(2);
+          gfx->setTextColor(evoColor);
+          gfx->setCursor(LCD_WIDTH/2 - 54, LCD_HEIGHT/2 - 20);
+          gfx->print("EVOLVED!");
+          gfx->setTextSize(1);
+          gfx->setTextColor(COLOR_WHITE);
+          gfx->setCursor(LCD_WIDTH/2 - 40, LCD_HEIGHT/2 + 10);
+          gfx->printf("Now: %s", getEvolutionName(gacha_cards[i].evolution_level));
+          delay(400);
         }
       }
       drawCardEvolutionScreen();
@@ -2381,8 +2885,8 @@ void handleCardEvolutionTap(int x, int y) {
     shown++;
   }
 
-  // Back button
-  if (y >= 415 && y < 443 && x >= LCD_WIDTH/2 - 35 && x < LCD_WIDTH/2 + 35) {
+  // Back button - updated position
+  if (y >= 445 && y < 477 && x >= LCD_WIDTH/2 - 50 && x < LCD_WIDTH/2 + 50) {
     system_state.current_screen = SCREEN_GACHA;
     drawGachaScreen();
     return;
@@ -2476,102 +2980,158 @@ void drawDeckBuilderScreen() {
 
   ThemeColors* theme = getCurrentTheme();
 
-  // Retro header
+  // Header
   gfx->fillRect(0, 0, LCD_WIDTH, 48, RGB565(10, 12, 18));
   for (int x = 0; x < LCD_WIDTH; x += 8) {
     gfx->fillRect(x, 46, 6, 3, COLOR_CYAN);
   }
   gfx->setTextSize(2);
   gfx->setTextColor(RGB565(30, 35, 50));
-  gfx->setCursor(LCD_WIDTH/2 - 66 + 1, 14 + 1);
+  gfx->setCursor(LCD_WIDTH/2 - 66 + 1, 8 + 1);
   gfx->print("BATTLE DECK");
   gfx->setTextColor(COLOR_CYAN);
-  gfx->setCursor(LCD_WIDTH/2 - 66, 14);
+  gfx->setCursor(LCD_WIDTH/2 - 66, 8);
   gfx->print("BATTLE DECK");
 
-  // === CURRENT DECK (top section) ===
-  gfx->setTextColor(RGB565(100, 105, 120));
+  // Purpose explanation
   gfx->setTextSize(1);
-  gfx->setCursor(15, 56);
-  gfx->printf("YOUR DECK (%d/%d)", system_state.deck_size, MAX_DECK_SIZE);
+  gfx->setTextColor(RGB565(100, 110, 130));
+  gfx->setCursor(15, 32);
+  gfx->print("Build your team for Boss Rush battles!");
 
-  // Deck slots - 5 pixel card slots
-  int slotW = 60, slotH = 80;
-  int slotSpacing = 5;
+  // === CURRENT DECK (top section) ===
+  gfx->setTextColor(COLOR_WHITE);
+  gfx->setTextSize(1);
+  gfx->setCursor(15, 54);
+  gfx->printf("YOUR TEAM (%d/%d slots)", system_state.deck_size, MAX_DECK_SIZE);
+
+  // Deck slots - 5 card slots with better styling
+  int slotW = 68, slotH = 88;
+  int slotSpacing = 4;
   int slotStartX = (LCD_WIDTH - (MAX_DECK_SIZE * slotW + (MAX_DECK_SIZE - 1) * slotSpacing)) / 2;
-  int slotY = 70;
+  int slotY = 68;
 
   for (int i = 0; i < MAX_DECK_SIZE; i++) {
     int sx = slotStartX + i * (slotW + slotSpacing);
 
     if (i < system_state.deck_size && system_state.battle_deck[i] >= 0) {
       int cardIdx = system_state.battle_deck[i];
-      // Filled slot - retro card
-      gfx->fillRect(sx, slotY, slotW, slotH, gacha_cards[cardIdx].card_color);
-      gfx->drawRect(sx, slotY, slotW, slotH, getEvolutionColor(gacha_cards[cardIdx].evolution_level));
-      // CRT lines
-      for (int sy = slotY + 1; sy < slotY + slotH - 1; sy += 3) {
-        gfx->drawFastHLine(sx + 1, sy, slotW - 2, RGB565(0, 0, 0));
+      uint16_t evoColor = getEvolutionColor(gacha_cards[cardIdx].evolution_level);
+      uint16_t rarColor = getRarityBorderColor(gacha_cards[cardIdx].rarity);
+      
+      // Filled slot - enhanced card
+      gfx->fillRoundRect(sx, slotY, slotW, slotH, 5, gacha_cards[cardIdx].card_color);
+      gfx->drawRoundRect(sx, slotY, slotW, slotH, 5, rarColor);
+      
+      // Scanlines
+      for (int sy = slotY + 2; sy < slotY + slotH - 2; sy += 3) {
+        gfx->drawFastHLine(sx + 2, sy, slotW - 4, RGB565(0, 0, 0));
       }
-      // Initial
+      
+      // Character initial
       gfx->setTextColor(COLOR_WHITE);
-      gfx->setTextSize(2);
+      gfx->setTextSize(3);
       char init[2] = {gacha_cards[cardIdx].character_name[0], 0};
-      gfx->setCursor(sx + slotW/2 - 6, slotY + 10);
+      gfx->setCursor(sx + slotW/2 - 9, slotY + 6);
       gfx->print(init);
-      // Power
+      
+      // Name (truncated)
       gfx->setTextSize(1);
+      gfx->setTextColor(COLOR_WHITE);
+      String nm = gacha_cards[cardIdx].character_name;
+      if (nm.length() > 8) nm = nm.substring(0, 7) + ".";
+      int nmLen = nm.length() * 6;
+      gfx->setCursor(sx + (slotW - nmLen) / 2, slotY + 34);
+      gfx->print(nm);
+      
+      // Power
       gfx->setTextColor(COLOR_GOLD);
-      gfx->setCursor(sx + 5, slotY + 40);
-      gfx->printf("%d", gacha_cards[cardIdx].power_rating);
-      // Evolution badge
-      gfx->setTextColor(getEvolutionColor(gacha_cards[cardIdx].evolution_level));
-      gfx->setCursor(sx + 5, slotY + 55);
-      gfx->print(getEvolutionName(gacha_cards[cardIdx].evolution_level));
-      // Remove X
-      gfx->fillRect(sx + slotW - 14, slotY + 2, 12, 12, RGB565(60, 15, 15));
-      gfx->drawRect(sx + slotW - 14, slotY + 2, 12, 12, COLOR_RED);
-      gfx->setTextColor(COLOR_RED);
-      gfx->setCursor(sx + slotW - 12, slotY + 4);
+      char pwrBuf[8];
+      sprintf(pwrBuf, "%d", gacha_cards[cardIdx].power_rating);
+      int pLen = strlen(pwrBuf) * 6;
+      gfx->setCursor(sx + (slotW - pLen) / 2, slotY + 48);
+      gfx->print(pwrBuf);
+      
+      // Evolution tag
+      gfx->setTextColor(evoColor);
+      const char* eName = getEvolutionName(gacha_cards[cardIdx].evolution_level);
+      int eLen = strlen(eName) * 6;
+      gfx->setCursor(sx + (slotW - eLen) / 2, slotY + 62);
+      gfx->print(eName);
+      
+      // Remove X button
+      gfx->fillRoundRect(sx + slotW - 16, slotY + 2, 14, 14, 3, RGB565(80, 15, 15));
+      gfx->drawRoundRect(sx + slotW - 16, slotY + 2, 14, 14, 3, COLOR_RED);
+      gfx->setTextColor(COLOR_WHITE);
+      gfx->setCursor(sx + slotW - 13, slotY + 5);
       gfx->print("X");
     } else {
-      // Empty slot
-      gfx->fillRect(sx, slotY, slotW, slotH, RGB565(8, 10, 14));
-      gfx->drawRect(sx, slotY, slotW, slotH, RGB565(30, 35, 50));
-      gfx->setTextColor(RGB565(40, 45, 60));
-      gfx->setTextSize(2);
-      gfx->setCursor(sx + slotW/2 - 6, slotY + slotH/2 - 8);
+      // Empty slot - clearer
+      gfx->fillRoundRect(sx, slotY, slotW, slotH, 5, RGB565(8, 10, 14));
+      gfx->drawRoundRect(sx, slotY, slotW, slotH, 5, RGB565(30, 35, 50));
+      // Dashed inner
+      for (int d = slotY + 8; d < slotY + slotH - 8; d += 6) {
+        gfx->drawFastHLine(sx + slotW/2 - 1, d, 3, RGB565(40, 45, 60));
+      }
+      gfx->setTextColor(RGB565(50, 55, 70));
+      gfx->setTextSize(3);
+      gfx->setCursor(sx + slotW/2 - 9, slotY + slotH/2 - 12);
       gfx->print("+");
+      gfx->setTextSize(1);
+      gfx->setTextColor(RGB565(40, 45, 60));
+      gfx->setCursor(sx + slotW/2 - 12, slotY + slotH - 16);
+      gfx->print("empty");
     }
   }
 
-  // === DECK STATS ===
-  int statsY = slotY + slotH + 8;
-  gfx->fillRect(15, statsY, LCD_WIDTH - 30, 40, RGB565(10, 12, 18));
-  gfx->drawRect(15, statsY, LCD_WIDTH - 30, 40, RGB565(30, 35, 50));
-  gfx->fillRect(15, statsY, 4, 4, COLOR_CYAN);
+  // === DECK STATS - Enhanced with combat bonuses explanation ===
+  int statsY = slotY + slotH + 6;
+  gfx->fillRoundRect(10, statsY, LCD_WIDTH - 20, 48, 5, RGB565(10, 12, 20));
+  gfx->drawRoundRect(10, statsY, LCD_WIDTH - 20, 48, 5, RGB565(35, 40, 55));
 
-  gfx->setTextSize(1);
+  int totalPwr = getDeckTotalPower();
+  int bonusATK = getDeckBonusATK();
+  int bonusHP = getDeckBonusHP();
+  int bonusDEF = getDeckBonusDEF();
+
+  // Total power - big
+  gfx->setTextSize(2);
   gfx->setTextColor(COLOR_GOLD);
-  gfx->setCursor(25, statsY + 6);
-  gfx->printf("TOTAL PWR: %d", getDeckTotalPower());
+  gfx->setCursor(20, statsY + 4);
+  gfx->printf("PWR:%d", totalPwr);
 
+  // Combat bonuses row
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(80, 85, 100));
+  gfx->setCursor(20, statsY + 26);
+  gfx->print("Boss Rush Bonuses:");
+  
   gfx->setTextColor(COLOR_RED);
-  gfx->setCursor(25, statsY + 22);
-  gfx->printf("+%d ATK", getDeckBonusATK());
+  gfx->setCursor(140, statsY + 26);
+  gfx->printf("+%d ATK", bonusATK);
+  
   gfx->setTextColor(COLOR_GREEN);
-  gfx->setCursor(120, statsY + 22);
-  gfx->printf("+%d HP", getDeckBonusHP());
+  gfx->setCursor(210, statsY + 26);
+  gfx->printf("+%d HP", bonusHP);
+  
   gfx->setTextColor(COLOR_BLUE);
-  gfx->setCursor(210, statsY + 22);
-  gfx->printf("+%d DEF", getDeckBonusDEF());
+  gfx->setCursor(290, statsY + 26);
+  gfx->printf("+%d DEF", bonusDEF);
+
+  // Deck complete bonus
+  if (system_state.deck_size >= MAX_DECK_SIZE) {
+    gfx->setTextColor(COLOR_GOLD);
+    gfx->setCursor(20, statsY + 38);
+    gfx->print("FULL TEAM BONUS ACTIVE!");
+  }
 
   // === AVAILABLE CARDS (bottom section) ===
-  int listY = statsY + 50;
-  gfx->setTextColor(RGB565(100, 105, 120));
+  int listY = statsY + 56;
+  gfx->setTextColor(RGB565(140, 145, 165));
+  gfx->setTextSize(1);
   gfx->setCursor(15, listY);
   gfx->print("AVAILABLE CARDS:");
-  listY += 14;
+  listY += 16;
 
   int shown = 0;
   for (int i = 0; i < GACHA_TOTAL_CARDS && shown < 3; i++) {
@@ -2586,37 +3146,44 @@ void drawDeckBuilderScreen() {
 
     if (shown < deck_scroll_offset) { shown++; continue; }
 
-    int cy = listY + (shown - deck_scroll_offset) * 50;
+    int cy = listY + (shown - deck_scroll_offset) * 48;
 
-    // Card row
-    gfx->fillRect(15, cy, LCD_WIDTH - 30, 42, RGB565(12, 14, 20));
-    gfx->drawRect(15, cy, LCD_WIDTH - 30, 42, RGB565(40, 45, 60));
-    gfx->fillRect(15, cy, 4, 4, gacha_cards[i].card_color);
+    // Card row - enhanced
+    gfx->fillRoundRect(12, cy, LCD_WIDTH - 24, 42, 4, RGB565(12, 14, 22));
+    gfx->drawRoundRect(12, cy, LCD_WIDTH - 24, 42, 4, RGB565(40, 45, 60));
+    
+    // Rarity color bar
+    gfx->fillRect(12, cy, 4, 42, getRarityBorderColor(gacha_cards[i].rarity));
 
-    // Mini color swatch
-    gfx->fillRect(22, cy + 5, 30, 32, gacha_cards[i].card_color);
+    // Mini swatch
+    gfx->fillRoundRect(22, cy + 5, 32, 32, 3, gacha_cards[i].card_color);
     for (int sy = cy + 6; sy < cy + 36; sy += 3) {
-      gfx->drawFastHLine(23, sy, 28, RGB565(0, 0, 0));
+      gfx->drawFastHLine(23, sy, 30, RGB565(0, 0, 0));
     }
+    gfx->setTextColor(COLOR_WHITE);
+    gfx->setTextSize(2);
+    char init2[2] = {gacha_cards[i].character_name[0], 0};
+    gfx->setCursor(28, cy + 12);
+    gfx->print(init2);
 
     // Info
-    gfx->setTextColor(RGB565(200, 205, 220));
+    gfx->setTextColor(COLOR_WHITE);
     gfx->setTextSize(1);
-    gfx->setCursor(60, cy + 8);
+    gfx->setCursor(62, cy + 8);
     gfx->print(gacha_cards[i].character_name);
 
-    gfx->setTextColor(getEvolutionColor(gacha_cards[i].evolution_level));
-    gfx->setCursor(60, cy + 22);
-    gfx->printf("[%s] PWR:%d", getEvolutionName(gacha_cards[i].evolution_level),
-                gacha_cards[i].power_rating);
+    gfx->setTextColor(getRarityBorderColor(gacha_cards[i].rarity));
+    gfx->setCursor(62, cy + 20);
+    gfx->printf("%s | PWR:%d", getRarityName(gacha_cards[i].rarity), gacha_cards[i].power_rating);
 
-    // Add button
+    // ADD button - clearer
     if (system_state.deck_size < MAX_DECK_SIZE) {
-      gfx->fillRect(LCD_WIDTH - 70, cy + 8, 45, 26, RGB565(10, 25, 20));
-      gfx->drawRect(LCD_WIDTH - 70, cy + 8, 45, 26, COLOR_CYAN);
-      gfx->fillRect(LCD_WIDTH - 70, cy + 8, 3, 3, COLOR_CYAN);
+      int addX = LCD_WIDTH - 68;
+      gfx->fillRoundRect(addX, cy + 6, 50, 30, 4, RGB565(8, 25, 22));
+      gfx->drawRoundRect(addX, cy + 6, 50, 30, 4, COLOR_CYAN);
       gfx->setTextColor(COLOR_CYAN);
-      gfx->setCursor(LCD_WIDTH - 62, cy + 17);
+      gfx->setTextSize(2);
+      gfx->setCursor(addX + 7, cy + 13);
       gfx->print("ADD");
     }
 
@@ -2625,30 +3192,31 @@ void drawDeckBuilderScreen() {
 
   if (shown == 0) {
     gfx->setTextColor(RGB565(80, 85, 100));
-    gfx->setCursor(LCD_WIDTH/2 - 50, listY + 30);
+    gfx->setCursor(LCD_WIDTH/2 - 65, listY + 20);
     gfx->print("No more cards available");
   }
 
-  // Back button
-  gfx->fillRect(LCD_WIDTH/2 - 35, 430, 70, 28, RGB565(15, 18, 25));
-  gfx->drawRect(LCD_WIDTH/2 - 35, 430, 70, 28, RGB565(40, 45, 60));
-  gfx->setTextColor(RGB565(180, 185, 200));
-  gfx->setTextSize(1);
-  gfx->setCursor(LCD_WIDTH/2 - 12, 439);
-  gfx->print("Back");
+  // Back button - enhanced
+  int backX = LCD_WIDTH/2 - 50;
+  gfx->fillRoundRect(backX, 455, 100, 32, 6, RGB565(18, 18, 25));
+  gfx->drawRoundRect(backX, 455, 100, 32, 6, RGB565(60, 65, 80));
+  gfx->setTextColor(RGB565(200, 205, 225));
+  gfx->setTextSize(2);
+  gfx->setCursor(backX + 22, 461);
+  gfx->print("BACK");
 }
 
 void handleDeckBuilderTap(int x, int y) {
   // Check deck slot remove buttons (X buttons)
-  int slotW = 60, slotH = 80;
-  int slotSpacing = 5;
+  int slotW = 68, slotH = 88;
+  int slotSpacing = 4;
   int slotStartX = (LCD_WIDTH - (MAX_DECK_SIZE * slotW + (MAX_DECK_SIZE - 1) * slotSpacing)) / 2;
-  int slotY = 70;
+  int slotY = 68;
 
   for (int i = 0; i < system_state.deck_size; i++) {
     int sx = slotStartX + i * (slotW + slotSpacing);
     // X button: top-right of slot
-    if (x >= sx + slotW - 14 && x < sx + slotW && y >= slotY && y < slotY + 16) {
+    if (x >= sx + slotW - 16 && x < sx + slotW && y >= slotY && y < slotY + 18) {
       removeCardFromDeck(i);
       drawDeckBuilderScreen();
       return;
@@ -2656,8 +3224,8 @@ void handleDeckBuilderTap(int x, int y) {
   }
 
   // Check add buttons in available cards list
-  int statsY = slotY + slotH + 8 + 40 + 50;
-  int listY = statsY + 14;
+  int statsY = slotY + slotH + 6 + 48 + 56;
+  int listY = statsY + 16;
 
   int shown = 0;
   for (int i = 0; i < GACHA_TOTAL_CARDS && shown < 3; i++) {
@@ -2671,10 +3239,10 @@ void handleDeckBuilderTap(int x, int y) {
 
     if (shown < deck_scroll_offset) { shown++; continue; }
 
-    int cy = listY + (shown - deck_scroll_offset) * 50;
+    int cy = listY + (shown - deck_scroll_offset) * 48;
 
     // Add button hit
-    if (x >= LCD_WIDTH - 70 && x < LCD_WIDTH - 25 && y >= cy + 8 && y < cy + 34) {
+    if (x >= LCD_WIDTH - 68 && x < LCD_WIDTH - 18 && y >= cy + 6 && y < cy + 36) {
       if (addCardToDeck(i)) {
         drawDeckBuilderScreen();
         return;
@@ -2685,7 +3253,7 @@ void handleDeckBuilderTap(int x, int y) {
   }
 
   // Back button
-  if (y >= 430 && y < 458 && x >= LCD_WIDTH/2 - 35 && x < LCD_WIDTH/2 + 35) {
+  if (y >= 455 && y < 487 && x >= LCD_WIDTH/2 - 50 && x < LCD_WIDTH/2 + 50) {
     system_state.current_screen = SCREEN_GACHA;
     drawGachaScreen();
     return;

@@ -82,6 +82,7 @@ void drawGachaShop();
 void drawGachaPullAnimation(GachaCard& card);
 void drawGachaReveal(GachaCard& card);
 void drawGachaRevealImproved(GachaCard& card);
+void drawTenPullGrid(GachaCard* results);
 void drawGachaCollection();
 void drawGachaCard(int x, int y, int w, int h, GachaCard& card);
 void drawCardRarityBorder(int x, int y, int w, int h, GachaRarity rarity);
