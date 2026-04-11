@@ -1,122 +1,153 @@
 /*
- * wifi_sync.h - WiFi Boot Sync System
- * FUSION OS Feature
+ * wifi_sync.h - WiFi Boot Sync Header (ENHANCED)
+ * FUSION OS Feature - With SD Card WiFi Support
  * 
- * Functionality:
- * - Scans hardcoded WiFi network
- * - Loads additional networks from SD: /WATCH/wifi/config.txt
- * - Tries each network TWICE before moving to next
- * - Syncs NTP time to RTC chip (time.google.com)
- * - Fetches weather data
- * - Disconnects after sync to save power
- * 
- * UPDATED: Google NTP + GMT+8 timezone support
+ * FIXES:
+ * - Boot loop when WiFi unavailable
+ * - SD card WiFi network loading
+ * - Multi-network support (hardcoded + SD)
+ * - Time backup/restore from SD
+ * - Auto timezone detection via IP geolocation
  */
 
 #ifndef WIFI_SYNC_H
 #define WIFI_SYNC_H
 
 #include <Arduino.h>
-#include <WiFi.h>
 
-// =============================================================================
-// CONFIGURATION
-// =============================================================================
-#define MAX_WIFI_NETWORKS    10
-#define WIFI_CONNECT_TIMEOUT 5000   // 5 seconds per attempt
-#define WIFI_RETRY_PER_NETWORK 1    // Try each network once
+// Maximum WiFi networks (1 hardcoded + 5 from SD card = 6 total)
+#define MAX_WIFI_NETWORKS 6
 
-// NTP Configuration - Google Time Servers
-#define NTP_SERVER "time.google.com"
-#define NTP_SERVER_BACKUP1 "time1.google.com"
-#define NTP_SERVER_BACKUP2 "time2.google.com"
-#define NTP_TIMEOUT 5000  // 5 seconds
+// SD Card paths for WiFi config
+#define SD_WIFI_PATH "/WATCH/wifi"
+#define SD_WIFI_CONFIG_FILE "/WATCH/wifi/config.txt"
+#define SD_TIME_BACKUP_PATH "/WATCH/TIME"
+#define SD_TIME_BACKUP_FILE "/WATCH/TIME/backup.txt"
 
-// Timezone Configuration (GMT+8 default - Malaysia/Singapore/Perth)
-// Offset in seconds: GMT+8 = 8 * 3600 = 28800
-#define TIMEZONE_OFFSET_SEC 28800   // GMT+8 in seconds
-#define DAYLIGHT_OFFSET_SEC 0       // No DST
-#define TIMEZONE_NAME "MYT"         // Malaysia Time (or SGT, AWST, etc.)
+// WiFi credential structure
+typedef struct {
+    char ssid[64];
+    char password[64];
+    bool valid;
+    bool isFromSD;
+} WiFiCredential;
 
-// =============================================================================
-// STRUCTURES
-// =============================================================================
-struct WiFiCredential {
-  char ssid[64];
-  char password[64];
-  bool valid;
-};
+// WiFi sync state
+typedef struct {
+    bool sync_enabled;
+    bool last_sync_success;
+    unsigned long last_sync_time;
+    int networks_loaded;
+    WiFiCredential networks[MAX_WIFI_NETWORKS];
+} WiFiSyncState;
 
-struct WiFiSyncState {
-  bool sync_enabled;
-  bool last_sync_success;
-  unsigned long last_sync_time;
-  int networks_loaded;
-  WiFiCredential networks[MAX_WIFI_NETWORKS];
-};
-
+// External sync state
 extern WiFiSyncState wifi_sync_state;
 
 // =============================================================================
-// CORE FUNCTIONS
+// MAIN FUNCTIONS
 // =============================================================================
 
-// Initialize WiFi sync system
+// Initialize WiFi sync system (call once in setup)
 void initWiFiSync();
 
-// Perform boot-time WiFi sync (blocking)
+// Perform boot sync - SAFE: Never causes boot loop
+// Returns true if sync successful, false otherwise (boot continues either way)
 bool performBootSync();
 
-// Load WiFi networks from hardcoded + SD card
+// Manual sync trigger
+bool triggerManualSync();
+
+// =============================================================================
+// NETWORK MANAGEMENT
+// =============================================================================
+
+// Load WiFi networks (hardcoded + SD card)
 int loadWiFiNetworks();
 
-// Try to connect to a specific network
+// Load additional networks from SD card
+int loadWiFiNetworksFromSD();
+
+// Quick network scan - check if any known network is visible
+bool quickNetworkScan();
+
+// Connect to specific WiFi network
 bool connectToWiFi(const char* ssid, const char* password, int timeout_ms);
+
+// Disconnect WiFi to save power
+void disconnectWiFi();
+
+// =============================================================================
+// TIME SYNC
+// =============================================================================
 
 // Sync time via NTP
 bool syncNTPTime();
 
+// Save time backup to SD card (for offline boot)
+bool saveTimeBackup();
+
+// Restore time from SD backup
+bool restoreTimeBackup();
+
+// Check if time backup exists
+bool hasTimeBackup();
+
+// Delete time backup (after successful NTP sync)
+void deleteTimeBackup();
+
+// =============================================================================
+// AUTO TIMEZONE DETECTION
+// =============================================================================
+
+// Fetch location and timezone from IP address
+bool fetchLocationFromIP();
+
+// Get detected city name
+const char* getDetectedCity();
+
+// Get detected country code
+const char* getDetectedCountry();
+
+// =============================================================================
+// WEATHER
+// =============================================================================
+
 // Fetch weather data
 bool fetchWeather();
 
-// Disconnect WiFi and turn off radio
-void disconnectWiFi();
+// =============================================================================
+// STATUS FUNCTIONS
+// =============================================================================
 
-// Check if time since last sync
+// Get time since last successful sync
 unsigned long timeSinceLastSync();
 
-// Manual sync trigger (for settings menu)
-bool triggerManualSync();
+// Check if WiFi is currently connected
+bool isWiFiConnected();
+
+// Get number of loaded networks
+int getNetworkCount();
 
 // =============================================================================
-// TIMEZONE CONFIGURATION FUNCTIONS
+// TIMEZONE CONFIGURATION
 // =============================================================================
 
-// Set timezone offset from GMT (e.g., setTimezoneOffset(8, 0) for GMT+8)
 void setTimezoneOffset(int hours, int minutes);
-
-// Get current timezone offset
 int getTimezoneOffsetHours();
 int getTimezoneOffsetMinutes();
-
-// Daylight saving time control
 void setDaylightSaving(bool enabled);
 bool isDaylightSavingEnabled();
-
-// Get formatted timezone string (e.g., "GMT+8" or "GMT+5:30")
 void getTimezoneString(char* buffer, size_t bufferSize);
 
 // =============================================================================
-// COMMON TIMEZONE PRESETS (use with setTimezoneOffset)
+// SD CARD FOLDER MANAGEMENT
 // =============================================================================
-#define TZ_GMT_PLUS_8   8, 0    // Malaysia, Singapore, Perth, Hong Kong, Beijing
-#define TZ_GMT_PLUS_9   9, 0    // Japan, Korea
-#define TZ_GMT_PLUS_7   7, 0    // Thailand, Vietnam, Indonesia (WIB)
-#define TZ_GMT_PLUS_530 5, 30   // India
-#define TZ_GMT_PLUS_0   0, 0    // UK, Portugal (GMT/UTC)
-#define TZ_GMT_MINUS_5  -5, 0   // US Eastern (EST)
-#define TZ_GMT_MINUS_8  -8, 0   // US Pacific (PST)
-#define TZ_GMT_PLUS_10  10, 0   // Australia Eastern (AEST)
-#define TZ_GMT_PLUS_12  12, 0   // New Zealand
+
+// Create required folders if they don't exist
+bool createWiFiFolders();
+
+// Create example config file if none exists
+bool createExampleConfig();
 
 #endif // WIFI_SYNC_H
