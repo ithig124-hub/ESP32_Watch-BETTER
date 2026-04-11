@@ -4,6 +4,8 @@
  *
  * FUSION OS:
  * - XP rewards for pulls (5 XP per pull, 20 XP for legendary)
+ * - Sell button in collection UI
+ * - Sell All duplicates feature
  */
 
 #include "gacha.h"
@@ -18,6 +20,9 @@
 
 extern Arduino_CO5300 *gfx;
 extern SystemState system_state;
+
+// Forward declarations
+bool removeCardFromDeck(int slotIndex);
 
 // Card database - 100 cards (10 series x 10 cards each)
 GachaCard gacha_cards[GACHA_TOTAL_CARDS];
@@ -357,6 +362,220 @@ bool spendGems(int amount) {
     return true;
   }
   return false;
+}
+
+// =============================================================================
+// CARD SELLING SYSTEM
+// =============================================================================
+
+// XP/Gems rewards for selling cards by rarity
+#define XP_SELL_MYTHIC     10000
+#define XP_SELL_LEGENDARY  5000
+#define XP_SELL_OTHER      500
+#define GEMS_SELL_MYTHIC   500
+#define GEMS_SELL_LEGENDARY 200
+#define GEMS_SELL_EPIC     50
+#define GEMS_SELL_RARE     20
+#define GEMS_SELL_COMMON   5
+
+int getCardSellXP(GachaRarity rarity) {
+    switch(rarity) {
+        case RARITY_MYTHIC:    return XP_SELL_MYTHIC;     // 10000 XP
+        case RARITY_LEGENDARY: return XP_SELL_LEGENDARY;  // 5000 XP
+        default:               return XP_SELL_OTHER;      // 500 XP
+    }
+}
+
+int getCardSellGems(GachaRarity rarity) {
+    switch(rarity) {
+        case RARITY_MYTHIC:    return GEMS_SELL_MYTHIC;    // 500 gems
+        case RARITY_LEGENDARY: return GEMS_SELL_LEGENDARY; // 200 gems
+        case RARITY_EPIC:      return GEMS_SELL_EPIC;      // 50 gems
+        case RARITY_RARE:      return GEMS_SELL_RARE;      // 20 gems
+        default:               return GEMS_SELL_COMMON;    // 5 gems
+    }
+}
+
+bool canSellCard(int card_id) {
+    if (card_id < 0 || card_id >= GACHA_TOTAL_CARDS) return false;
+    return cards_owned[card_id];
+}
+
+int sellCard(int card_id) {
+    if (!canSellCard(card_id)) return 0;
+    
+    GachaCard& card = gacha_cards[card_id];
+    int xp_reward = getCardSellXP(card.rarity);
+    int gem_reward = getCardSellGems(card.rarity);
+    
+    // Remove card from collection
+    if (cards_duplicates[card_id] > 0) {
+        // Has duplicates, just remove one duplicate
+        cards_duplicates[card_id]--;
+        Serial.printf("[Gacha] Sold duplicate %s for %d XP + %d Gems\n", 
+                     card.character_name.c_str(), xp_reward, gem_reward);
+    } else {
+        // Selling last copy
+        cards_owned[card_id] = false;
+        system_state.gacha_cards_collected--;
+        Serial.printf("[Gacha] Sold %s (last copy) for %d XP + %d Gems\n", 
+                     card.character_name.c_str(), xp_reward, gem_reward);
+        
+        // Remove from deck if present
+        for (int i = 0; i < system_state.deck_size; i++) {
+            if (system_state.battle_deck[i] == card_id) {
+                removeCardFromDeck(i);
+                break;
+            }
+        }
+    }
+    
+    // Award XP and Gems
+    gainExperience(xp_reward, "Card Sold");
+    addGems(gem_reward, "Card Sold");
+    
+    collection_needs_rebuild = true;
+    saveGachaProgress();
+    
+    return xp_reward;
+}
+
+int sellCardDuplicates(int card_id) {
+    if (card_id < 0 || card_id >= GACHA_TOTAL_CARDS) return 0;
+    if (!cards_owned[card_id] || cards_duplicates[card_id] == 0) return 0;
+    
+    GachaCard& card = gacha_cards[card_id];
+    int dupes = cards_duplicates[card_id];
+    int xp_per_card = getCardSellXP(card.rarity);
+    int gems_per_card = getCardSellGems(card.rarity);
+    int total_xp = dupes * xp_per_card;
+    int total_gems = dupes * gems_per_card;
+    
+    cards_duplicates[card_id] = 0;
+    
+    gainExperience(total_xp, "Sold Duplicates");
+    addGems(total_gems, "Sold Duplicates");
+    
+    Serial.printf("[Gacha] Sold %d duplicates of %s for %d XP + %d Gems\n", 
+                 dupes, card.character_name.c_str(), total_xp, total_gems);
+    
+    collection_needs_rebuild = true;
+    saveGachaProgress();
+    
+    return total_xp;
+}
+
+int sellAllDuplicates() {
+    int total_xp = 0;
+    int total_gems = 0;
+    int cards_sold = 0;
+    
+    for (int i = 0; i < GACHA_TOTAL_CARDS; i++) {
+        if (cards_owned[i] && cards_duplicates[i] > 0) {
+            int dupes = cards_duplicates[i];
+            int xp = dupes * getCardSellXP(gacha_cards[i].rarity);
+            int gems = dupes * getCardSellGems(gacha_cards[i].rarity);
+            total_xp += xp;
+            total_gems += gems;
+            cards_sold += dupes;
+            cards_duplicates[i] = 0;
+        }
+    }
+    
+    if (cards_sold > 0) {
+        gainExperience(total_xp, "Sold All Duplicates");
+        addGems(total_gems, "Sold All Duplicates");
+        Serial.printf("[Gacha] Sold ALL %d duplicates for %d XP + %d Gems\n", 
+                     cards_sold, total_xp, total_gems);
+        collection_needs_rebuild = true;
+        saveGachaProgress();
+    }
+    
+    return total_xp;
+}
+
+int getSellableCardCount(bool duplicatesOnly) {
+    int count = 0;
+    for (int i = 0; i < GACHA_TOTAL_CARDS; i++) {
+        if (cards_owned[i]) {
+            if (duplicatesOnly) {
+                count += cards_duplicates[i];
+            } else {
+                count += 1 + cards_duplicates[i];
+            }
+        }
+    }
+    return count;
+}
+
+// Get count of cards owned by rarity
+void getCardCountByRarity(int* common, int* rare, int* epic, int* legendary, int* mythic) {
+    *common = *rare = *epic = *legendary = *mythic = 0;
+    for (int i = 0; i < GACHA_TOTAL_CARDS; i++) {
+        if (cards_owned[i]) {
+            int totalCopies = 1 + cards_duplicates[i];
+            switch(gacha_cards[i].rarity) {
+                case RARITY_COMMON:    *common += totalCopies; break;
+                case RARITY_RARE:      *rare += totalCopies; break;
+                case RARITY_EPIC:      *epic += totalCopies; break;
+                case RARITY_LEGENDARY: *legendary += totalCopies; break;
+                case RARITY_MYTHIC:    *mythic += totalCopies; break;
+            }
+        }
+    }
+}
+
+void getCollectionValue(int* outXP, int* outGems) {
+    *outXP = 0;
+    *outGems = 0;
+    
+    for (int i = 0; i < GACHA_TOTAL_CARDS; i++) {
+        if (cards_owned[i]) {
+            int totalCopies = 1 + cards_duplicates[i];
+            *outXP += totalCopies * getCardSellXP(gacha_cards[i].rarity);
+            *outGems += totalCopies * getCardSellGems(gacha_cards[i].rarity);
+        }
+    }
+}
+
+int sellEntireCollection() {
+    int total_xp = 0;
+    int total_gems = 0;
+    int cards_sold = 0;
+    
+    for (int i = 0; i < GACHA_TOTAL_CARDS; i++) {
+        if (cards_owned[i]) {
+            int totalCopies = 1 + cards_duplicates[i];
+            int xp = totalCopies * getCardSellXP(gacha_cards[i].rarity);
+            int gems = totalCopies * getCardSellGems(gacha_cards[i].rarity);
+            total_xp += xp;
+            total_gems += gems;
+            cards_sold += totalCopies;
+            
+            // Remove the card completely
+            cards_owned[i] = false;
+            cards_duplicates[i] = 0;
+            gacha_cards[i].evolution_level = 0;
+        }
+    }
+    
+    // Clear the deck since all cards are sold
+    for (int i = 0; i < MAX_DECK_SIZE; i++) {
+        system_state.battle_deck[i] = -1;
+    }
+    system_state.deck_size = 0;
+    system_state.gacha_cards_collected = 0;
+    
+    if (cards_sold > 0) {
+        gainExperience(total_xp, "Sold Entire Collection!");
+        addGems(total_gems, "Sold Entire Collection!");
+        Serial.printf("[Gacha] SOLD ENTIRE COLLECTION: %d cards for %d XP + %d Gems\n", 
+                     cards_sold, total_xp, total_gems);
+        collection_needs_rebuild = true;
+        saveGachaProgress();
+    }
+    
+    return total_xp;
 }
 
 // =============================================================================
@@ -785,39 +1004,53 @@ void drawGachaScreen() {
     gfx->drawFastHLine(32, sy, LCD_WIDTH - 64, RGB565(6, 6, 10));
   }
 
-  // Collection button - retro
+  // === NAVIGATION BUTTONS WITH CLEAR LABELS ===
+  
+  // Collection button - view & sell cards
   gfx->fillRect(10, 365, 95, 40, RGB565(15, 18, 25));
   gfx->fillRect(10, 365, 5, 5, theme->primary);
   gfx->drawRect(10, 365, 95, 40, RGB565(40, 45, 60));
-  gfx->setTextColor(RGB565(180, 185, 200));
+  gfx->setTextColor(theme->primary);
   gfx->setTextSize(1);
-  gfx->setCursor(20, 381);
-  gfx->print("Collection");
+  gfx->setCursor(18, 371);
+  gfx->print("COLLECTION");
+  gfx->setTextColor(RGB565(100, 105, 120));
+  gfx->setCursor(18, 385);
+  gfx->print("View & Sell");
 
-  // Evolve button - retro gold
+  // Evolve button - power up cards
   gfx->fillRect(115, 365, 75, 40, RGB565(20, 18, 10));
   gfx->drawRect(115, 365, 75, 40, COLOR_GOLD);
   gfx->fillRect(115, 365, 4, 4, COLOR_GOLD);
   gfx->fillRect(186, 365, 4, 4, COLOR_GOLD);
   gfx->setTextColor(COLOR_GOLD);
-  gfx->setCursor(127, 381);
-  gfx->print("Evolve");
+  gfx->setCursor(123, 371);
+  gfx->print("EVOLVE");
+  gfx->setTextColor(RGB565(120, 100, 50));
+  gfx->setCursor(123, 385);
+  gfx->print("Power Up");
 
-  // Deck button - retro cyan
+  // Deck button - build battle deck
   gfx->fillRect(200, 365, 65, 40, RGB565(10, 18, 20));
   gfx->drawRect(200, 365, 65, 40, COLOR_CYAN);
   gfx->fillRect(200, 365, 4, 4, COLOR_CYAN);
   gfx->fillRect(261, 365, 4, 4, COLOR_CYAN);
   gfx->setTextColor(COLOR_CYAN);
-  gfx->setCursor(215, 381);
-  gfx->print("Deck");
+  gfx->setCursor(212, 371);
+  gfx->print("DECK");
+  gfx->setTextColor(RGB565(50, 100, 100));
+  gfx->setCursor(208, 385);
+  gfx->print("Battle");
 
-  // Back button - retro
+  // Back button - return to games menu
   gfx->fillRect(275, 365, 75, 40, RGB565(15, 18, 25));
-  gfx->drawRect(275, 365, 75, 40, RGB565(40, 45, 60));
-  gfx->setTextColor(RGB565(180, 185, 200));
-  gfx->setCursor(295, 381);
-  gfx->print("Back");
+  gfx->drawRect(275, 365, 75, 40, RGB565(60, 45, 60));
+  gfx->setTextColor(RGB565(180, 140, 180));
+  gfx->setCursor(293, 371);
+  gfx->print("BACK");
+  gfx->setTextColor(RGB565(100, 80, 100));
+  gfx->setCursor(283, 385);
+  gfx->print("Games Menu");
 
   // Pity counter at bottom
   drawPityCounter(20, 415);
@@ -1395,6 +1628,48 @@ void drawGachaCollection() {
       gfx->setCursor(cardX + 16, cardY + 44);
       gfx->print(evoName);
     }
+    
+    // =============================================================================
+    // SELL INFO & BUTTONS
+    // =============================================================================
+    int infoY = cardY + cardH + 8;
+    int ownedCount2 = cards_duplicates[cardIdx] + 1;
+    int sellXP = getCardSellXP(card.rarity);
+    int sellGems = getCardSellGems(card.rarity);
+    
+    // Sell value preview
+    gfx->setTextSize(1);
+    gfx->setTextColor(RGB565(100, 105, 120));
+    gfx->setCursor(cardX + 10, infoY);
+    gfx->printf("Sell: +%d XP +%d G", sellXP, sellGems);
+    
+    // SELL CARD button
+    int sellBtnY = infoY + 18;
+    int sellBtnW = 100;
+    int sellBtnH = 28;
+    int sellBtnX = cardX + 10;
+    
+    gfx->fillRect(sellBtnX, sellBtnY, sellBtnW, sellBtnH, RGB565(50, 20, 20));
+    gfx->drawRect(sellBtnX, sellBtnY, sellBtnW, sellBtnH, COLOR_RED);
+    gfx->fillRect(sellBtnX, sellBtnY, 4, 4, COLOR_RED);
+    gfx->setTextSize(1);
+    gfx->setTextColor(COLOR_RED);
+    gfx->setCursor(sellBtnX + 15, sellBtnY + 10);
+    gfx->print("SELL CARD");
+    
+    // SELL ALL DUPES button (only if there are duplicates across collection)
+    int totalDupes = getSellableCardCount(true);
+    if (totalDupes > 0) {
+        int sellAllBtnX = cardX + cardW - 115;
+        gfx->fillRect(sellAllBtnX, sellBtnY, 115, sellBtnH, RGB565(60, 30, 15));
+        gfx->drawRect(sellAllBtnX, sellBtnY, 115, sellBtnH, RGB565(255, 150, 50));
+        gfx->fillRect(sellAllBtnX, sellBtnY, 4, 4, RGB565(255, 150, 50));
+        gfx->setTextColor(RGB565(255, 150, 50));
+        gfx->setCursor(sellAllBtnX + 8, sellBtnY + 4);
+        gfx->print("SELL ALL");
+        gfx->setCursor(sellAllBtnX + 8, sellBtnY + 16);
+        gfx->printf("DUPES (%d)", totalDupes);
+    }
   }
 
   // === CARD POSITION INDICATOR ===
@@ -1427,38 +1702,71 @@ void drawGachaCollection() {
   gfx->fillRect(10, statsY, LCD_WIDTH - 20, 30, RGB565(10, 12, 18));
   gfx->drawRect(10, statsY, LCD_WIDTH - 20, 30, RGB565(30, 35, 50));
 
-  if (filtered_count > 0) {
-    int cardIdx = filtered_cards[collection_view_index];
-    GachaCard& card = gacha_cards[cardIdx];
+  // Show rarity breakdown instead of card stats
+  int cCommon, cRare, cEpic, cLegendary, cMythic;
+  getCardCountByRarity(&cCommon, &cRare, &cEpic, &cLegendary, &cMythic);
+  
+  gfx->setTextSize(1);
+  // Common
+  gfx->setTextColor(RGB565(150, 150, 160));
+  gfx->setCursor(15, statsY + 11);
+  gfx->printf("C:%d", cCommon);
+  
+  // Rare
+  gfx->setTextColor(RGB565(30, 144, 255));
+  gfx->setCursor(65, statsY + 11);
+  gfx->printf("R:%d", cRare);
+  
+  // Epic
+  gfx->setTextColor(RGB565(160, 32, 240));
+  gfx->setCursor(115, statsY + 11);
+  gfx->printf("E:%d", cEpic);
+  
+  // Legendary
+  gfx->setTextColor(RGB565(255, 215, 0));
+  gfx->setCursor(165, statsY + 11);
+  gfx->printf("L:%d", cLegendary);
+  
+  // Mythic
+  gfx->setTextColor(RGB565(255, 100, 200));
+  gfx->setCursor(215, statsY + 11);
+  gfx->printf("M:%d", cMythic);
+  
+  // Total cards
+  int totalCards = cCommon + cRare + cEpic + cLegendary + cMythic;
+  gfx->setTextColor(COLOR_WHITE);
+  gfx->setCursor(265, statsY + 11);
+  gfx->printf("=%d", totalCards);
 
+  // === SELL ALL CARDS BUTTON ===
+  if (totalCards > 0) {
+    int sellAllY = 465;
+    int sellAllW = 130;
+    int sellAllH = 26;
+    int sellAllX = 15;
+    
+    // Get total value
+    int totalXP, totalGems;
+    getCollectionValue(&totalXP, &totalGems);
+    
+    gfx->fillRect(sellAllX, sellAllY, sellAllW, sellAllH, RGB565(60, 15, 15));
+    gfx->drawRect(sellAllX, sellAllY, sellAllW, sellAllH, RGB565(200, 50, 50));
+    gfx->fillRect(sellAllX, sellAllY, 4, 4, RGB565(200, 50, 50));
     gfx->setTextSize(1);
-    // HP
-    gfx->setTextColor(COLOR_GREEN);
-    gfx->setCursor(20, statsY + 11);
-    gfx->printf("HP:%d", card.hp);
-
-    // ATK
-    gfx->setTextColor(COLOR_RED);
-    gfx->setCursor(100, statsY + 11);
-    gfx->printf("ATK:%d", card.attack);
-
-    // DEF
-    gfx->setTextColor(COLOR_BLUE);
-    gfx->setCursor(180, statsY + 11);
-    gfx->printf("DEF:%d", card.defense);
-
-    // Evolution level
-    gfx->setTextColor(getEvolutionColor(card.evolution_level));
-    gfx->setCursor(260, statsY + 11);
-    gfx->printf("EVO:%d", card.evolution_level);
+    gfx->setTextColor(RGB565(200, 50, 50));
+    gfx->setCursor(sellAllX + 8, sellAllY + 5);
+    gfx->print("SELL ALL CARDS");
+    gfx->setTextColor(RGB565(150, 100, 100));
+    gfx->setCursor(sellAllX + 8, sellAllY + 15);
+    gfx->printf("%dXP %dG", totalXP, totalGems);
   }
 
   // === BACK BUTTON ===
-  gfx->fillRect(LCD_WIDTH/2 - 40, 468, 80, 28, RGB565(15, 18, 25));
-  gfx->drawRect(LCD_WIDTH/2 - 40, 468, 80, 28, RGB565(40, 45, 60));
+  gfx->fillRect(LCD_WIDTH/2 + 20, 468, 80, 28, RGB565(15, 18, 25));
+  gfx->drawRect(LCD_WIDTH/2 + 20, 468, 80, 28, RGB565(40, 45, 60));
   gfx->setTextColor(RGB565(180, 185, 200));
   gfx->setTextSize(1);
-  gfx->setCursor(LCD_WIDTH/2 - 12, 478);
+  gfx->setCursor(LCD_WIDTH/2 + 44, 478);
   gfx->print("Back");
 
   // === SWIPE HINT ===
@@ -1636,8 +1944,156 @@ void handleCollectionTouch(TouchGesture& gesture) {
     return;
   }
 
-  // Back button (y: 468-496)
-  if (y >= 468 && y < 496 && x >= LCD_WIDTH/2 - 40 && x < LCD_WIDTH/2 + 40) {
+  // =============================================================================
+  // SELL CARD button
+  // =============================================================================
+  int cardX2 = (LCD_WIDTH - 260) / 2;
+  int cardH2 = 280;
+  int cardY2 = 90;
+  int infoY = cardY2 + cardH2 + 8;
+  int sellBtnY = infoY + 18;
+  int sellBtnH = 28;
+  int sellBtnW = 100;
+  int sellBtnX = cardX2 + 10;
+  
+  if (y >= sellBtnY && y < sellBtnY + sellBtnH && x >= sellBtnX && x < sellBtnX + sellBtnW) {
+      if (filtered_count > 0) {
+          int cardIdx = filtered_cards[collection_view_index];
+          
+          // Show confirmation flash
+          gfx->fillScreen(COLOR_RED);
+          delay(50);
+          
+          // Sell the card
+          int xpGained = sellCard(cardIdx);
+          
+          if (xpGained > 0) {
+              // Show XP gained
+              gfx->fillScreen(RGB565(10, 30, 10));
+              gfx->setTextSize(2);
+              gfx->setTextColor(COLOR_GREEN);
+              gfx->setCursor(LCD_WIDTH/2 - 60, LCD_HEIGHT/2 - 20);
+              gfx->printf("+%d XP!", xpGained);
+              gfx->setTextSize(1);
+              gfx->setTextColor(COLOR_GOLD);
+              gfx->setCursor(LCD_WIDTH/2 - 40, LCD_HEIGHT/2 + 10);
+              gfx->printf("+%d Gems!", getCardSellGems(gacha_cards[cardIdx].rarity));
+              delay(500);
+              
+              // Rebuild and redraw
+              collection_needs_rebuild = true;
+              drawGachaCollection();
+          }
+      }
+      return;
+  }
+  
+  // =============================================================================
+  // SELL ALL DUPLICATES button
+  // =============================================================================
+  int cardW2 = 260;
+  int sellAllBtnX = cardX2 + cardW2 - 115;
+  int sellAllBtnW = 115;
+  
+  if (y >= sellBtnY && y < sellBtnY + sellBtnH && x >= sellAllBtnX && x < sellAllBtnX + sellAllBtnW) {
+      int totalDupes = getSellableCardCount(true);
+      
+      if (totalDupes > 0) {
+          // Show confirmation flash
+          gfx->fillScreen(RGB565(60, 30, 15));
+          delay(50);
+          
+          // Calculate total rewards before selling
+          int previewXP = 0;
+          int previewGems = 0;
+          for (int i = 0; i < GACHA_TOTAL_CARDS; i++) {
+              if (cards_owned[i] && cards_duplicates[i] > 0) {
+                  previewXP += cards_duplicates[i] * getCardSellXP(gacha_cards[i].rarity);
+                  previewGems += cards_duplicates[i] * getCardSellGems(gacha_cards[i].rarity);
+              }
+          }
+          
+          // Sell all duplicates
+          int xpGained = sellAllDuplicates();
+          
+          if (xpGained > 0) {
+              // Show rewards
+              gfx->fillScreen(RGB565(15, 35, 15));
+              gfx->setTextSize(2);
+              gfx->setTextColor(COLOR_GREEN);
+              gfx->setCursor(LCD_WIDTH/2 - 80, LCD_HEIGHT/2 - 30);
+              gfx->printf("SOLD %d DUPES!", totalDupes);
+              gfx->setCursor(LCD_WIDTH/2 - 60, LCD_HEIGHT/2);
+              gfx->printf("+%d XP!", xpGained);
+              gfx->setTextSize(1);
+              gfx->setTextColor(COLOR_GOLD);
+              gfx->setCursor(LCD_WIDTH/2 - 40, LCD_HEIGHT/2 + 25);
+              gfx->printf("+%d Gems!", previewGems);
+              delay(800);
+              
+              collection_needs_rebuild = true;
+              drawGachaCollection();
+          }
+      }
+      return;
+  }
+
+  // =============================================================================
+  // SELL ALL CARDS button (DANGER!)
+  // =============================================================================
+  int sellAllCardsX = 15;
+  int sellAllCardsY = 465;
+  int sellAllCardsW = 130;
+  int sellAllCardsH = 26;
+  
+  if (y >= sellAllCardsY && y < sellAllCardsY + sellAllCardsH && 
+      x >= sellAllCardsX && x < sellAllCardsX + sellAllCardsW) {
+      int totalCards = getSellableCardCount(false);
+      
+      if (totalCards > 0) {
+          // Get total value before selling
+          int totalXP, totalGems;
+          getCollectionValue(&totalXP, &totalGems);
+          
+          // Warning flash - red
+          gfx->fillScreen(RGB565(80, 0, 0));
+          gfx->setTextSize(2);
+          gfx->setTextColor(COLOR_WHITE);
+          gfx->setCursor(LCD_WIDTH/2 - 70, LCD_HEIGHT/2 - 40);
+          gfx->print("SELLING ALL!");
+          gfx->setTextSize(1);
+          gfx->setTextColor(COLOR_RED);
+          gfx->setCursor(LCD_WIDTH/2 - 50, LCD_HEIGHT/2 - 10);
+          gfx->printf("%d CARDS", totalCards);
+          delay(300);
+          
+          // Sell entire collection
+          int xpGained = sellEntireCollection();
+          
+          if (xpGained > 0) {
+              // Show massive rewards
+              gfx->fillScreen(RGB565(10, 40, 10));
+              gfx->setTextSize(2);
+              gfx->setTextColor(COLOR_GREEN);
+              gfx->setCursor(LCD_WIDTH/2 - 90, LCD_HEIGHT/2 - 40);
+              gfx->print("COLLECTION SOLD!");
+              gfx->setCursor(LCD_WIDTH/2 - 60, LCD_HEIGHT/2);
+              gfx->printf("+%d XP!", xpGained);
+              gfx->setTextSize(1);
+              gfx->setTextColor(COLOR_GOLD);
+              gfx->setCursor(LCD_WIDTH/2 - 50, LCD_HEIGHT/2 + 30);
+              gfx->printf("+%d Gems!", totalGems);
+              delay(1200);
+              
+              collection_needs_rebuild = true;
+              drawGachaCollection();
+          }
+      }
+      return;
+  }
+
+  // Back button (y: 468-496) - moved to right side
+  if (y >= 468 && y < 496 && x >= LCD_WIDTH/2 + 20 && x < LCD_WIDTH/2 + 100) {
     // Reset view state before leaving
     collection_view_index = 0;
     collection_filter = 0;
