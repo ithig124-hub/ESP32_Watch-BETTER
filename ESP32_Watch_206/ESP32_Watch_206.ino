@@ -51,6 +51,7 @@
 #include "xp_system.h"
 #include "wifi_sync.h"
 #include "time_edit.h"
+#include "storyline.h"
 
 // =============================================================================
 // POWER MANAGEMENT DEFINES
@@ -334,25 +335,40 @@ void setup() {
   initWiFiSync();
   feedWatchdog();
   
-  Serial.println("\n[BOOT] Starting WiFi boot sync (hardcoded only)...");
+  Serial.println("\n[BOOT] Starting WiFi boot sync...");
   feedWatchdog();
   
-  unsigned long wifiSyncStart = millis();
-  bool wifi_synced = false;
-  
-  Serial.println("[WiFi] WiFi sync timeout: 8 seconds maximum");
+  // Temporarily increase watchdog timeout for WiFi phase
+  esp_task_wdt_config_t wifi_wdt_config = {
+      .timeout_ms = 40000,  // 40 seconds during WiFi (covers scan + all networks + NTP)
+      .idle_core_mask = (1 << portNUM_PROCESSORS) - 1,
+      .trigger_panic = true
+  };
+  esp_task_wdt_reconfigure(&wifi_wdt_config);
   
   unsigned long beforeSync = millis();
-  wifi_synced = performBootSync();
+  bool wifi_synced = performBootSync();
   unsigned long syncDuration = millis() - beforeSync;
+  
+  // Restore normal watchdog timeout
+  esp_task_wdt_config_t normal_wdt_config = {
+      .timeout_ms = WATCHDOG_TIMEOUT_SEC * 1000,
+      .idle_core_mask = (1 << portNUM_PROCESSORS) - 1,
+      .trigger_panic = true
+  };
+  esp_task_wdt_reconfigure(&normal_wdt_config);
+  feedWatchdog();
   
   Serial.printf("[WiFi] Sync attempt took %lu ms\n", syncDuration);
   
   if (wifi_synced) {
-    Serial.println("[BOOT] ✓ WiFi sync successful!");
+    Serial.println("[BOOT] WiFi sync successful!");
   } else {
-    Serial.println("[BOOT] ✗ WiFi sync failed or timed out");
-    Serial.println("[BOOT] → Continuing boot anyway (WiFi optional)");
+    Serial.println("[BOOT] WiFi sync failed or skipped");
+    Serial.println("[BOOT] -> Using RTC chip time (PCF85063)");
+    WatchTime rtc = getCurrentTime();
+    Serial.printf("[BOOT] -> RTC: %04d-%02d-%02d %02d:%02d:%02d\n",
+      rtc.year, rtc.month, rtc.day, rtc.hour, rtc.minute, rtc.second);
   }
   
   feedWatchdog();
@@ -362,6 +378,7 @@ void setup() {
   
   initStepsTracker();
   initDailyQuests();
+  initStorySystem();
   feedWatchdog();
   
   lastActivityMs = millis();
@@ -636,6 +653,22 @@ void handleTouchGesture(TouchGesture& gesture) {
     
     case SCREEN_GALLERY:
       handleGalleryTouch(gesture);
+      break;
+
+    case SCREEN_STORY_MENU:
+      handleStoryMenuTouch(gesture);
+      break;
+
+    case SCREEN_CHAPTER_SELECT:
+      handleChapterSelectTouch(gesture);
+      break;
+
+    case SCREEN_STORY_DIALOGUE:
+      handleDialogueTouch(gesture);
+      break;
+
+    case SCREEN_STORY_BOSS:
+      handleStoryBossTouch(gesture);
       break;
     
     default:

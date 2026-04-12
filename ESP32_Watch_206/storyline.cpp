@@ -1600,22 +1600,40 @@ static int chapterScrollOffset = 0;
 #define CHAPTERS_VISIBLE 5
 
 void drawChapterSelect() {
- gfx->fillScreen(COLOR_BLACK);
+ gfx->fillScreen(RGB565(2, 2, 5));
+ // CRT scan lines
+ for (int sy = 0; sy < LCD_HEIGHT; sy += 4) {
+   gfx->drawFastHLine(0, sy, LCD_WIDTH, RGB565(4, 4, 7));
+ }
+ 
  ThemeColors colors = *getThemeColors(system_state.current_theme);
- gfx->fillRect(0, 0, LCD_WIDTH, 50, colors.primary);
- gfx->setTextColor(COLOR_WHITE); gfx->setTextSize(2); gfx->setCursor(20, 15); gfx->print("Select Chapter");
+ 
+ // Retro header
+ int headerH = 55;
+ gfx->fillRect(0, 0, LCD_WIDTH, headerH, RGB565(10, 12, 18));
+ for (int hx = 0; hx < LCD_WIDTH; hx += 8) {
+   gfx->fillRect(hx, headerH - 3, 6, 3, colors.primary);
+ }
+ 
+ gfx->setTextSize(3);
+ gfx->setTextColor(RGB565(30, 35, 50));
+ gfx->setCursor(LCD_WIDTH/2 - 82, 14);
+ gfx->print("Chapters");
+ gfx->setTextColor(colors.primary);
+ gfx->setCursor(LCD_WIDTH/2 - 84, 12);
+ gfx->print("Chapters");
  
  // Page indicator
- gfx->setTextSize(1); gfx->setTextColor(colors.accent);
- gfx->setCursor(LCD_WIDTH - 80, 20);
- char pgBuf[16]; sprintf(pgBuf, "Page %d/%d", (chapterScrollOffset / CHAPTERS_VISIBLE) + 1, 
+ gfx->setTextSize(2); gfx->setTextColor(colors.accent);
+ gfx->setCursor(LCD_WIDTH - 90, 18);
+ char pgBuf[16]; sprintf(pgBuf, "%d/%d", (chapterScrollOffset / CHAPTERS_VISIBLE) + 1, 
              (MAX_CHAPTERS_PER_CHARACTER + CHAPTERS_VISIBLE - 1) / CHAPTERS_VISIBLE);
  gfx->print(pgBuf);
  
  if (!story_system.current_story) return;
- int y_off = 60;
- int cardH = 65;
- int cardGap = 10;
+ int y_off = headerH + 10;
+ int cardH = 72;
+ int cardGap = 8;
  
  for (int i = 0; i < CHAPTERS_VISIBLE; i++) {
    int chIdx = i + chapterScrollOffset;
@@ -1623,48 +1641,88 @@ void drawChapterSelect() {
    
    StoryChapter* ch = &story_system.current_story->chapters[chIdx];
    bool unlocked = isChapterUnlocked(chIdx + 1);
-   uint16_t bg = ch->completed ? colors.primary : (unlocked ? colors.secondary : RGB565(50,50,50));
-   uint16_t tc = unlocked ? COLOR_WHITE : COLOR_GRAY;
    
    int cardY = y_off + i * (cardH + cardGap);
-   gfx->fillRoundRect(20, cardY, LCD_WIDTH-40, cardH, 8, bg);
-   gfx->setTextColor(tc); gfx->setTextSize(2); gfx->setCursor(30, cardY + 10);
-   gfx->print("Ch."); gfx->print(chIdx + 1); gfx->print(": ");
-   gfx->setTextSize(1); gfx->setCursor(30, cardY + 35); gfx->print(ch->title);
    
+   // Card background
+   uint16_t cardBg = ch->completed ? RGB565(15, 25, 15) : (unlocked ? RGB565(15, 18, 25) : RGB565(12, 12, 15));
+   gfx->fillRect(20, cardY, LCD_WIDTH-40, cardH, cardBg);
+   
+   // Card border
+   uint16_t borderColor = ch->completed ? RGB565(0, 200, 80) : (unlocked ? colors.primary : RGB565(40, 40, 50));
+   gfx->drawRect(20, cardY, LCD_WIDTH-40, cardH, borderColor);
+   
+   // Corner accents
+   gfx->fillRect(20, cardY, 5, 5, borderColor);
+   gfx->fillRect(LCD_WIDTH - 25, cardY, 5, 5, borderColor);
+   
+   // Left color stripe
+   gfx->fillRect(20, cardY + 2, 5, cardH - 4, borderColor);
+   
+   // Chapter number - big
+   gfx->setTextColor(unlocked ? colors.primary : RGB565(60, 60, 70));
+   gfx->setTextSize(3);
+   gfx->setCursor(35, cardY + 10);
+   char chNum[5]; sprintf(chNum, "%02d", chIdx + 1);
+   gfx->print(chNum);
+   
+   // Chapter title
+   gfx->setTextColor(unlocked ? COLOR_WHITE : RGB565(80, 80, 90));
+   gfx->setTextSize(2);
+   gfx->setCursor(80, cardY + 12);
+   // Truncate long titles
+   char titleBuf[20];
+   strncpy(titleBuf, ch->title, 19);
+   titleBuf[19] = '\0';
+   gfx->print(titleBuf);
+   
+   // Status text
    if (ch->completed) { 
-     gfx->setTextColor(COLOR_GREEN); gfx->setCursor(LCD_WIDTH-80, cardY + 20); gfx->print("DONE"); 
+     gfx->setTextColor(RGB565(0, 200, 80));
+     gfx->setTextSize(2);
+     gfx->setCursor(80, cardY + 42);
+     gfx->print("COMPLETE");
    }
    else if (!unlocked) { 
-     gfx->setTextColor(COLOR_RED); gfx->setCursor(LCD_WIDTH-90, cardY + 20); 
-     gfx->print("Lv."); gfx->print(CHAPTER_LEVELS[chIdx]); 
+     gfx->setTextColor(RGB565(200, 60, 60));
+     gfx->setTextSize(2);
+     gfx->setCursor(80, cardY + 42);
+     gfx->print("Lv."); gfx->print(CHAPTER_LEVELS[chIdx]);
+     gfx->setTextColor(RGB565(80, 80, 90));
+     gfx->print(" needed");
    }
    else {
-     // Unread/available indicator
-     gfx->setTextColor(COLOR_CYAN); gfx->setCursor(LCD_WIDTH-80, cardY + 20); gfx->print("PLAY");
+     gfx->setTextColor(RGB565(0, 200, 255));
+     gfx->setTextSize(2);
+     gfx->setCursor(80, cardY + 42);
+     gfx->print(">> PLAY");
    }
  }
  
- // Scroll arrows
+ // Scroll arrows area
  int arrowY = y_off + CHAPTERS_VISIBLE * (cardH + cardGap) + 5;
  
- // Up arrow (if not at top)
  if (chapterScrollOffset > 0) {
-   gfx->fillTriangle(LCD_WIDTH/2 - 40, arrowY + 15, LCD_WIDTH/2 - 20, arrowY, LCD_WIDTH/2, arrowY + 15, colors.accent);
-   gfx->setTextSize(1); gfx->setTextColor(colors.accent);
-   gfx->setCursor(LCD_WIDTH/2 - 55, arrowY + 5); gfx->print("UP");
+   gfx->fillRect(30, arrowY, 80, 30, RGB565(15, 18, 25));
+   gfx->drawRect(30, arrowY, 80, 30, colors.accent);
+   gfx->setTextSize(2); gfx->setTextColor(colors.accent);
+   gfx->setCursor(50, arrowY + 7); gfx->print("UP");
  }
  
- // Down arrow (if more chapters below)
  if (chapterScrollOffset + CHAPTERS_VISIBLE < MAX_CHAPTERS_PER_CHARACTER) {
-   gfx->fillTriangle(LCD_WIDTH/2 + 20, arrowY, LCD_WIDTH/2 + 40, arrowY + 15, LCD_WIDTH/2 + 60, arrowY, colors.accent);
-   gfx->setTextSize(1); gfx->setTextColor(colors.accent);
-   gfx->setCursor(LCD_WIDTH/2 + 25, arrowY + 5); gfx->print("DOWN");
+   gfx->fillRect(LCD_WIDTH - 110, arrowY, 80, 30, RGB565(15, 18, 25));
+   gfx->drawRect(LCD_WIDTH - 110, arrowY, 80, 30, colors.accent);
+   gfx->setTextSize(2); gfx->setTextColor(colors.accent);
+   gfx->setCursor(LCD_WIDTH - 96, arrowY + 7); gfx->print("DOWN");
  }
  
- // Back button
- gfx->fillRoundRect(30, LCD_HEIGHT-60, 80, 40, 8, COLOR_GRAY);
- gfx->setTextColor(COLOR_WHITE); gfx->setTextSize(2); gfx->setCursor(45, LCD_HEIGHT-48); gfx->print("Back");
+ // Back button - retro style
+ gfx->fillRect(30, LCD_HEIGHT - 55, 80, 38, RGB565(15, 18, 25));
+ gfx->drawRect(30, LCD_HEIGHT - 55, 80, 38, RGB565(40, 45, 60));
+ gfx->fillRect(30, LCD_HEIGHT - 55, 5, 5, colors.primary);
+ gfx->setTextColor(RGB565(180, 185, 200)); gfx->setTextSize(2); gfx->setCursor(45, LCD_HEIGHT - 44); gfx->print("Back");
+ 
+ drawSwipeIndicator();
 }
 
 void drawDialogueScreen() {
@@ -1672,29 +1730,110 @@ void drawDialogueScreen() {
  int ch = story_system.current_story->current_chapter; if (ch < 1) return;
  StoryChapter* chapter = &story_system.current_story->chapters[ch-1];
  DialogueScreen* d = &chapter->dialogues[story_system.current_dialogue_index];
- gfx->fillScreen(COLOR_BLACK);
- ThemeColors colors = *getThemeColors(system_state.current_theme);  // FIX: Added * to dereference pointer
- gfx->fillRect(0, 0, LCD_WIDTH, LCD_HEIGHT/2, colors.background);
- gfx->setTextColor(colors.accent); gfx->setTextSize(1); gfx->setCursor(10, 10);
- gfx->print("Chapter "); gfx->print(ch); gfx->print(": "); gfx->print(chapter->title);
- gfx->fillRoundRect(10, LCD_HEIGHT/2, LCD_WIDTH-20, LCD_HEIGHT/2-10, 10, RGB565(30,30,40));
- gfx->drawRoundRect(10, LCD_HEIGHT/2, LCD_WIDTH-20, LCD_HEIGHT/2-10, 10, colors.primary);
- gfx->setTextColor(d->speaker_color); gfx->setTextSize(2); gfx->setCursor(25, LCD_HEIGHT/2+15); gfx->print(d->speaker);
- gfx->setTextColor(COLOR_WHITE); gfx->setTextSize(1);
- // Word wrap
- const char* txt = d->text; int x = 25, y = LCD_HEIGHT/2+50;
+ 
+ gfx->fillScreen(RGB565(5, 5, 10));
+ // CRT scan lines
+ for (int sy = 0; sy < LCD_HEIGHT; sy += 4) {
+   gfx->drawFastHLine(0, sy, LCD_WIDTH, RGB565(8, 8, 14));
+ }
+ 
+ ThemeColors colors = *getThemeColors(system_state.current_theme);
+ 
+ // Header bar with chapter info
+ int headerH = 55;
+ gfx->fillRect(0, 0, LCD_WIDTH, headerH, RGB565(10, 12, 18));
+ for (int hx = 0; hx < LCD_WIDTH; hx += 8) {
+   gfx->fillRect(hx, headerH - 3, 6, 3, colors.primary);
+ }
+ 
+ // Chapter title - large and visible
+ gfx->setTextColor(colors.primary);
+ gfx->setTextSize(2);
+ gfx->setCursor(20, 8);
+ gfx->print("Ch.");
+ gfx->print(ch);
+ 
+ gfx->setTextColor(COLOR_WHITE);
+ gfx->setTextSize(2);
+ gfx->setCursor(20, 30);
+ // Truncate title if too long
+ char titleBuf[25];
+ strncpy(titleBuf, chapter->title, 24);
+ titleBuf[24] = '\0';
+ gfx->print(titleBuf);
+ 
+ // Dialogue progress indicator
+ gfx->setTextColor(RGB565(100, 105, 120));
+ gfx->setTextSize(1);
+ gfx->setCursor(LCD_WIDTH - 60, 20);
+ char progBuf[10];
+ sprintf(progBuf, "%d/%d", story_system.current_dialogue_index + 1, chapter->dialogue_count);
+ gfx->print(progBuf);
+ 
+ // Scene area (top half) - themed background
+ int sceneY = headerH + 5;
+ int sceneH = 150;
+ gfx->fillRect(15, sceneY, LCD_WIDTH - 30, sceneH, RGB565(12, 14, 20));
+ gfx->drawRect(15, sceneY, LCD_WIDTH - 30, sceneH, RGB565(35, 40, 55));
+ gfx->fillRect(15, sceneY, 6, 6, colors.primary);
+ gfx->fillRect(LCD_WIDTH - 21, sceneY, 6, 6, colors.primary);
+ 
+ // Character name in scene area
+ gfx->setTextColor(d->speaker_color);
+ gfx->setTextSize(3);
+ int nameLen = strlen(d->speaker) * 18;
+ gfx->setCursor((LCD_WIDTH - nameLen) / 2, sceneY + 55);
+ gfx->print(d->speaker);
+ 
+ // Dialogue box - bottom area
+ int dlgY = sceneY + sceneH + 15;
+ int dlgH = LCD_HEIGHT - dlgY - 50;
+ gfx->fillRoundRect(15, dlgY, LCD_WIDTH - 30, dlgH, 10, RGB565(20, 22, 30));
+ gfx->drawRoundRect(15, dlgY, LCD_WIDTH - 30, dlgH, 10, colors.primary);
+ gfx->fillRect(15, dlgY, 6, 6, colors.accent);
+ gfx->fillRect(LCD_WIDTH - 21, dlgY, 6, 6, colors.accent);
+ 
+ // Speaker name in dialogue box
+ gfx->setTextColor(d->speaker_color);
+ gfx->setTextSize(2);
+ gfx->setCursor(30, dlgY + 12);
+ gfx->print(d->speaker);
+ 
+ // Separator line under name
+ gfx->drawFastHLine(30, dlgY + 34, LCD_WIDTH - 80, RGB565(50, 55, 70));
+ 
+ // Dialogue text - SIZE 2 for readability!
+ gfx->setTextColor(COLOR_WHITE);
+ gfx->setTextSize(2);
+ const char* txt = d->text;
+ int tx = 30, ty = dlgY + 45;
+ int maxTextX = LCD_WIDTH - 50;
+ 
  while (*txt) {
    char w[50]; int wl = 0;
    while (*txt && *txt != ' ' && wl < 49) w[wl++] = *txt++;
    w[wl] = 0;
-   if (x + wl*6 > LCD_WIDTH-50) { x = 25; y += 15; }
-   gfx->setCursor(x, y); gfx->print(w); x += wl*6 + 6;
+   int wordPixelW = wl * 12; // size 2 = 12px per char
+   if (tx + wordPixelW > maxTextX) { tx = 30; ty += 22; }
+   if (ty > dlgY + dlgH - 20) break; // Don't overflow
+   gfx->setCursor(tx, ty);
+   gfx->print(w);
+   tx += wordPixelW + 12;
    if (*txt == ' ') txt++;
  }
+ 
  if (d->has_choices) {
    drawChoiceScreen(d->choice1, d->choice2);
  } else {
-   gfx->setTextColor(COLOR_GRAY); gfx->setTextSize(1); gfx->setCursor(LCD_WIDTH/2-50, LCD_HEIGHT-25); gfx->print("Tap to continue...");
+   // Tap to continue indicator
+   gfx->setTextColor(RGB565(80, 85, 100));
+   gfx->setTextSize(2);
+   gfx->setCursor(LCD_WIDTH/2 - 84, LCD_HEIGHT - 35);
+   gfx->print("Tap to continue");
+   // Blinking arrow
+   gfx->setTextColor(colors.primary);
+   gfx->setCursor(LCD_WIDTH - 40, LCD_HEIGHT - 35);
+   gfx->print(">>");
  }
 }
 
@@ -1799,14 +1938,13 @@ void handleStoryMenuTouch(TouchGesture& g) {
    return;
  }
  
- if (g.y >= 150 && g.y <= 200) { chapterScrollOffset = 0; system_state.current_screen = SCREEN_CHAPTER_SELECT; return; }
+ if (g.y >= 150 && g.y <= 200) { chapterScrollOffset = 0; system_state.current_screen = SCREEN_CHAPTER_SELECT; drawChapterSelect(); return; }
  if (g.y >= 220 && g.y <= 270 && hasActiveEvent()) { drawStoryEventPopup(); return; }
  if (g.y >= LCD_HEIGHT-70 && g.x <= 110) { story_system.in_story_mode = false; returnToAppGrid(); }
 }
 
 void handleChapterSelectTouch(TouchGesture& g) {
  if (g.event == TOUCH_SWIPE_UP) {
-   // Scroll down (show later chapters)
    if (chapterScrollOffset + CHAPTERS_VISIBLE < MAX_CHAPTERS_PER_CHARACTER) {
      chapterScrollOffset += CHAPTERS_VISIBLE;
      drawChapterSelect();
@@ -1814,7 +1952,6 @@ void handleChapterSelectTouch(TouchGesture& g) {
    return;
  }
  if (g.event == TOUCH_SWIPE_DOWN) {
-   // Scroll up (show earlier chapters)
    if (chapterScrollOffset > 0) {
      chapterScrollOffset -= CHAPTERS_VISIBLE;
      if (chapterScrollOffset < 0) chapterScrollOffset = 0;
@@ -1825,9 +1962,10 @@ void handleChapterSelectTouch(TouchGesture& g) {
  
  if (g.event != TOUCH_TAP) return;
  
- int y_off = 60;
- int cardH = 65;
- int cardGap = 10;
+ int headerH = 55;
+ int y_off = headerH + 10;
+ int cardH = 72;
+ int cardGap = 8;
  
  // Check chapter card taps
  for (int i = 0; i < CHAPTERS_VISIBLE; i++) {
@@ -1836,14 +1974,13 @@ void handleChapterSelectTouch(TouchGesture& g) {
    
    int cardY = y_off + i * (cardH + cardGap);
    if (g.y >= cardY && g.y <= cardY + cardH && g.x >= 20 && g.x <= LCD_WIDTH-20 && isChapterUnlocked(chIdx + 1)) {
-     startChapter(chIdx + 1); system_state.current_screen = SCREEN_STORY_DIALOGUE; return;
+     startChapter(chIdx + 1); system_state.current_screen = SCREEN_STORY_DIALOGUE; drawDialogueScreen(); return;
    }
  }
  
- // Scroll arrow taps
+ // Scroll button taps
  int arrowY = y_off + CHAPTERS_VISIBLE * (cardH + cardGap) + 5;
- if (g.y >= arrowY && g.y <= arrowY + 20) {
-   // Left half = scroll up, right half = scroll down
+ if (g.y >= arrowY && g.y <= arrowY + 30) {
    if (g.x < LCD_WIDTH/2 && chapterScrollOffset > 0) {
      chapterScrollOffset -= CHAPTERS_VISIBLE;
      if (chapterScrollOffset < 0) chapterScrollOffset = 0;
@@ -1858,7 +1995,7 @@ void handleChapterSelectTouch(TouchGesture& g) {
  }
  
  // Back button
- if (g.y >= LCD_HEIGHT-60 && g.x <= 110) system_state.current_screen = SCREEN_STORY_MENU;
+ if (g.y >= LCD_HEIGHT-55 && g.x <= 110) { system_state.current_screen = SCREEN_STORY_MENU; drawStoryMenu(); return; }
 }
 
 void handleDialogueTouch(TouchGesture& g) {
@@ -1876,20 +2013,22 @@ void handleDialogueTouch(TouchGesture& g) {
    else if (g.y >= LCD_HEIGHT-100 && g.y <= LCD_HEIGHT-40) handleDialogueChoice(2);
  } else {
    advanceDialogue();
-   if (story_system.in_boss_battle) system_state.current_screen = SCREEN_STORY_BOSS;
+   if (story_system.in_boss_battle) { system_state.current_screen = SCREEN_STORY_BOSS; drawStoryBossScreen(); }
+   else if (story_system.showing_rewards) { drawChapterRewards(); }
+   else { drawDialogueScreen(); }
  }
 }
 
 void handleStoryBossTouch(TouchGesture& g) {
  if (g.event != TOUCH_TAP) return;
  if (g.y >= LCD_HEIGHT-110 && g.y <= LCD_HEIGHT-60) {
-   if (g.x <= 180) { handleStoryBossAttack(); if (!story_system.in_boss_battle && story_system.showing_rewards) drawChapterRewards(); return; }
-   if (g.x >= LCD_WIDTH-180) { handleStoryBossSpecial(); if (!story_system.in_boss_battle && story_system.showing_rewards) drawChapterRewards(); return; }
+   if (g.x <= 180) { handleStoryBossAttack(); if (!story_system.in_boss_battle && story_system.showing_rewards) drawChapterRewards(); else drawStoryBossScreen(); return; }
+   if (g.x >= LCD_WIDTH-180) { handleStoryBossSpecial(); if (!story_system.in_boss_battle && story_system.showing_rewards) drawChapterRewards(); else drawStoryBossScreen(); return; }
  }
  if (g.y >= LCD_HEIGHT-50 && g.x >= LCD_WIDTH/2-50 && g.x <= LCD_WIDTH/2+50) {
-   story_system.in_boss_battle = false; story_system.in_story_mode = false; system_state.current_screen = SCREEN_STORY_MENU; return;
+   story_system.in_boss_battle = false; story_system.in_story_mode = false; system_state.current_screen = SCREEN_STORY_MENU; drawStoryMenu(); return;
  }
- if (story_system.showing_rewards && g.y >= LCD_HEIGHT-100) { claimBossRewards(); system_state.current_screen = SCREEN_STORY_MENU; }
+ if (story_system.showing_rewards && g.y >= LCD_HEIGHT-100) { claimBossRewards(); system_state.current_screen = SCREEN_STORY_MENU; drawStoryMenu(); }
 }
 
 // =============================================================================

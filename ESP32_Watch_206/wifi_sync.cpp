@@ -60,13 +60,16 @@ const char* HARDCODED_SSID = "Optus_9D2E3D";
 const char* HARDCODED_PASSWORD = "snucktemptGLeQU";
 
 // =============================================================================
-// CONSTANTS - REDUCED TIMEOUTS
+// CONSTANTS - SAFE TIMEOUTS (prevent boot loop)
+// Total worst case: scan(4s) + 6 networks × 1 retry × 4s = 28s + NTP(4s) + HTTP(4s) = 36s
+// Watchdog set to 40s during WiFi phase to cover this
 // =============================================================================
-#define WIFI_RETRY_PER_NETWORK 2
-#define WIFI_CONNECT_TIMEOUT 5000      // 5 seconds per attempt
-#define NTP_TIMEOUT 5000               // 5 seconds for NTP
-#define QUICK_SCAN_TIMEOUT 300         // 300ms per WiFi channel
-#define HTTP_TIMEOUT 5000              // 5 seconds for HTTP requests
+#define WIFI_RETRY_PER_NETWORK 1       // 1 attempt per network (fast fail, move to next)
+#define WIFI_CONNECT_TIMEOUT 4000      // 4 seconds per network attempt
+#define NTP_TIMEOUT 4000               // 4 seconds for NTP
+#define QUICK_SCAN_TIMEOUT 200         // 200ms per WiFi channel
+#define HTTP_TIMEOUT 4000              // 4 seconds for HTTP requests
+#define TOTAL_WIFI_BOOT_TIMEOUT 30000  // 30 seconds MAX for entire WiFi boot phase
 
 // SD Card paths
 #define SD_WIFI_PATH "/WATCH/wifi"
@@ -559,11 +562,22 @@ bool quickNetworkScan() {
     
     WiFi.mode(WIFI_STA);
     WiFi.disconnect();
-    delay(100);
+    delay(50);
     feedWatchdog();
     
-    Serial.println("[WiFiSync] Scanning...");
-    int scanResult = WiFi.scanNetworks(false, false, false, QUICK_SCAN_TIMEOUT);
+    // Use ASYNC scan to avoid blocking the watchdog
+    Serial.println("[WiFiSync] Starting async scan...");
+    WiFi.scanNetworks(true);  // true = async
+    
+    // Wait for scan with watchdog feeding (max 4 seconds)
+    unsigned long scanStart = millis();
+    int scanResult = WIFI_SCAN_RUNNING;
+    while (scanResult == WIFI_SCAN_RUNNING && (millis() - scanStart) < 4000) {
+        delay(100);
+        feedWatchdog();
+        scanResult = WiFi.scanComplete();
+    }
+    
     feedWatchdog();
     
     if (scanResult <= 0) {
@@ -674,21 +688,30 @@ bool performBootSync() {
     Serial.println("[WiFiSync] =======================================");
     feedWatchdog();
     
+    unsigned long bootSyncStart = millis();  // Track total time
+    
     // CRITICAL: Quick scan first - skip if no known networks visible
     if (!quickNetworkScan()) {
         Serial.println("[WiFiSync] =======================================");
-        Serial.println("[WiFiSync]    BOOT SYNC SKIPPED (No WiFi)");
-        Serial.println("[WiFiSync]    -> Boot continues WITHOUT WiFi");
+        Serial.println("[WiFiSync]    BOOT SYNC SKIPPED (No WiFi found)");
+        Serial.println("[WiFiSync]    -> Boot continues using RTC time");
         Serial.println("[WiFiSync] =======================================");
         
         wifi_sync_state.last_sync_success = false;
         
-        // Try to restore time from backup if available
+        // Fallback 1: Try SD card time backup
         if (hasTimeBackup()) {
-            Serial.println("[WiFiSync] Restoring time from SD backup...");
+            Serial.println("[WiFiSync] Restoring timezone from SD backup...");
             restoreTimeBackup();
         }
         
+        // Fallback 2: RTC chip always has time (PCF85063 runs on battery)
+        WatchTime rtc_time = getCurrentTime();
+        Serial.printf("[WiFiSync] RTC time available: %04d-%02d-%02d %02d:%02d:%02d\n",
+            rtc_time.year, rtc_time.month, rtc_time.day,
+            rtc_time.hour, rtc_time.minute, rtc_time.second);
+        
+        WiFi.mode(WIFI_OFF);
         return false;
     }
     
@@ -699,6 +722,12 @@ bool performBootSync() {
     bool connected = false;
     
     for (int net = 0; net < wifi_sync_state.networks_loaded && !connected; net++) {
+        // SAFETY: Check total boot timeout
+        if ((millis() - bootSyncStart) > TOTAL_WIFI_BOOT_TIMEOUT) {
+            Serial.println("[WiFiSync] TOTAL BOOT TIMEOUT reached - aborting WiFi");
+            break;
+        }
+        
         WiFiCredential* cred = &wifi_sync_state.networks[net];
         if (!cred->valid) continue;
         
@@ -707,6 +736,12 @@ bool performBootSync() {
         feedWatchdog();
         
         for (int attempt = 1; attempt <= WIFI_RETRY_PER_NETWORK && !connected; attempt++) {
+            // SAFETY: Check total boot timeout inside retry loop too
+            if ((millis() - bootSyncStart) > TOTAL_WIFI_BOOT_TIMEOUT) {
+                Serial.println("[WiFiSync] TOTAL BOOT TIMEOUT reached - aborting WiFi");
+                break;
+            }
+            
             Serial.printf("[WiFiSync]   Attempt %d/%d...\n", attempt, WIFI_RETRY_PER_NETWORK);
             feedWatchdog();
             
@@ -717,7 +752,7 @@ bool performBootSync() {
             } else {
                 Serial.printf("[WiFiSync] X Failed (attempt %d)\n", attempt);
                 feedWatchdog();
-                delay(300);
+                delay(200);
             }
         }
     }
@@ -727,17 +762,23 @@ bool performBootSync() {
     if (!connected) {
         Serial.println("[WiFiSync] =======================================");
         Serial.println("[WiFiSync]    FAILED to connect to any network");
-        Serial.println("[WiFiSync]    -> Boot continues WITHOUT WiFi");
+        Serial.println("[WiFiSync]    -> Boot continues using RTC time");
         Serial.println("[WiFiSync] =======================================");
         
         WiFi.mode(WIFI_OFF);
         wifi_sync_state.last_sync_success = false;
         
-        // Try to restore time from backup if available
+        // Fallback 1: Try SD card time backup for timezone info
         if (hasTimeBackup()) {
-            Serial.println("[WiFiSync] Restoring time from SD backup...");
+            Serial.println("[WiFiSync] Restoring timezone from SD backup...");
             restoreTimeBackup();
         }
+        
+        // Fallback 2: RTC chip always has time
+        WatchTime rtc_time = getCurrentTime();
+        Serial.printf("[WiFiSync] RTC time available: %04d-%02d-%02d %02d:%02d:%02d\n",
+            rtc_time.year, rtc_time.month, rtc_time.day,
+            rtc_time.hour, rtc_time.minute, rtc_time.second);
         
         return false;
     }
