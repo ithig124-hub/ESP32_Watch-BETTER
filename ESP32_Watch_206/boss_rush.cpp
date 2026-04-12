@@ -168,10 +168,10 @@ void startBossFight(int boss_index) {
   battle_active = true;
   show_boss_selection = false;
   
-  player_max_hp = 1000 + system_state.player_level * 100;
+  player_max_hp = 1000 + system_state.player_level * 100 + getDeckBonusHP();
   player_hp = player_max_hp;
-  player_attack = 500 + system_state.player_level * 50;
-  player_defense = 300 + system_state.player_level * 30;
+  player_attack = 500 + system_state.player_level * 50 + getDeckBonusATK();
+  player_defense = 300 + system_state.player_level * 30 + getDeckBonusDEF();
   player_energy = 0;
   potions_remaining = MAX_POTIONS;
   combo_count = 0;
@@ -445,13 +445,23 @@ void drawBossRushMenu() {
   if (fillW > 0) gfx->fillRect(120, 55, fillW, 12, COLOR_RED);
   gfx->drawRect(120, 55, barW, 12, RGB565(60, 60, 80));
   
-  // Player stats
+  // Player stats with deck bonuses
+  int deckATK = getDeckBonusATK();
+  int deckDEF = getDeckBonusDEF();
+  int deckHP = getDeckBonusHP();
   gfx->setTextColor(RGB565(200, 205, 220));
   gfx->setCursor(20, 78);
   gfx->printf("Lv.%d  ATK:%d  DEF:%d", 
               system_state.player_level,
-              500 + system_state.player_level * 50,
-              300 + system_state.player_level * 30);
+              500 + system_state.player_level * 50 + deckATK,
+              300 + system_state.player_level * 30 + deckDEF);
+  // Show deck bonus indicator
+  if (deckATK > 0 || deckDEF > 0 || deckHP > 0) {
+    gfx->setTextColor(COLOR_CYAN);
+    gfx->setTextSize(1);
+    gfx->setCursor(20, 92);
+    gfx->printf("DECK BONUS: +%dATK +%dHP +%dDEF", deckATK, deckHP, deckDEF);
+  }
   
   // Tier buttons - BIG and CLEAR
   const char* tiers[] = {"TIER 1", "TIER 2", "TIER 3", "TIER 4"};

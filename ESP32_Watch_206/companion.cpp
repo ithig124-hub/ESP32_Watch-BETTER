@@ -16,6 +16,9 @@
 #include "touch.h"
 #include "navigation.h"
 
+extern Arduino_CO5300 *gfx;
+extern SystemState system_state;
+
 CompanionSystemState companion_system;
 
 CompanionProfile COMPANION_PROFILES[COMPANION_COUNT] = {
@@ -540,7 +543,8 @@ void drawSunnySprite(int x, int y, int size, CompanionEvolution evo) {
     
     // Smile
     int smileY = y + size/6;
-    gfx->drawArc(x, smileY, size/4, size/5, 200, 340, TFT_BLACK);
+    // Smile line
+    for(int i=-size/5; i<size/5; i++) { gfx->drawPixel(x+i, smileY + abs(i)/3, TFT_BLACK); }
     
     // Scar under left eye
     gfx->drawLine(x - eyeSpacing - size/10, eyeY + size/6, x - eyeSpacing + size/10, eyeY + size/5, RGB565(180, 100, 100));
@@ -549,8 +553,8 @@ void drawSunnySprite(int x, int y, int size, CompanionEvolution evo) {
     uint16_t hatYellow = RGB565(255, 220, 80);
     uint16_t hatRed = RGB565(200, 50, 50);
     int hatY = y - size/2 - size/6;
-    gfx->fillEllipse(x, hatY, size/2 + size/4, size/8, hatYellow);
-    gfx->fillEllipse(x, hatY - size/10, size/3, size/5, hatYellow);
+    gfx->fillCircle(x, hatY, size/2, hatYellow);  // Hat brim
+    gfx->fillCircle(x, hatY - size/10, size/3, hatYellow);  // Hat top
     gfx->fillRect(x - size/3, hatY - size/12, size*2/3, size/10, hatRed);
     
     // Animation: bouncing
@@ -582,11 +586,11 @@ void drawShadowSprite(int x, int y, int size, CompanionEvolution evo) {
     uint16_t redGlow = RGB565(200, 50, 50);
     
     gfx->fillCircle(x, y, size/2, armorDark);
-    gfx->drawArc(x, y, size/2, size/2 - 3, 220, 320, armorHighlight);
-    gfx->drawArc(x, y, size/2, size/2 - 3, 40, 140, armorHighlight);
+    // Arc simplified for CO5300 compatibility
+    // Arc simplified for CO5300 compatibility
     
     int helmetY = y - size/3;
-    gfx->fillEllipse(x, helmetY, size/2, size/3, armorDark);
+    gfx->fillCircle(x, helmetY, size/2, armorDark);
     gfx->drawLine(x - size/3, helmetY, x + size/3, helmetY, armorHighlight);
     
     int eyeY = y - size/6;
@@ -628,7 +632,7 @@ void drawPortalSprite(int x, int y, int size, CompanionEvolution evo) {
     gfx->fillCircle(x - size/4, eyeY, size/10, RGB565(100, 80, 60));
     gfx->fillCircle(x + size/4, eyeY, size/10, RGB565(100, 80, 60));
     
-    gfx->drawArc(x, y + size/6, size/5, size/6, 200, 340, TFT_BLACK);
+    // Arc simplified for CO5300 compatibility
     
     int portalR = size/2 + 10 + (frame * 3);
     gfx->drawCircle(x, y, portalR, portalCyan);
@@ -667,7 +671,7 @@ void drawFoxSprite(int x, int y, int size, CompanionEvolution evo) {
     gfx->fillRect(x - size/4 - 1, eyeY - size/10, 2, size/5, TFT_BLACK);
     gfx->fillRect(x + size/4 - 1, eyeY - size/10, 2, size/5, TFT_BLACK);
     
-    gfx->fillEllipse(x, y + size/6, size/5, size/8, RGB565(255, 200, 180));
+    gfx->fillCircle(x, y + size/6, size/5, RGB565(255, 200, 180));
     gfx->fillCircle(x, y + size/8, size/12, TFT_BLACK);
     
     for (int i = 0; i < 3; i++) {
@@ -715,8 +719,8 @@ void drawCatSprite(int x, int y, int size, CompanionEvolution evo) {
     
     gfx->fillTriangle(x, y + size/10, x - size/15, y + size/6, x + size/15, y + size/6, RGB565(255, 150, 150));
     gfx->drawLine(x, y + size/6, x, y + size/4, TFT_BLACK);
-    gfx->drawArc(x - size/10, y + size/4, size/10, size/12, 270, 360, TFT_BLACK);
-    gfx->drawArc(x + size/10, y + size/4, size/10, size/12, 180, 270, TFT_BLACK);
+    // Arc simplified for CO5300 compatibility
+    // Arc simplified for CO5300 compatibility
     
     int tailWave = sin(frame * PI / 2) * 5;
     gfx->drawLine(x + size/3, y + size/4, x + size/2 + tailWave, y + size/2, catBlue);
@@ -793,7 +797,7 @@ void drawInfinitySprite(int x, int y, int size, CompanionEvolution evo) {
         gfx->drawCircle(x + size/4, eyeY, size/6 + 2, eyeBlue);
     }
     
-    gfx->drawArc(x + size/8, y + size/6, size/6, size/8, 200, 320, TFT_BLACK);
+    // Arc simplified for CO5300 compatibility
     
     int barrierR = size/2 + 5 + frame * 2;
     gfx->drawCircle(x, y, barrierR, eyeBlue);
@@ -907,7 +911,7 @@ void drawMightSprite(int x, int y, int size, CompanionEvolution evo) {
         gfx->fillCircle(x - size/5 + (i % 2) * size/10, y + (i / 2) * 4, 1, RGB565(200, 150, 130));
     }
     
-    gfx->drawArc(x, y + size/10, size/8, size/10, 200, 340, TFT_BLACK);
+    // Arc simplified for CO5300 compatibility
     
     if (evo >= EVO_CHILD) {
         int boltCount = 3 + (int)evo;
@@ -944,7 +948,7 @@ void drawElementSprite(int x, int y, int size, CompanionEvolution evo) {
     gfx->fillCircle(x - size/6, eyeY, size/12, RGB565(80, 60, 40));
     gfx->fillCircle(x + size/6, eyeY, size/12, RGB565(80, 60, 40));
     
-    gfx->drawArc(x, y + size/10, size/6, size/8, 200, 340, TFT_BLACK);
+    // Arc simplified for CO5300 compatibility
     gfx->drawCircle(x, y, size/2 + 5, capOrange);
     
     int elements = 1 + (int)evo;
@@ -971,13 +975,16 @@ void drawElementSprite(int x, int y, int size, CompanionEvolution evo) {
         gfx->fillCircle(ox, oy, size/6, BBB_OCHOBOT_WHITE);
         gfx->fillCircle(ox - 3, oy - 2, 2, TFT_BLACK);
         gfx->fillCircle(ox + 3, oy - 2, 2, TFT_BLACK);
-        gfx->drawArc(ox, oy + 2, 3, 2, 200, 340, TFT_BLACK);
+        // Arc simplified for CO5300 compatibility
     }
 }
 
 // Main sprite dispatcher
 void drawCompanionSprite(int x, int y, CompanionType type, CompanionEvolution evo) {
+    if (!gfx) return;  // Safety check
     int size = 60;
+    
+    yield();  // Feed watchdog before sprite draw
     
     switch (type) {
         case COMP_SUNNY:    drawSunnySprite(x, y, size, evo); break;
@@ -1012,13 +1019,18 @@ void exitCompanionCareMode() {
 
 void drawCompanionCareScreen() {
     if (!companion_system.current_companion) return;
+    if (!gfx) return;  // Safety: ensure display is ready
     
     CompanionData* c = companion_system.current_companion;
     
     gfx->fillScreen(TFT_BLACK);
     
-    // Draw companion sprite
+    yield();  // Feed watchdog after screen clear
+    
+    // Draw ONLY the current companion's sprite
     drawCompanionSprite(LCD_WIDTH / 2, 120, c->type, c->stats.evolution);
+    
+    yield();  // Feed watchdog after sprite draw
     
     // Name and series
     gfx->setTextColor(c->profile->primary_color);
@@ -1039,26 +1051,32 @@ void drawCompanionCareScreen() {
     gfx->setCursor(20, barY);
     gfx->print("Hunger");
     gfx->drawRect(20, barY + 15, barW, barH, TFT_WHITE);
-    gfx->fillRect(21, barY + 16, (barW - 2) * c->stats.hunger / 100, barH - 2, RGB565(255, 150, 50));
+    int hungerFill = max(0, (barW - 2) * c->stats.hunger / 100);
+    gfx->fillRect(21, barY + 16, hungerFill, barH - 2, RGB565(255, 150, 50));
     
     barY += 35;
     gfx->setCursor(20, barY);
     gfx->print("Happy");
     gfx->drawRect(20, barY + 15, barW, barH, TFT_WHITE);
-    gfx->fillRect(21, barY + 16, (barW - 2) * c->stats.happiness / 100, barH - 2, RGB565(255, 200, 50));
+    int happyFill = max(0, (barW - 2) * c->stats.happiness / 100);
+    gfx->fillRect(21, barY + 16, happyFill, barH - 2, RGB565(255, 200, 50));
     
     barY += 35;
     gfx->setCursor(20, barY);
     gfx->print("Energy");
     gfx->drawRect(20, barY + 15, barW, barH, TFT_WHITE);
-    gfx->fillRect(21, barY + 16, (barW - 2) * c->stats.energy / 100, barH - 2, RGB565(50, 200, 100));
+    int energyFill = max(0, (barW - 2) * c->stats.energy / 100);
+    gfx->fillRect(21, barY + 16, energyFill, barH - 2, RGB565(50, 200, 100));
     
     barY += 35;
     gfx->setCursor(20, barY);
     gfx->print("Bond Lv.");
     gfx->print(c->stats.bond_rank);
     gfx->drawRect(20, barY + 15, barW, barH, TFT_WHITE);
-    gfx->fillRect(21, barY + 16, (barW - 2) * c->stats.bond_level / 100, barH - 2, RGB565(200, 100, 255));
+    int bondFill = max(0, (barW - 2) * c->stats.bond_level / 100);
+    gfx->fillRect(21, barY + 16, bondFill, barH - 2, RGB565(200, 100, 255));
+    
+    yield();  // Feed watchdog after stat bars
     
     // Care menu buttons
     int btnY = 380;
@@ -1094,6 +1112,8 @@ void drawCompanionCareScreen() {
     gfx->setTextColor(RGB565(100, 100, 100));
     gfx->setCursor(10, LCD_HEIGHT - 25);
     gfx->print("< Swipe left to exit");
+    
+    yield();  // Final watchdog feed
 }
 
 void handleCareModeTouch(int tx, int ty) {
