@@ -1,6 +1,11 @@
 /*
  * companion.cpp - Virtual Pet System with NVS + Detailed Sprites
  * FUSION OS - 11 unique companions with evolution sprites
+ * 
+ * FIXED: 
+ * - Watchdog-safe initialization (uses yield())
+ * - Only loads/saves active companion from NVS (not all 11)
+ * - Companion always matches current theme
  */
 
 #include "companion.h"
@@ -9,806 +14,1123 @@
 #include "xp_system.h"
 #include "display.h"
 #include "touch.h"
-#include "navigation.h"  
+#include "navigation.h"
 
 CompanionSystemState companion_system;
 
 CompanionProfile COMPANION_PROFILES[COMPANION_COUNT] = {
- {"Sunny", "One Piece", LUFFY_SUN_GOLD, LUFFY_NIKA_WHITE, "Meat", "Sailing", "Set sail!"},
- {"Igris", "Solo Leveling", RGB565(200, 50, 50), JINWOO_ARISE_GLOW, "Mana Crystals", "Training", "..."},
- {"Az", "Wakfu", YUGO_PORTAL_CYAN, YUGO_HAT_GOLD, "Dragon Treats", "Portal Chase", "Let's explore!"},
- {"Kurama", "Naruto", NARUTO_KURAMA_FLAME, NARUTO_CHAKRA_ORANGE, "Chakra Pills", "Rasengan", "Tch, brat..."},
- {"Puar", "Dragon Ball", GOKU_UI_SILVER, GOKU_AURA_WHITE, "Fish", "Shape Shift", "Yamcha!"},
- {"Nezuko", "Demon Slayer", TANJIRO_FIRE_ORANGE, TANJIRO_CHECK_GREEN, "Sleep", "Box Time", "Mmmph!"},
- {"Infinity", "Jujutsu Kaisen", GOJO_INFINITY_BLUE, GOJO_SNOW_WHITE, "Cursed Energy", "Barriers", "Honored one!"},
- {"Wings", "Attack on Titan", LEVI_SURVEY_GREEN, LEVI_SILVER_BLADE, "Tea", "Cleaning", "Keep it clean."},
- {"Genos Jr", "One Punch Man", SAITAMA_HERO_YELLOW, SAITAMA_CAPE_RED, "Parts", "Training", "Sensei!"},
- {"Might Jr", "My Hero Academia", DEKU_HERO_GREEN, DEKU_ALLMIGHT_GOLD, "Justice", "SMASH", "I AM HERE!"},
- {"Ochobot", "BoBoiBoy", BBB_BAND_ORANGE, BBB_OCHOBOT_WHITE, "Power Sphera", "Elements", "Let's go!"}
+    {"Sunny", "One Piece", LUFFY_SUN_GOLD, LUFFY_NIKA_WHITE, "Meat", "Sailing", "Set sail!"},
+    {"Igris", "Solo Leveling", RGB565(200, 50, 50), JINWOO_ARISE_GLOW, "Mana Crystals", "Training", "..."},
+    {"Az", "Wakfu", YUGO_PORTAL_CYAN, YUGO_HAT_GOLD, "Dragon Treats", "Portal Chase", "Let's explore!"},
+    {"Kurama", "Naruto", NARUTO_KURAMA_FLAME, NARUTO_CHAKRA_ORANGE, "Chakra Pills", "Rasengan", "Tch, brat..."},
+    {"Puar", "Dragon Ball", GOKU_UI_SILVER, GOKU_AURA_WHITE, "Fish", "Shape Shift", "Yamcha!"},
+    {"Nezuko", "Demon Slayer", TANJIRO_FIRE_ORANGE, TANJIRO_CHECK_GREEN, "Sleep", "Box Time", "Mmmph!"},
+    {"Infinity", "Jujutsu Kaisen", GOJO_INFINITY_BLUE, GOJO_SNOW_WHITE, "Cursed Energy", "Barriers", "Honored one!"},
+    {"Wings", "Attack on Titan", LEVI_SURVEY_GREEN, LEVI_SILVER_BLADE, "Tea", "Cleaning", "Keep it clean."},
+    {"Genos Jr", "One Punch Man", SAITAMA_HERO_YELLOW, SAITAMA_CAPE_RED, "Parts", "Training", "Sensei!"},
+    {"Might Jr", "My Hero Academia", DEKU_HERO_GREEN, DEKU_ALLMIGHT_GOLD, "Justice", "SMASH", "I AM HERE!"},
+    {"Ochobot", "BoBoiBoy", BBB_BAND_ORANGE, BBB_OCHOBOT_WHITE, "Power Sphera", "Elements", "Let's go!"}
 };
 
-static void getCompKey(int i, const char* s, char* b, size_t n) { snprintf(b,n,"c%d_%s",i,s); }
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
 
-// =============================================================================
-// DETAILED COMPANION SPRITES
-// =============================================================================
-
-void drawSunnySprite(int x, int y, int size, int frame) {
- int bob = (frame % 2) * 2;
- y += bob;
- // --- Sunny Lion Mascot (Thousand Sunny figurehead) ---
- // Sun-petal mane (7 orange petals radiating from head)
- uint16_t maneOrange = RGB565(255, 160, 30);
- uint16_t maneDark = RGB565(220, 120, 20);
- int maneR = size/2 + size/6;
- for (int p = 0; p < 7; p++) {
-   float angle = (p * 51 - 153) * PI / 180.0; // spread behind and above head
-   int px = x + cos(angle) * maneR;
-   int py = y - size/4 + sin(angle) * maneR;
-   // Each petal is a fat triangle
-   int bx1 = x + cos(angle - 0.3) * (size/3);
-   int by1 = y - size/4 + sin(angle - 0.3) * (size/3);
-   int bx2 = x + cos(angle + 0.3) * (size/3);
-   int by2 = y - size/4 + sin(angle + 0.3) * (size/3);
-   gfx->fillTriangle(bx1, by1, bx2, by2, px, py, maneOrange);
-   // Inner line for depth
-   gfx->drawLine((bx1+bx2)/2, (by1+by2)/2, px, py, maneDark);
- }
- // Round yellow head
- uint16_t bodyYellow = RGB565(255, 235, 100);
- gfx->fillCircle(x, y - size/4, size/3, bodyYellow);
- // Plump yellow torso
- gfx->fillCircle(x, y + size/6, size/4, bodyYellow);
- gfx->fillRect(x - size/4, y - size/8, size/2, size/3, bodyYellow);
- // Big round eyes
- gfx->fillCircle(x - size/7, y - size/4 - 2, size/8, COLOR_WHITE);
- gfx->fillCircle(x + size/7, y - size/4 - 2, size/8, COLOR_WHITE);
- gfx->fillCircle(x - size/7, y - size/4 - 2, size/14, COLOR_BLACK);
- gfx->fillCircle(x + size/7, y - size/4 - 2, size/14, COLOR_BLACK);
- // Eye shine
- gfx->fillCircle(x - size/7 + 2, y - size/4 - 4, 2, COLOR_WHITE);
- gfx->fillCircle(x + size/7 + 2, y - size/4 - 4, 2, COLOR_WHITE);
- // Small brown nose
- gfx->fillCircle(x, y - size/6, size/12, RGB565(160, 120, 80));
- // Open happy mouth
- gfx->fillCircle(x, y - size/8, size/7, RGB565(220, 100, 120));
- gfx->fillRect(x - size/7, y - size/6, size*2/7, size/10, bodyYellow); // upper lip mask
- // White belt around waist
- gfx->fillRect(x - size/4, y + size/8, size/2, size/8, COLOR_WHITE);
- // Belt buckle (circle with "1")
- gfx->fillCircle(x, y + size/8 + size/16, size/10, RGB565(80, 40, 30));
- gfx->fillCircle(x, y + size/8 + size/16, size/14, RGB565(255, 200, 50));
- gfx->setTextColor(RGB565(150, 40, 30)); gfx->setTextSize(1);
- gfx->setCursor(x - 3, y + size/8 + size/16 - 3); gfx->print("1");
- // Dark red lower body / legs
- uint16_t legColor = RGB565(120, 30, 30);
- gfx->fillRect(x - size/5, y + size/4, size/6, size/4, legColor);
- gfx->fillRect(x + size/15, y + size/4, size/6, size/4, legColor);
- gfx->fillCircle(x - size/5 + size/12, y + size/2, size/10, legColor);
- gfx->fillCircle(x + size/15 + size/12, y + size/2, size/10, legColor);
- // Stubby yellow arms
- gfx->fillCircle(x - size/3, y + size/12, size/10, bodyYellow);
- gfx->fillCircle(x + size/3, y + size/12, size/10, bodyYellow);
- // Big fluffy brown tail (right side)
- uint16_t tailBrown = RGB565(180, 110, 50);
- gfx->fillCircle(x + size/3, y + size/6, size/4, tailBrown);
- gfx->fillCircle(x + size/3 + size/6, y + size/8, size/5, tailBrown);
- gfx->fillCircle(x + size/3 + size/4, y + size/5, size/6, RGB565(160, 90, 40));
- // Tail texture lines
- gfx->drawLine(x + size/4, y + size/8, x + size/2, y + size/5, RGB565(140, 80, 35));
- gfx->drawLine(x + size/4, y + size/4, x + size/2, y + size/3, RGB565(140, 80, 35));
+static void getCompKey(int i, const char* s, char* b, size_t n) {
+    snprintf(b, n, "c%d_%s", i, s);
 }
 
-void drawShadowSprite(int x, int y, int size, int frame) {
- int bob = (frame % 2) * 2 - 1;
- y += bob;
- // --- IGRIS: Blood-Red Commander Knight ---
- uint16_t armorRed = RGB565(180, 30, 30);
- uint16_t armorDark = RGB565(100, 15, 15);
- uint16_t armorHighlight = RGB565(220, 60, 60);
- uint16_t capeColor = RGB565(140, 20, 20);
- uint16_t goldTrim = RGB565(200, 160, 50);
- uint16_t visorGlow = JINWOO_ARISE_GLOW;
-
- // Cape flowing behind
- gfx->fillTriangle(x - size/4, y - size/6, x - size/3, y + size/2 + size/6, x + size/6, y + size/2, capeColor);
- gfx->fillTriangle(x + size/4, y - size/6, x + size/3, y + size/2 + size/6, x - size/6, y + size/2, capeColor);
- gfx->drawLine(x - size/4, y + size/4, x - size/3, y + size/2 + size/6, armorDark);
-
- // Armored body (chest plate)
- gfx->fillRect(x - size/4, y - size/6, size/2, size/2, armorRed);
- gfx->drawRect(x - size/4, y - size/6, size/2, size/2, armorDark);
- gfx->drawLine(x, y - size/8, x - size/6, y + size/8, goldTrim);
- gfx->drawLine(x, y - size/8, x + size/6, y + size/8, goldTrim);
- gfx->drawFastVLine(x, y - size/6, size/2, armorDark);
-
- // Shoulder pauldrons
- gfx->fillCircle(x - size/3, y - size/8, size/6, armorRed);
- gfx->drawCircle(x - size/3, y - size/8, size/6, goldTrim);
- gfx->fillCircle(x + size/3, y - size/8, size/6, armorRed);
- gfx->drawCircle(x + size/3, y - size/8, size/6, goldTrim);
- gfx->fillTriangle(x - size/3, y - size/8 - size/6, x - size/3 - 5, y - size/8 - size/4, x - size/3 + 5, y - size/8 - size/4, armorHighlight);
- gfx->fillTriangle(x + size/3, y - size/8 - size/6, x + size/3 - 5, y - size/8 - size/4, x + size/3 + 5, y - size/8 - size/4, armorHighlight);
-
- // Helmet
- gfx->fillCircle(x, y - size/3, size/4, armorRed);
- gfx->drawCircle(x, y - size/3, size/4, armorDark);
- gfx->fillTriangle(x, y - size/3 - size/4, x - size/10, y - size/3 - size/10, x + size/10, y - size/3 - size/10, armorHighlight);
- gfx->fillRect(x - 2, y - size/3 - size/6, 4, size/8, armorHighlight);
- // Visor with glowing eyes
- gfx->fillRect(x - size/5, y - size/3 - 2, size*2/5, size/10, COLOR_BLACK);
- gfx->fillRect(x - size/6, y - size/3 - 1, size/6, size/12, visorGlow);
- gfx->fillRect(x + size/20, y - size/3 - 1, size/6, size/12, visorGlow);
- if (frame % 3 != 2) gfx->drawRect(x - size/5 - 1, y - size/3 - 3, size*2/5 + 2, size/10 + 2, visorGlow);
- gfx->fillTriangle(x - size/6, y - size/5, x + size/6, y - size/5, x, y - size/8, armorDark);
-
- // Arms + gauntlets
- gfx->fillRect(x - size/3 - size/8, y - size/12, size/6, size/3, armorRed);
- gfx->fillRect(x + size/4, y - size/12, size/6, size/3, armorRed);
- gfx->fillCircle(x - size/3 - size/16, y + size/4, size/10, armorDark);
- gfx->fillCircle(x + size/4 + size/10, y + size/4, size/10, armorDark);
-
- // Sword
- int sx = x + size/4 + size/10;
- gfx->fillRect(sx - 1, y - size/3, 3, size*2/3, RGB565(200, 200, 210));
- gfx->fillRect(sx - 1, y - size/3 - 3, 3, 5, COLOR_WHITE);
- gfx->fillRect(sx - size/10, y + size/6 - 2, size/5, 4, goldTrim);
- gfx->fillRect(sx - 1, y + size/6, 3, size/8, RGB565(80, 40, 20));
- if (frame % 4 == 0) gfx->drawFastVLine(sx + 2, y - size/4, size/3, COLOR_WHITE);
-
- // Armored legs + boots
- gfx->fillRect(x - size/5, y + size/4, size/7, size/4, armorRed);
- gfx->fillRect(x + size/10, y + size/4, size/7, size/4, armorRed);
- gfx->fillRect(x - size/5 - 2, y + size/2 - 4, size/7 + 4, 6, armorDark);
- gfx->fillRect(x + size/10 - 2, y + size/2 - 4, size/7 + 4, 6, armorDark);
-
- // Shadow aura at feet
- for (int w = -2; w <= 2; w++) {
-   int wx = x + w * size/5;
-   gfx->drawLine(wx, y + size/2 + 3, wx + (frame%2?3:-3), y + size/2 + 8, JINWOO_MIST_PURPLE);
- }
+// Default stats for fresh companions
+static void setDefaultStats(CompanionData* c, int index) {
+    c->type = (CompanionType)index;
+    c->profile = &COMPANION_PROFILES[index];
+    c->stats = {80, 80, 80, 0, 1, MOOD_CONTENT, EVO_BABY, 0, 0};
+    c->care = {0, 0, 0, millis(), 0, 0, 0, false, 0};
 }
 
-void drawAzSprite(int x, int y, int size, int frame) {
- int bob = (frame % 2) * 3 - 1;
- y += bob;
- // Dragon body (round, cute)
- gfx->fillCircle(x, y, size/3, YUGO_ELIATROPE_TEAL);
- gfx->fillCircle(x, y + size/6, size/4, YUGO_ELIATROPE_TEAL);
- // Belly
- gfx->fillCircle(x, y + size/8, size/5, YUGO_HAT_GOLD);
- // Head
- gfx->fillCircle(x, y - size/3, size/4, YUGO_PORTAL_CYAN);
- // Horns
- gfx->fillTriangle(x - size/5, y - size/3 - size/6, x - size/5 - 5, y - size/3 - size/3, x - size/5 + 5, y - size/3 - size/4, YUGO_HAT_GOLD);
- gfx->fillTriangle(x + size/5, y - size/3 - size/6, x + size/5 - 5, y - size/3 - size/3, x + size/5 + 5, y - size/3 - size/4, YUGO_HAT_GOLD);
- // Big cute eyes
- gfx->fillCircle(x - size/8, y - size/3, 6, COLOR_WHITE);
- gfx->fillCircle(x + size/8, y - size/3, 6, COLOR_WHITE);
- gfx->fillCircle(x - size/8, y - size/3, 3, YUGO_PORTAL_CYAN);
- gfx->fillCircle(x + size/8, y - size/3, 3, YUGO_PORTAL_CYAN);
- gfx->fillCircle(x - size/8 + 1, y - size/3 - 1, 1, COLOR_WHITE);
- gfx->fillCircle(x + size/8 + 1, y - size/3 - 1, 1, COLOR_WHITE);
- // Wings (flapping based on frame)
- int wingAngle = (frame % 2) * 10;
- gfx->fillTriangle(x - size/3, y - size/6, x - size/2 - size/4, y - size/3 - wingAngle, x - size/4, y, YUGO_PORTAL_GLOW);
- gfx->fillTriangle(x + size/3, y - size/6, x + size/2 + size/4, y - size/3 - wingAngle, x + size/4, y, YUGO_PORTAL_GLOW);
- // Tiny tail
- gfx->fillTriangle(x + size/4, y + size/4, x + size/3 + 8, y + size/3, x + size/4, y + size/3, YUGO_ELIATROPE_TEAL);
- // Nose
- gfx->fillCircle(x, y - size/4, 2, YUGO_HAT_GOLD);
+// Get theme index - uses system_state.current_theme from themes system
+static int getThemeIndex() {
+    // system_state.current_theme is ThemeType enum (0-10 for main characters)
+    int idx = (int)system_state.current_theme;
+    
+    // Validate - only main character themes have companions
+    if (idx < 0 || idx >= COMPANION_COUNT) {
+        idx = 0;  // Default to Luffy/Sunny
+    }
+    return idx;
 }
 
-void drawKuramaSprite(int x, int y, int size, int frame) {
- int bob = (frame % 2) * 2;
- y += bob;
- // Fox body
- gfx->fillCircle(x, y, size/3, NARUTO_KURAMA_FLAME);
- // Head
- gfx->fillCircle(x, y - size/4, size/4, NARUTO_CHAKRA_ORANGE);
- // Pointed ears
- gfx->fillTriangle(x - size/4, y - size/3, x - size/5, y - size/2 - size/5, x - size/8, y - size/3, NARUTO_KURAMA_FLAME);
- gfx->fillTriangle(x + size/4, y - size/3, x + size/5, y - size/2 - size/5, x + size/8, y - size/3, NARUTO_KURAMA_FLAME);
- // Inner ears
- gfx->fillTriangle(x - size/5, y - size/3, x - size/6, y - size/2 - size/8, x - size/9, y - size/3, NARUTO_CHAKRA_ORANGE);
- gfx->fillTriangle(x + size/5, y - size/3, x + size/6, y - size/2 - size/8, x + size/9, y - size/3, NARUTO_CHAKRA_ORANGE);
- // Red slitted eyes
- gfx->fillCircle(x - size/8, y - size/4, 4, COLOR_RED);
- gfx->fillCircle(x + size/8, y - size/4, 4, COLOR_RED);
- gfx->fillRect(x - size/8 - 1, y - size/4 - 1, 3, 3, COLOR_BLACK);
- gfx->fillRect(x + size/8 - 1, y - size/4 - 1, 3, 3, COLOR_BLACK);
- // Snout
- gfx->fillCircle(x, y - size/6, size/8, NARUTO_SAGE_GOLD);
- gfx->fillCircle(x, y - size/6 - 2, 2, COLOR_BLACK);
- // Tails! (9 of them, fanned out)
- for (int t = 0; t < 9; t++) {
-   float angle = (t * 20 - 80 + (frame % 2) * 5) * PI / 180.0;
-   int tx = x + cos(angle) * (size/2 + t * 2);
-   int ty = y + size/3 + sin(angle) * size/4 + 5;
-   gfx->drawLine(x, y + size/4, tx, ty, NARUTO_KURAMA_FLAME);
-   gfx->fillCircle(tx, ty, 3, NARUTO_WILL_FIRE);
- }
- // Whisker marks
- gfx->drawLine(x - size/3, y - size/5, x - size/6, y - size/5, NARUTO_CHAKRA_ORANGE);
- gfx->drawLine(x + size/6, y - size/5, x + size/3, y - size/5, NARUTO_CHAKRA_ORANGE);
-}
+// ============================================================================
+// NVS FUNCTIONS - OPTIMIZED: Only load/save specific companion
+// ============================================================================
 
-void drawPuarSprite(int x, int y, int size, int frame) {
- int bob = (frame % 2) * 3 - 1;
- y += bob;
- // Body
- gfx->fillCircle(x, y, size/3, GOKU_GI_BLUE);
- gfx->fillCircle(x, y + size/6, size/4, GOKU_GI_BLUE);
- // Head (larger, cat-like)
- gfx->fillCircle(x, y - size/4, size/3, GOKU_GI_BLUE);
- // Pointy ears
- gfx->fillTriangle(x - size/3, y - size/3, x - size/4, y - size/2 - size/4, x - size/6, y - size/3, GOKU_GI_BLUE);
- gfx->fillTriangle(x + size/3, y - size/3, x + size/4, y - size/2 - size/4, x + size/6, y - size/3, GOKU_GI_BLUE);
- // Inner ears
- gfx->fillTriangle(x - size/4, y - size/3, x - size/5, y - size/2 - size/6, x - size/6, y - size/3, RGB565(255, 180, 180));
- gfx->fillTriangle(x + size/4, y - size/3, x + size/5, y - size/2 - size/6, x + size/6, y - size/3, RGB565(255, 180, 180));
- // Big round eyes
- gfx->fillCircle(x - size/7, y - size/4, 6, COLOR_WHITE);
- gfx->fillCircle(x + size/7, y - size/4, 6, COLOR_WHITE);
- gfx->fillCircle(x - size/7, y - size/4, 3, COLOR_BLACK);
- gfx->fillCircle(x + size/7, y - size/4, 3, COLOR_BLACK);
- gfx->fillCircle(x - size/7 + 1, y - size/4 - 1, 1, COLOR_WHITE);
- gfx->fillCircle(x + size/7 + 1, y - size/4 - 1, 1, COLOR_WHITE);
- // Small nose
- gfx->fillCircle(x, y - size/6, 2, RGB565(255, 150, 150));
- // Tiny wings (shape-shifter!)
- gfx->fillTriangle(x - size/3, y - size/8, x - size/2, y - size/4, x - size/4, y + size/8, GOKU_AURA_WHITE);
- gfx->fillTriangle(x + size/3, y - size/8, x + size/2, y - size/4, x + size/4, y + size/8, GOKU_AURA_WHITE);
- // Tail
- gfx->drawLine(x + size/4, y + size/4, x + size/3, y + size/3, GOKU_GI_BLUE);
- gfx->drawLine(x + size/3, y + size/3, x + size/3 + 5, y + size/4, GOKU_GI_BLUE);
-}
-
-void drawNezukoSprite(int x, int y, int size, int frame) {
- int bob = (frame % 3 == 0) ? 2 : 0;
- y += bob;
- // Box body (she's in the box!)
- int bw = size*2/3, bh = size;
- gfx->fillRect(x - bw/2, y - bh/3, bw, bh*2/3, RGB565(139, 90, 43));
- gfx->drawRect(x - bw/2, y - bh/3, bw, bh*2/3, RGB565(100, 60, 30));
- // Wood grain lines
- gfx->drawFastHLine(x - bw/2 + 3, y - bh/6, bw - 6, RGB565(120, 75, 35));
- gfx->drawFastHLine(x - bw/2 + 3, y + bh/6, bw - 6, RGB565(120, 75, 35));
- // Nezuko peeking out! Hair on top
- gfx->fillCircle(x, y - bh/3 - size/6, size/4, RGB565(30, 30, 30));
- // Pink eyes peeking over edge
- gfx->fillCircle(x - size/8, y - bh/3 + 3, 5, RGB565(255, 150, 180));
- gfx->fillCircle(x + size/8, y - bh/3 + 3, 5, RGB565(255, 150, 180));
- gfx->fillCircle(x - size/8, y - bh/3 + 3, 2, COLOR_BLACK);
- gfx->fillCircle(x + size/8, y - bh/3 + 3, 2, COLOR_BLACK);
- // Bamboo muzzle
- gfx->fillRect(x - size/4, y - bh/3 + 8, size/2, 5, RGB565(100, 180, 80));
- gfx->drawRect(x - size/4, y - bh/3 + 8, size/2, 5, RGB565(60, 120, 40));
- // Hair ribbon
- gfx->fillRect(x + size/6, y - bh/3 - size/4, 6, 8, RGB565(255, 100, 150));
- // Blush marks
- gfx->fillCircle(x - size/5, y - bh/3 + 5, 3, RGB565(255, 180, 180));
- gfx->fillCircle(x + size/5, y - bh/3 + 5, 3, RGB565(255, 180, 180));
-}
-
-void drawSpiritSprite(int x, int y, int size, int frame) {
- int bob = (frame % 2) * 2 - 1;
- y += bob;
- // Infinity sphere with rotating rings
- gfx->fillCircle(x, y, size/3, GOJO_DEEP_INFINITY);
- gfx->drawCircle(x, y, size/3, GOJO_INFINITY_BLUE);
- // Rotating ring effect
- int ringR = size/3 + 5 + (frame % 3) * 2;
- gfx->drawCircle(x, y, ringR, GOJO_LIGHT_BLUE_GLOW);
- // Infinity symbol in center
- gfx->drawCircle(x - size/8, y, size/6, GOJO_SIX_EYES_BLUE);
- gfx->drawCircle(x + size/8, y, size/6, GOJO_SIX_EYES_BLUE);
- // Central eye (Six Eyes reference)
- gfx->fillCircle(x, y, size/6, COLOR_WHITE);
- gfx->fillCircle(x, y, size/8, GOJO_INFINITY_BLUE);
- gfx->fillCircle(x, y, size/12, COLOR_BLACK);
- gfx->fillCircle(x + 1, y - 1, 2, COLOR_WHITE);
- // Floating particles
- for (int p = 0; p < 6; p++) {
-   float a = (p * 60 + frame * 15) * PI / 180.0;
-   int px = x + cos(a) * (size/2);
-   int py = y + sin(a) * (size/2);
-   gfx->fillCircle(px, py, 2, GOJO_LIGHT_BLUE_GLOW);
- }
-}
-
-void drawBladesSprite(int x, int y, int size, int frame) {
- int bob = (frame % 2) * 2;
- y += bob;
- // Wings of Freedom emblem
- // Left wing (blue)
- gfx->fillTriangle(x - 5, y - size/3, x - size/2, y - size/6, x - 5, y + size/4, GOJO_INFINITY_BLUE);
- gfx->fillTriangle(x - 5, y - size/3, x - size/2 - size/6, y, x - size/2, y - size/6, GOJO_INFINITY_BLUE);
- // Right wing (white)
- gfx->fillTriangle(x + 5, y - size/3, x + size/2, y - size/6, x + 5, y + size/4, COLOR_WHITE);
- gfx->fillTriangle(x + 5, y - size/3, x + size/2 + size/6, y, x + size/2, y - size/6, COLOR_WHITE);
- // Center shield
- gfx->fillRect(x - 5, y - size/4, 10, size/2, LEVI_DARK_UNIFORM);
- gfx->drawRect(x - 5, y - size/4, 10, size/2, LEVI_SILVER_BLADE);
- // Crossed blades
- gfx->drawLine(x - size/3, y - size/2, x + size/3, y + size/4, LEVI_SILVER_BLADE);
- gfx->drawLine(x + size/3, y - size/2, x - size/3, y + size/4, LEVI_SILVER_BLADE);
- // Blade shine
- if (frame % 3 == 0) {
-   gfx->fillCircle(x - size/6, y - size/4, 2, COLOR_WHITE);
-   gfx->fillCircle(x + size/6, y - size/8, 2, COLOR_WHITE);
- }
- // Green glow (Survey Corps)
- gfx->drawCircle(x, y, size/2 + 3, LEVI_SURVEY_GREEN);
-}
-
-void drawGenosSprite(int x, int y, int size, int frame) {
- int bob = (frame % 2) * 2 - 1;
- y += bob;
- // Robot body
- gfx->fillRect(x - size/4, y - size/6, size/2, size/2, RGB565(40, 40, 50));
- // Head (round, mechanical)
- gfx->fillCircle(x, y - size/3, size/4, SAITAMA_HERO_YELLOW);
- gfx->drawCircle(x, y - size/3, size/4, RGB565(200, 180, 40));
- // Mechanical eyes
- gfx->fillRect(x - size/6, y - size/3 - 3, size/8, 6, COLOR_BLACK);
- gfx->fillRect(x + size/12, y - size/3 - 3, size/8, 6, COLOR_BLACK);
- gfx->fillCircle(x - size/8, y - size/3, 3, COLOR_YELLOW);
- gfx->fillCircle(x + size/8, y - size/3, 3, COLOR_YELLOW);
- // Glowing core
- uint16_t coreColor = (frame % 2 == 0) ? RGB565(255, 150, 50) : RGB565(255, 200, 100);
- gfx->fillCircle(x, y + size/12, size/8, coreColor);
- gfx->drawCircle(x, y + size/12, size/8, SAITAMA_HERO_YELLOW);
- // Mechanical arms
- gfx->fillRect(x - size/3 - size/6, y - size/8, size/6, size/3, RGB565(60, 60, 70));
- gfx->fillRect(x + size/4, y - size/8, size/6, size/3, RGB565(60, 60, 70));
- // Arm cannons
- gfx->fillCircle(x - size/3 - size/10, y + size/6, size/10, SAITAMA_GOLDEN_PUNCH);
- gfx->fillCircle(x + size/4 + size/10, y + size/6, size/10, SAITAMA_GOLDEN_PUNCH);
- // Legs
- gfx->fillRect(x - size/6, y + size/4, size/8, size/4, RGB565(50, 50, 60));
- gfx->fillRect(x + size/12, y + size/4, size/8, size/4, RGB565(50, 50, 60));
- // Vent lines on body
- gfx->drawFastHLine(x - size/6, y - size/8, size/3, RGB565(80, 80, 90));
- gfx->drawFastHLine(x - size/6, y, size/3, RGB565(80, 80, 90));
-}
-
-void drawAllMightSprite(int x, int y, int size, int frame) {
- int bob = (frame % 2) * 2;
- y += bob;
- // Muscular body
- gfx->fillRect(x - size/3, y - size/6, size*2/3, size/2, GOKU_GI_BLUE);
- // Broad shoulders
- gfx->fillCircle(x - size/3, y - size/8, size/6, GOKU_GI_BLUE);
- gfx->fillCircle(x + size/3, y - size/8, size/6, GOKU_GI_BLUE);
- // Head
- gfx->fillCircle(x, y - size/3, size/4, RGB565(220, 180, 140));
- // Golden hair (iconic)
- gfx->fillTriangle(x - size/5, y - size/3 - size/5, x, y - size/2 - size/4, x + size/5, y - size/3 - size/5, DEKU_ALLMIGHT_GOLD);
- gfx->fillTriangle(x - size/8, y - size/2, x - size/4, y - size/2 - size/6, x, y - size/2, DEKU_ALLMIGHT_GOLD);
- gfx->fillTriangle(x, y - size/2, x + size/4, y - size/2 - size/6, x + size/8, y - size/2, DEKU_ALLMIGHT_GOLD);
- // Eyes (shadowed, heroic)
- gfx->fillRect(x - size/6, y - size/3, size/3, size/10, RGB565(50, 50, 80));
- gfx->fillCircle(x - size/8, y - size/3 + 2, 3, GOKU_KI_BLAST_BLUE);
- gfx->fillCircle(x + size/8, y - size/3 + 2, 3, GOKU_KI_BLAST_BLUE);
- // Big smile
- gfx->drawLine(x - size/6, y - size/5, x + size/6, y - size/5, COLOR_WHITE);
- gfx->drawLine(x - size/6, y - size/5, x - size/8, y - size/5 + 3, COLOR_WHITE);
- gfx->drawLine(x + size/6, y - size/5, x + size/8, y - size/5 + 3, COLOR_WHITE);
- // Cape (red)
- gfx->fillTriangle(x - size/3, y - size/8, x - size/2, y + size/3, x - size/6, y + size/4, SAITAMA_CAPE_RED);
- gfx->fillTriangle(x + size/3, y - size/8, x + size/2, y + size/3, x + size/6, y + size/4, SAITAMA_CAPE_RED);
- // Fists
- gfx->fillCircle(x - size/2, y + size/8, size/8, RGB565(220, 180, 140));
- gfx->fillCircle(x + size/2, y + size/8, size/8, RGB565(220, 180, 140));
-}
-
-void drawOchobotSprite(int x, int y, int size, int frame) {
- int bob = (frame % 2) * 3 - 1;
- y += bob;
- // Main sphere body
- gfx->fillCircle(x, y, size/3, BBB_OCHOBOT_WHITE);
- gfx->drawCircle(x, y, size/3, RGB565(200, 200, 210));
- // Orange band around middle
- gfx->fillRect(x - size/3, y - size/12, size*2/3, size/6, BBB_BAND_ORANGE);
- gfx->drawRect(x - size/3, y - size/12, size*2/3, size/6, RGB565(200, 100, 20));
- // Eyes (big, round, friendly)
- gfx->fillCircle(x - size/7, y - size/8, 7, COLOR_WHITE);
- gfx->fillCircle(x + size/7, y - size/8, 7, COLOR_WHITE);
- gfx->fillCircle(x - size/7, y - size/8, 4, GOJO_INFINITY_BLUE);
- gfx->fillCircle(x + size/7, y - size/8, 4, GOJO_INFINITY_BLUE);
- gfx->fillCircle(x - size/7, y - size/8, 2, COLOR_BLACK);
- gfx->fillCircle(x + size/7, y - size/8, 2, COLOR_BLACK);
- gfx->fillCircle(x - size/7 + 1, y - size/8 - 1, 1, COLOR_WHITE);
- gfx->fillCircle(x + size/7 + 1, y - size/8 - 1, 1, COLOR_WHITE);
- // Antenna
- gfx->fillRect(x - 2, y - size/3 - size/6, 4, size/6, RGB565(200, 200, 210));
- gfx->fillCircle(x, y - size/3 - size/6, 5, BBB_BAND_ORANGE);
- // Glow on antenna (signal)
- if (frame % 3 == 0) {
-   gfx->drawCircle(x, y - size/3 - size/6, 8, BBB_BAND_GLOW);
- }
- // Small arms
- gfx->fillRect(x - size/3 - size/6, y - size/12, size/6, size/10, RGB565(200, 200, 210));
- gfx->fillRect(x + size/3, y - size/12, size/6, size/10, RGB565(200, 200, 210));
- // Hover glow at bottom
- gfx->drawCircle(x, y + size/3 + 5, size/5, BBB_BAND_GLOW);
- gfx->drawCircle(x, y + size/3 + 5, size/6, BBB_BAND_ORANGE);
-}
-
-// =============================================================================
-// MAIN SPRITE DISPATCHER (with evolution scaling)
-// =============================================================================
-void drawCompanionSprite(int x, int y, CompanionType type, CompanionEvolution evo) {
- int size = 20 + (int)evo * 12; // Baby=20, Child=32, Adult=44, Awakened=56
- int frame = companion_system.animation_frame;
-
- // Awakened glow aura
- if (evo == EVO_AWAKENED) {
-   uint16_t glowCol = COMPANION_PROFILES[type].primary_color;
-   for (int r = size/2 + 15; r > size/2 + 5; r -= 2) {
-     gfx->drawCircle(x, y, r, glowCol);
-   }
- }
-
- switch (type) {
-   case COMP_SUNNY: drawSunnySprite(x, y, size, frame); break;
-   case COMP_IGRIS: drawShadowSprite(x, y, size, frame); break;
-   case COMP_AZ: drawAzSprite(x, y, size, frame); break;
-   case COMP_KURAMA: drawKuramaSprite(x, y, size, frame); break;
-   case COMP_PUAR: drawPuarSprite(x, y, size, frame); break;
-   case COMP_NEZUKO: drawNezukoSprite(x, y, size, frame); break;
-   case COMP_SPIRIT: drawSpiritSprite(x, y, size, frame); break;
-   case COMP_BLADES: drawBladesSprite(x, y, size, frame); break;
-   case COMP_GENOS: drawGenosSprite(x, y, size, frame); break;
-   case COMP_ALLMIGHT: drawAllMightSprite(x, y, size, frame); break;
-   case COMP_OCHOBOT: drawOchobotSprite(x, y, size, frame); break;
- }
-
- // Evolution label
- if (evo >= EVO_CHILD) {
-   gfx->setTextColor(COMPANION_PROFILES[type].primary_color);
-   gfx->setTextSize(1);
-   gfx->setCursor(x - 15, y + size/2 + 10);
-   gfx->print(getEvolutionText(evo));
- }
-
- // Sleeping indicator
- CompanionData* comp = companion_system.current_companion;
- if (comp && comp->care.is_sleeping) {
-   gfx->setTextColor(COLOR_WHITE); gfx->setTextSize(2);
-   gfx->setCursor(x + size/3, y - size/2);
-   gfx->print("Zzz");
- }
-}
-
-// =============================================================================
-// INIT, NVS, CARE, BOND, GAME, DRAW, TOUCH (same core logic as before)
-// =============================================================================
 void initCompanionSystem() {
- companion_system.current_companion = nullptr;
- companion_system.current_companion_index = -1;
- companion_system.in_care_mode = false;
- companion_system.in_mini_game = false;
- companion_system.care_menu_selection = 0;
- companion_system.animation_frame = 0;
- companion_system.last_animation_time = 0;
- companion_system.nvs_initialized = false;
- companion_system.current_game = {"", 0, 0, false, 0, 0, 0};
-
- for (int i = 0; i < COMPANION_COUNT; i++) {
-   companion_system.companions[i].type = (CompanionType)i;
-   companion_system.companions[i].profile = &COMPANION_PROFILES[i];
-   companion_system.companions[i].stats = {80, 80, 80, 0, 1, MOOD_CONTENT, EVO_BABY, 0, 0};
-   companion_system.companions[i].care = {0, 0, 0, millis(), 0, 0, 0, false, 0};
- }
-
- if (companion_system.prefs.begin(COMPANION_NVS_NAMESPACE, false)) {
-   companion_system.nvs_initialized = true;
-   loadCompanionData();
- }
+    // Reset system state
+    companion_system.current_companion = nullptr;
+    companion_system.current_companion_index = -1;
+    companion_system.in_care_mode = false;
+    companion_system.in_mini_game = false;
+    companion_system.care_menu_selection = 0;
+    companion_system.animation_frame = 0;
+    companion_system.last_animation_time = 0;
+    companion_system.nvs_initialized = false;
+    companion_system.current_game = {"", 0, 0, false, 0, 0, 0};
+    
+    yield();  // Feed watchdog
+    
+    // Initialize all companions with DEFAULT values (fast, no NVS reads)
+    for (int i = 0; i < COMPANION_COUNT; i++) {
+        setDefaultStats(&companion_system.companions[i], i);
+    }
+    
+    yield();  // Feed watchdog
+    
+    // Initialize NVS
+    if (companion_system.prefs.begin(COMPANION_NVS_NAMESPACE, false)) {
+        companion_system.nvs_initialized = true;
+    }
+    
+    yield();  // Feed watchdog
+    
+    // Get companion index from current theme
+    int themeIndex = getThemeIndex();
+    
+    // Set companion to match current theme
+    companion_system.current_companion_index = themeIndex;
+    companion_system.current_companion = &companion_system.companions[themeIndex];
+    
+    // Load ONLY this companion's saved data from NVS (if any)
+    if (companion_system.nvs_initialized) {
+        loadCompanionDataForIndex(themeIndex);
+    }
+    
+    yield();  // Final watchdog feed
+    
+    Serial.printf("[Companion] Initialized: %s for theme %d\n", 
+                  companion_system.current_companion->profile->name, themeIndex);
 }
 
+// Call this whenever theme changes - companion follows theme!
+void syncCompanionWithTheme() {
+    // Guard: Don't run if companion system hasn't been initialized yet
+    if (!companion_system.nvs_initialized && companion_system.current_companion == nullptr) {
+        return;  // Not ready yet - initCompanionSystem() hasn't been called
+    }
+    
+    int themeIndex = getThemeIndex();
+    
+    // Only switch if different
+    if (companion_system.current_companion_index != themeIndex) {
+        // Save current companion's data before switching
+        if (companion_system.current_companion_index >= 0 && companion_system.nvs_initialized) {
+            saveCompanionDataForIndex(companion_system.current_companion_index);
+        }
+        
+        yield();  // Feed watchdog
+        
+        // Switch to new companion (matching theme)
+        companion_system.current_companion_index = themeIndex;
+        companion_system.current_companion = &companion_system.companions[themeIndex];
+        
+        // Load new companion's data from NVS
+        if (companion_system.nvs_initialized) {
+            loadCompanionDataForIndex(themeIndex);
+        }
+        
+        yield();  // Feed watchdog
+        
+        Serial.printf("[Companion] Switched to: %s\n", 
+                      companion_system.current_companion->profile->name);
+    }
+}
+
+// Load data for a SINGLE companion
+void loadCompanionDataForIndex(int index) {
+    if (index < 0 || index >= COMPANION_COUNT || !companion_system.nvs_initialized) return;
+    
+    char key[24];
+    CompanionData* c = &companion_system.companions[index];
+    
+    // Check if this companion has saved data
+    getCompKey(index, "init", key, sizeof(key));
+    if (!companion_system.prefs.getBool(key, false)) {
+        // No saved data, use defaults (already set)
+        return;
+    }
+    
+    yield();  // Feed watchdog
+    
+    // Load stats
+    getCompKey(index, "hunger", key, sizeof(key));
+    c->stats.hunger = companion_system.prefs.getInt(key, 80);
+    
+    getCompKey(index, "happy", key, sizeof(key));
+    c->stats.happiness = companion_system.prefs.getInt(key, 80);
+    
+    getCompKey(index, "energy", key, sizeof(key));
+    c->stats.energy = companion_system.prefs.getInt(key, 80);
+    
+    getCompKey(index, "bond", key, sizeof(key));
+    c->stats.bond_level = companion_system.prefs.getInt(key, 0);
+    
+    getCompKey(index, "rank", key, sizeof(key));
+    c->stats.bond_rank = companion_system.prefs.getInt(key, 1);
+    
+    getCompKey(index, "mood", key, sizeof(key));
+    c->stats.mood = (CompanionMood)companion_system.prefs.getInt(key, MOOD_CONTENT);
+    
+    getCompKey(index, "evo", key, sizeof(key));
+    c->stats.evolution = (CompanionEvolution)companion_system.prefs.getInt(key, EVO_BABY);
+    
+    getCompKey(index, "interact", key, sizeof(key));
+    c->stats.total_interactions = companion_system.prefs.getInt(key, 0);
+    
+    getCompKey(index, "days", key, sizeof(key));
+    c->stats.days_together = companion_system.prefs.getInt(key, 0);
+    
+    yield();  // Feed watchdog after load
+}
+
+// Save data for a SINGLE companion
+void saveCompanionDataForIndex(int index) {
+    if (index < 0 || index >= COMPANION_COUNT || !companion_system.nvs_initialized) return;
+    
+    char key[24];
+    CompanionData* c = &companion_system.companions[index];
+    
+    // Mark this companion as having saved data
+    getCompKey(index, "init", key, sizeof(key));
+    companion_system.prefs.putBool(key, true);
+    
+    yield();  // Feed watchdog
+    
+    // Save stats
+    getCompKey(index, "hunger", key, sizeof(key));
+    companion_system.prefs.putInt(key, c->stats.hunger);
+    
+    getCompKey(index, "happy", key, sizeof(key));
+    companion_system.prefs.putInt(key, c->stats.happiness);
+    
+    getCompKey(index, "energy", key, sizeof(key));
+    companion_system.prefs.putInt(key, c->stats.energy);
+    
+    getCompKey(index, "bond", key, sizeof(key));
+    companion_system.prefs.putInt(key, c->stats.bond_level);
+    
+    getCompKey(index, "rank", key, sizeof(key));
+    companion_system.prefs.putInt(key, c->stats.bond_rank);
+    
+    getCompKey(index, "mood", key, sizeof(key));
+    companion_system.prefs.putInt(key, (int)c->stats.mood);
+    
+    getCompKey(index, "evo", key, sizeof(key));
+    companion_system.prefs.putInt(key, (int)c->stats.evolution);
+    
+    getCompKey(index, "interact", key, sizeof(key));
+    companion_system.prefs.putInt(key, c->stats.total_interactions);
+    
+    getCompKey(index, "days", key, sizeof(key));
+    companion_system.prefs.putInt(key, c->stats.days_together);
+    
+    yield();  // Feed watchdog after save
+}
+
+// Save ONLY current companion
 void saveCompanionData() {
- if (!companion_system.nvs_initialized) return;
- for (int i = 0; i < COMPANION_COUNT; i++) saveCompanionDataForIndex(i);
- companion_system.prefs.putInt("current_idx", companion_system.current_companion_index);
- companion_system.prefs.putBool("initialized", true);
+    if (!companion_system.nvs_initialized) return;
+    if (companion_system.current_companion_index < 0) return;
+    
+    saveCompanionDataForIndex(companion_system.current_companion_index);
 }
 
-void saveCompanionDataForIndex(int idx) {
- if (!companion_system.nvs_initialized || idx < 0 || idx >= COMPANION_COUNT) return;
- CompanionData* c = &companion_system.companions[idx]; char k[32];
- getCompKey(idx,"hunger",k,32); companion_system.prefs.putInt(k,c->stats.hunger);
- getCompKey(idx,"happy",k,32); companion_system.prefs.putInt(k,c->stats.happiness);
- getCompKey(idx,"energy",k,32); companion_system.prefs.putInt(k,c->stats.energy);
- getCompKey(idx,"bond",k,32); companion_system.prefs.putInt(k,c->stats.bond_level);
- getCompKey(idx,"rank",k,32); companion_system.prefs.putInt(k,c->stats.bond_rank);
- getCompKey(idx,"mood",k,32); companion_system.prefs.putInt(k,(int)c->stats.mood);
- getCompKey(idx,"evo",k,32); companion_system.prefs.putInt(k,(int)c->stats.evolution);
- getCompKey(idx,"interact",k,32); companion_system.prefs.putInt(k,c->stats.total_interactions);
- getCompKey(idx,"days",k,32); companion_system.prefs.putInt(k,c->stats.days_together);
- getCompKey(idx,"sleep",k,32); companion_system.prefs.putBool(k,c->care.is_sleeping);
- getCompKey(idx,"d_feed",k,32); companion_system.prefs.putInt(k,c->care.daily_feed_count);
- getCompKey(idx,"d_play",k,32); companion_system.prefs.putInt(k,c->care.daily_play_count);
- getCompKey(idx,"d_train",k,32); companion_system.prefs.putInt(k,c->care.daily_train_count);
-}
-
+// Load ONLY current companion
 void loadCompanionData() {
- if (!companion_system.nvs_initialized || !companion_system.prefs.getBool("initialized", false)) return;
- for (int i = 0; i < COMPANION_COUNT; i++) loadCompanionDataForIndex(i);
- int si = companion_system.prefs.getInt("current_idx", -1);
- if (si >= 0 && si < COMPANION_COUNT) { companion_system.current_companion_index = si; companion_system.current_companion = &companion_system.companions[si]; }
+    if (!companion_system.nvs_initialized) return;
+    if (companion_system.current_companion_index < 0) return;
+    
+    loadCompanionDataForIndex(companion_system.current_companion_index);
 }
 
-void loadCompanionDataForIndex(int idx) {
- if (!companion_system.nvs_initialized || idx < 0 || idx >= COMPANION_COUNT) return;
- CompanionData* c = &companion_system.companions[idx]; char k[32];
- getCompKey(idx,"hunger",k,32); c->stats.hunger = companion_system.prefs.getInt(k,80);
- getCompKey(idx,"happy",k,32); c->stats.happiness = companion_system.prefs.getInt(k,80);
- getCompKey(idx,"energy",k,32); c->stats.energy = companion_system.prefs.getInt(k,80);
- getCompKey(idx,"bond",k,32); c->stats.bond_level = companion_system.prefs.getInt(k,0);
- getCompKey(idx,"rank",k,32); c->stats.bond_rank = companion_system.prefs.getInt(k,1);
- getCompKey(idx,"mood",k,32); c->stats.mood = (CompanionMood)companion_system.prefs.getInt(k,MOOD_CONTENT);
- getCompKey(idx,"evo",k,32); c->stats.evolution = (CompanionEvolution)companion_system.prefs.getInt(k,EVO_BABY);
- getCompKey(idx,"interact",k,32); c->stats.total_interactions = companion_system.prefs.getInt(k,0);
- getCompKey(idx,"days",k,32); c->stats.days_together = companion_system.prefs.getInt(k,0);
- getCompKey(idx,"sleep",k,32); c->care.is_sleeping = companion_system.prefs.getBool(k,false);
- getCompKey(idx,"d_feed",k,32); c->care.daily_feed_count = companion_system.prefs.getInt(k,0);
- getCompKey(idx,"d_play",k,32); c->care.daily_play_count = companion_system.prefs.getInt(k,0);
- getCompKey(idx,"d_train",k,32); c->care.daily_train_count = companion_system.prefs.getInt(k,0);
- c->care.last_stat_update = millis();
-}
-
+// Clear all companion data from NVS
 void clearAllCompanionData() {
- if (!companion_system.nvs_initialized) return;
- companion_system.prefs.clear();
- for (int i = 0; i < COMPANION_COUNT; i++) {
-   companion_system.companions[i].stats = {80,80,80,0,1,MOOD_CONTENT,EVO_BABY,0,0};
-   companion_system.companions[i].care = {0,0,0,millis(),0,0,0,false,0};
- }
+    if (!companion_system.nvs_initialized) return;
+    
+    companion_system.prefs.clear();
+    
+    // Reset all companions to defaults
+    for (int i = 0; i < COMPANION_COUNT; i++) {
+        setDefaultStats(&companion_system.companions[i], i);
+        yield();  // Feed watchdog
+    }
 }
 
-void setCurrentCompanion(ThemeType t) {
- if (t < THEME_COUNT) { companion_system.current_companion_index = (int)t; companion_system.current_companion = &companion_system.companions[t];
- if (companion_system.nvs_initialized) companion_system.prefs.putInt("current_idx", (int)t); }
-}
-CompanionData* getCurrentCompanion() { return companion_system.current_companion; }
-CompanionData* getCompanionByType(CompanionType t) { return (t < COMPANION_COUNT) ? &companion_system.companions[t] : nullptr; }
-
-bool feedCompanion() {
- CompanionData* c = companion_system.current_companion; if (!c || c->care.is_sleeping || system_state.player_gems < FEED_COST_GEMS) return false;
- system_state.player_gems -= FEED_COST_GEMS; c->stats.hunger = min(STAT_MAX, c->stats.hunger+FEED_HUNGER_GAIN);
- c->stats.happiness = min(STAT_MAX, c->stats.happiness+FEED_HAPPINESS_GAIN); c->stats.total_interactions++;
- c->care.last_feed_time = millis(); c->care.daily_feed_count++; updateCompanionMood(); addBondPoints(2);
- saveCompanionDataForIndex(companion_system.current_companion_index); return true;
-}
-
-bool playWithCompanion() {
- CompanionData* c = companion_system.current_companion; if (!c || c->care.is_sleeping || c->stats.energy < PLAY_ENERGY_COST) return false;
- c->stats.energy -= PLAY_ENERGY_COST; c->stats.happiness = min(STAT_MAX, c->stats.happiness+PLAY_HAPPINESS_GAIN);
- c->stats.total_interactions++; c->care.last_play_time = millis(); c->care.daily_play_count++;
- addBondPoints(PLAY_BOND_GAIN); updateCompanionMood(); saveCompanionDataForIndex(companion_system.current_companion_index);
- startCompanionGame(); return true;
-}
-
-bool trainCompanion() {
- CompanionData* c = companion_system.current_companion; if (!c || c->care.is_sleeping || c->stats.energy < TRAIN_ENERGY_COST) return false;
- c->stats.energy -= TRAIN_ENERGY_COST; c->stats.happiness = max(STAT_MIN, c->stats.happiness-5);
- c->stats.total_interactions++; c->care.last_train_time = millis(); c->care.daily_train_count++;
- gainExperience(TRAIN_XP_GAIN, "Companion Training"); addBondPoints(TRAIN_BOND_GAIN); updateCompanionMood();
- saveCompanionDataForIndex(companion_system.current_companion_index); return true;
-}
-
-void toggleCompanionSleep() {
- CompanionData* c = companion_system.current_companion; if (!c) return;
- if (c->care.is_sleeping) wakeCompanion(); else { c->care.is_sleeping = true; c->care.sleep_start_time = millis(); }
- saveCompanionDataForIndex(companion_system.current_companion_index);
-}
-
-void wakeCompanion() {
- CompanionData* c = companion_system.current_companion; if (!c || !c->care.is_sleeping) return;
- unsigned long dur = millis() - c->care.sleep_start_time;
- int gain = (dur >= REST_DURATION_MS) ? REST_ENERGY_GAIN : (int)((dur * REST_ENERGY_GAIN) / REST_DURATION_MS);
- c->stats.energy = min(STAT_MAX, c->stats.energy + gain); c->care.is_sleeping = false;
- updateCompanionMood(); saveCompanionDataForIndex(companion_system.current_companion_index);
-}
-
-void updateCompanionStats() {
- CompanionData* c = companion_system.current_companion; if (!c) return;
- unsigned long elapsed = millis() - c->care.last_stat_update;
- if (elapsed < 60000) return;
- float hrs = elapsed / 60000.0f;
- if (!c->care.is_sleeping) {
-   c->stats.hunger = max(STAT_MIN, c->stats.hunger-(int)(HUNGER_DECAY_RATE*hrs));
-   c->stats.happiness = max(STAT_MIN, c->stats.happiness-(int)(HAPPINESS_DECAY_RATE*hrs));
-   c->stats.energy = max(STAT_MIN, c->stats.energy-(int)(ENERGY_DECAY_RATE*hrs));
- } else { c->stats.energy = min(STAT_MAX, c->stats.energy+(int)(5*hrs)); }
- c->care.last_stat_update = millis(); updateCompanionMood(); updateCompanionEvolution();
- saveCompanionDataForIndex(companion_system.current_companion_index);
-}
+// ============================================================================
+// COMPANION STATS UPDATE
+// ============================================================================
 
 void updateCompanionMood() {
- CompanionData* c = companion_system.current_companion; if (!c) return;
- int avg = (c->stats.hunger + c->stats.happiness + c->stats.energy) / 3;
- if (avg >= 80) c->stats.mood = MOOD_ECSTATIC; else if (avg >= 60) c->stats.mood = MOOD_HAPPY;
- else if (avg >= 40) c->stats.mood = MOOD_CONTENT; else if (avg >= 20) c->stats.mood = MOOD_SAD;
- else c->stats.mood = MOOD_MISERABLE;
+    CompanionData* c = companion_system.current_companion;
+    if (!c) return;
+    
+    int avg = (c->stats.hunger + c->stats.happiness + c->stats.energy) / 3;
+    
+    if (avg >= 80) c->stats.mood = MOOD_ECSTATIC;
+    else if (avg >= 60) c->stats.mood = MOOD_HAPPY;
+    else if (avg >= 40) c->stats.mood = MOOD_CONTENT;
+    else if (avg >= 20) c->stats.mood = MOOD_SAD;
+    else c->stats.mood = MOOD_MISERABLE;
 }
 
 void updateCompanionEvolution() {
- CompanionData* c = companion_system.current_companion; if (!c) return;
- if (c->stats.bond_level >= 80 && c->stats.total_interactions >= 200 && c->stats.evolution < EVO_AWAKENED) c->stats.evolution = EVO_AWAKENED;
- else if (c->stats.bond_level >= 50 && c->stats.total_interactions >= 100 && c->stats.evolution < EVO_ADULT) c->stats.evolution = EVO_ADULT;
- else if (c->stats.bond_level >= 20 && c->stats.total_interactions >= 30 && c->stats.evolution < EVO_CHILD) c->stats.evolution = EVO_CHILD;
+    CompanionData* c = companion_system.current_companion;
+    if (!c) return;
+    
+    int bond = c->stats.bond_level;
+    int days = c->stats.days_together;
+    
+    if (bond >= 80 && days >= 30) c->stats.evolution = EVO_AWAKENED;
+    else if (bond >= 50 && days >= 14) c->stats.evolution = EVO_ADULT;
+    else if (bond >= 20 && days >= 7) c->stats.evolution = EVO_CHILD;
+    else c->stats.evolution = EVO_BABY;
 }
 
-void updateCompanionAnimation() {
- if (millis() - companion_system.last_animation_time >= 500) {
-   companion_system.animation_frame = (companion_system.animation_frame + 1) % 4;
-   companion_system.last_animation_time = millis();
- }
+void updateCompanionStats() {
+    CompanionData* c = companion_system.current_companion;
+    if (!c) return;
+    
+    unsigned long elapsed = millis() - c->care.last_stat_update;
+    if (elapsed < 60000) return;  // Only update every minute
+    
+    float hrs = elapsed / 60000.0f;
+    
+    if (!c->care.is_sleeping) {
+        c->stats.hunger = max(STAT_MIN, c->stats.hunger - (int)(HUNGER_DECAY_RATE * hrs));
+        c->stats.happiness = max(STAT_MIN, c->stats.happiness - (int)(HAPPINESS_DECAY_RATE * hrs));
+        c->stats.energy = max(STAT_MIN, c->stats.energy - (int)(ENERGY_DECAY_RATE * hrs));
+    } else {
+        c->stats.energy = min(STAT_MAX, c->stats.energy + (int)(5 * hrs));
+    }
+    
+    c->care.last_stat_update = millis();
+    
+    updateCompanionMood();
+    updateCompanionEvolution();
+    
+    // Save only the current companion
+    saveCompanionDataForIndex(companion_system.current_companion_index);
 }
 
 void checkCompanionDailyReset() {
- for (int i = 0; i < COMPANION_COUNT; i++) {
-   companion_system.companions[i].care.daily_feed_count = 0;
-   companion_system.companions[i].care.daily_play_count = 0;
-   companion_system.companions[i].care.daily_train_count = 0;
-   companion_system.companions[i].stats.days_together++;
- }
- saveCompanionData();
+    CompanionData* c = companion_system.current_companion;
+    if (!c) return;
+    
+    // Simple daily reset check (could be improved with RTC)
+    static unsigned long lastResetCheck = 0;
+    if (millis() - lastResetCheck > 86400000) {  // 24 hours
+        c->care.daily_feed_count = 0;
+        c->care.daily_play_count = 0;
+        c->care.daily_train_count = 0;
+        c->stats.days_together++;
+        lastResetCheck = millis();
+        
+        saveCompanionDataForIndex(companion_system.current_companion_index);
+    }
 }
 
-void addBondPoints(int pts) {
- CompanionData* c = companion_system.current_companion; if (!c) return;
- c->stats.bond_level = min(BOND_MAX, c->stats.bond_level + pts);
- if (c->stats.bond_level >= BOND_RANK_5) c->stats.bond_rank = 5;
- else if (c->stats.bond_level >= BOND_RANK_4) c->stats.bond_rank = 4;
- else if (c->stats.bond_level >= BOND_RANK_3) c->stats.bond_rank = 3;
- else if (c->stats.bond_level >= BOND_RANK_2) c->stats.bond_rank = 2;
- else c->stats.bond_rank = 1;
-}
-int getBondRank() { return companion_system.current_companion ? companion_system.current_companion->stats.bond_rank : 1; }
-const char* getBondRankName() { switch(getBondRank()) { case 1: return "Friend"; case 2: return "Good Friend"; case 3: return "Best Friend"; case 4: return "Soul Bond"; case 5: return "Eternal Bond"; default: return "Unknown"; } }
-float getXPBonus() { return 1.0f + getBondRank() * 0.05f; }
+// ============================================================================
+// COMPANION CARE ACTIONS
+// ============================================================================
 
-void startCompanionGame() { companion_system.in_mini_game = true; companion_system.current_game = {"Catch!", 0, 0, true, millis(), (int)random(50,LCD_WIDTH-50), (int)random(100,LCD_HEIGHT-100)}; }
-void updateCompanionGame() { if (!companion_system.current_game.active) return; if (millis()-companion_system.current_game.start_time >= 30000) { endCompanionGame(); return; }
- if ((millis()-companion_system.current_game.start_time) % 2000 < 100) { companion_system.current_game.target_x = random(50,LCD_WIDTH-50); companion_system.current_game.target_y = random(100,LCD_HEIGHT-100); } }
-void endCompanionGame() { companion_system.current_game.active = false; companion_system.in_mini_game = false;
- if (companion_system.current_game.score > companion_system.current_game.high_score) companion_system.current_game.high_score = companion_system.current_game.score;
- CompanionData* c = companion_system.current_companion; if (c) { int b = companion_system.current_game.score/10; c->stats.happiness = min(STAT_MAX, c->stats.happiness+b); addBondPoints(b/2); saveCompanionDataForIndex(companion_system.current_companion_index); } }
-void handleCompanionGameTouch(TouchGesture& g) { if (!companion_system.current_game.active || g.event != TOUCH_TAP) return;
- int dx = g.x - companion_system.current_game.target_x, dy = g.y - companion_system.current_game.target_y;
- if (dx*dx+dy*dy <= 1600) { companion_system.current_game.score += 10; companion_system.current_game.target_x = random(50,LCD_WIDTH-50); companion_system.current_game.target_y = random(100,LCD_HEIGHT-100); } }
-
-// =============================================================================
-// DRAWING
-// =============================================================================
-void drawCompanionScreen() {
- CompanionData* c = companion_system.current_companion;
- if (!c) { gfx->fillScreen(COLOR_BLACK); gfx->setTextColor(COLOR_WHITE); gfx->setTextSize(2); gfx->setCursor(LCD_WIDTH/2-80,LCD_HEIGHT/2); gfx->print("No companion"); return; }
- gfx->fillScreen(COLOR_BLACK);
- ThemeColors colors = *getThemeColors(system_state.current_theme);  // FIX: Added * to dereference pointer
- gfx->fillRect(0,0,LCD_WIDTH,50,c->profile->primary_color);
- gfx->setTextColor(COLOR_WHITE); gfx->setTextSize(2); gfx->setCursor(20,15); gfx->print(c->profile->name);
- gfx->setTextSize(1); gfx->setCursor(LCD_WIDTH-80,20); gfx->print(getEvolutionText(c->stats.evolution));
- // Sprite area
- gfx->fillRect(LCD_WIDTH/2-70, 55, 140, 140, RGB565(15,18,25));
- gfx->drawRect(LCD_WIDTH/2-70, 55, 140, 140, RGB565(40,45,60));
- drawCompanionSprite(LCD_WIDTH/2, 125, c->type, c->stats.evolution);
- drawCompanionMood(); drawCompanionStats(); drawBondLevel();
- // Catchphrase
- gfx->setTextColor(c->profile->primary_color); gfx->setTextSize(1); gfx->setCursor(20, 380);
- gfx->print("\""); gfx->print(c->profile->catchphrase); gfx->print("\"");
- // Care button
- gfx->fillRoundRect(LCD_WIDTH/2-60,LCD_HEIGHT-80,120,50,10,colors.primary);
- gfx->setTextColor(COLOR_WHITE); gfx->setTextSize(2); gfx->setCursor(LCD_WIDTH/2-30,LCD_HEIGHT-65); gfx->print("Care");
- gfx->fillRoundRect(30,LCD_HEIGHT-80,80,50,10,COLOR_GRAY);
- gfx->setTextSize(2); gfx->setCursor(45,LCD_HEIGHT-65); gfx->print("Back");
+bool feedCompanion() {
+    CompanionData* c = companion_system.current_companion;
+    if (!c) return false;
+    
+    c->stats.hunger = min(STAT_MAX, c->stats.hunger + FEED_HUNGER_GAIN);
+    c->stats.happiness = min(STAT_MAX, c->stats.happiness + FEED_HAPPINESS_GAIN);
+    c->care.last_feed_time = millis();
+    c->care.daily_feed_count++;
+    c->stats.total_interactions++;
+    
+    updateCompanionMood();
+    saveCompanionDataForIndex(companion_system.current_companion_index);
+    
+    return true;
 }
 
-void drawCompanionStats() {
- CompanionData* c = companion_system.current_companion; if (!c) return;
- int bw = LCD_WIDTH-100, bh = 15, by = 210;
- gfx->setTextColor(COLOR_WHITE); gfx->setTextSize(1);
- gfx->setCursor(20,by); gfx->print("Hunger:");
- gfx->fillRect(80,by,bw,bh,COLOR_GRAY); gfx->fillRect(80,by,(bw*c->stats.hunger)/100,bh, isStatCritical(c->stats.hunger)?COLOR_RED:COLOR_GREEN);
- by += 30; gfx->setCursor(20,by); gfx->print("Happy:");
- gfx->fillRect(80,by,bw,bh,COLOR_GRAY); gfx->fillRect(80,by,(bw*c->stats.happiness)/100,bh, isStatCritical(c->stats.happiness)?COLOR_RED:COLOR_YELLOW);
- by += 30; gfx->setCursor(20,by); gfx->print("Energy:");
- gfx->fillRect(80,by,bw,bh,COLOR_GRAY); gfx->fillRect(80,by,(bw*c->stats.energy)/100,bh, isStatCritical(c->stats.energy)?COLOR_RED:COLOR_CYAN);
+bool playWithCompanion() {
+    CompanionData* c = companion_system.current_companion;
+    if (!c) return false;
+    if (c->stats.energy < PLAY_ENERGY_COST) return false;
+    
+    c->stats.energy -= PLAY_ENERGY_COST;
+    c->stats.happiness = min(STAT_MAX, c->stats.happiness + PLAY_HAPPINESS_GAIN);
+    c->stats.bond_level = min(BOND_MAX, c->stats.bond_level + PLAY_BOND_GAIN);
+    c->care.last_play_time = millis();
+    c->care.daily_play_count++;
+    c->stats.total_interactions++;
+    
+    // Update bond rank
+    if (c->stats.bond_level >= BOND_RANK_5) c->stats.bond_rank = 5;
+    else if (c->stats.bond_level >= BOND_RANK_4) c->stats.bond_rank = 4;
+    else if (c->stats.bond_level >= BOND_RANK_3) c->stats.bond_rank = 3;
+    else if (c->stats.bond_level >= BOND_RANK_2) c->stats.bond_rank = 2;
+    else if (c->stats.bond_level >= BOND_RANK_1) c->stats.bond_rank = 1;
+    
+    updateCompanionMood();
+    updateCompanionEvolution();
+    saveCompanionDataForIndex(companion_system.current_companion_index);
+    
+    return true;
 }
 
-void drawCareMenu() {
- CompanionData* c = companion_system.current_companion; if (!c) return;
- gfx->fillScreen(COLOR_BLACK);
- ThemeColors colors = *getThemeColors(system_state.current_theme);  // FIX: Added * to dereference pointer
- gfx->fillRect(0,0,LCD_WIDTH,50,c->profile->primary_color);
- gfx->setTextColor(COLOR_WHITE); gfx->setTextSize(2); gfx->setCursor(20,15); gfx->print("Care Menu");
- int by = 70, bh = 60, bg = 15;
- gfx->fillRoundRect(30,by,LCD_WIDTH-60,bh,10,system_state.player_gems>=FEED_COST_GEMS?colors.primary:COLOR_GRAY);
- gfx->setTextColor(COLOR_WHITE); gfx->setTextSize(2); gfx->setCursor(50,by+10); gfx->print("Feed");
- gfx->setTextSize(1); gfx->setCursor(50,by+35); gfx->print("Cost: "); gfx->print(FEED_COST_GEMS); gfx->print(" Gems");
- by += bh+bg;
- gfx->fillRoundRect(30,by,LCD_WIDTH-60,bh,10,c->stats.energy>=PLAY_ENERGY_COST?colors.secondary:COLOR_GRAY);
- gfx->setTextSize(2); gfx->setCursor(50,by+10); gfx->print("Play");
- gfx->setTextSize(1); gfx->setCursor(50,by+35); gfx->print("Energy: -"); gfx->print(PLAY_ENERGY_COST);
- by += bh+bg;
- gfx->fillRoundRect(30,by,LCD_WIDTH-60,bh,10,c->stats.energy>=TRAIN_ENERGY_COST?colors.accent:COLOR_GRAY);
- gfx->setTextSize(2); gfx->setCursor(50,by+10); gfx->print("Train");
- gfx->setTextSize(1); gfx->setCursor(50,by+35); gfx->print("XP: +"); gfx->print(TRAIN_XP_GAIN);
- by += bh+bg;
- gfx->fillRoundRect(30,by,LCD_WIDTH-60,bh,10,RGB565(80,80,120));
- gfx->setTextSize(2); gfx->setCursor(50,by+10); gfx->print(c->care.is_sleeping?"Wake Up":"Rest");
- gfx->setTextSize(1); gfx->setCursor(50,by+35); gfx->print(c->care.is_sleeping?"Energy restoring...":"Restores energy");
- gfx->fillRoundRect(30,LCD_HEIGHT-60,80,45,10,COLOR_GRAY);
- gfx->setTextSize(2); gfx->setCursor(45,LCD_HEIGHT-48); gfx->print("Back");
- gfx->setTextColor(COLOR_YELLOW); gfx->setTextSize(1); gfx->setCursor(LCD_WIDTH-100,LCD_HEIGHT-50); gfx->print("Gems: "); gfx->print(system_state.player_gems);
+bool trainCompanion() {
+    CompanionData* c = companion_system.current_companion;
+    if (!c) return false;
+    if (c->stats.energy < TRAIN_ENERGY_COST) return false;
+    
+    c->stats.energy -= TRAIN_ENERGY_COST;
+    c->stats.bond_level = min(BOND_MAX, c->stats.bond_level + TRAIN_BOND_GAIN);
+    c->care.last_train_time = millis();
+    c->care.daily_train_count++;
+    c->stats.total_interactions++;
+    
+    updateCompanionMood();
+    updateCompanionEvolution();
+    saveCompanionDataForIndex(companion_system.current_companion_index);
+    
+    return true;
 }
 
-void drawCompanionMood() {
- CompanionData* c = companion_system.current_companion; if (!c) return;
- gfx->fillRoundRect(LCD_WIDTH-100,60,90,30,8,getMoodColor(c->stats.mood));
- gfx->setTextColor(COLOR_BLACK); gfx->setTextSize(1); gfx->setCursor(LCD_WIDTH-95,70); gfx->print(getMoodText(c->stats.mood));
+void toggleCompanionSleep() {
+    CompanionData* c = companion_system.current_companion;
+    if (!c) return;
+    
+    c->care.is_sleeping = !c->care.is_sleeping;
+    
+    if (c->care.is_sleeping) {
+        c->care.sleep_start_time = millis();
+    } else {
+        // Calculate energy gained during sleep
+        unsigned long sleepTime = millis() - c->care.sleep_start_time;
+        int energyGain = (sleepTime / 1000) * REST_ENERGY_GAIN / 30;
+        c->stats.energy = min(STAT_MAX, c->stats.energy + energyGain);
+    }
+    
+    saveCompanionDataForIndex(companion_system.current_companion_index);
 }
 
-void drawBondLevel() {
- CompanionData* c = companion_system.current_companion; if (!c) return;
- int y = 320;
- gfx->setTextColor(COLOR_WHITE); gfx->setTextSize(1); gfx->setCursor(20,y); gfx->print("Bond: "); gfx->print(getBondRankName());
- int sx = 20; y += 20;
- for (int i = 0; i < 5; i++) {
-   uint16_t sc = (i < c->stats.bond_rank) ? COLOR_GOLD : COLOR_GRAY;
-   gfx->fillTriangle(sx,y+10,sx+10,y,sx+20,y+10,sc);
-   gfx->fillTriangle(sx,y+10,sx+20,y+10,sx+10,y+20,sc);
-   sx += 25;
- }
- y += 30; int bw = LCD_WIDTH-100;
- gfx->fillRect(20,y,bw,8,COLOR_GRAY); gfx->fillRect(20,y,(bw*c->stats.bond_level)/BOND_MAX,8,COLOR_GOLD);
- gfx->setTextColor(COLOR_CYAN); gfx->setCursor(LCD_WIDTH-70,y-5); gfx->print("+"); gfx->print((int)((getXPBonus()-1.0f)*100)); gfx->print("% XP");
+void wakeCompanion() {
+    CompanionData* c = companion_system.current_companion;
+    if (!c || !c->care.is_sleeping) return;
+    
+    toggleCompanionSleep();
 }
 
-void drawCompanionGame() {
- if (!companion_system.current_game.active) return;
- gfx->fillScreen(COLOR_BLACK);
- gfx->setTextColor(COLOR_WHITE); gfx->setTextSize(2); gfx->setCursor(LCD_WIDTH/2-40,20); gfx->print(companion_system.current_game.name);
- gfx->setTextSize(1); gfx->setCursor(20,50); gfx->print("Score: "); gfx->print(companion_system.current_game.score);
- int tl = max(0, 30-(int)((millis()-companion_system.current_game.start_time)/1000));
- gfx->setCursor(LCD_WIDTH-60,50); gfx->print("Time: "); gfx->print(tl);
- CompanionData* c = companion_system.current_companion;
- if (c) {
-   drawCompanionSprite(companion_system.current_game.target_x, companion_system.current_game.target_y, c->type, c->stats.evolution);
-   gfx->setTextColor(COLOR_WHITE); gfx->setTextSize(2);
-   gfx->setCursor(companion_system.current_game.target_x-15, companion_system.current_game.target_y-40);
-   gfx->print("TAP!");
- }
+// ============================================================================
+// MINI GAME
+// ============================================================================
+
+void startCompanionGame() {
+    companion_system.in_mini_game = true;
+    companion_system.current_game.active = true;
+    companion_system.current_game.score = 0;
+    companion_system.current_game.start_time = millis();
+    companion_system.current_game.target_x = random(50, LCD_WIDTH - 50);
+    companion_system.current_game.target_y = random(100, LCD_HEIGHT - 100);
 }
 
-void drawCompanionAnimation() { updateCompanionAnimation(); CompanionData* c = companion_system.current_companion; if (c) drawCompanionSprite(LCD_WIDTH/2,125,c->type,c->stats.evolution); }
-
-// Touch
-void handleCompanionScreenTouch(TouchGesture& g) {
- if (g.event != TOUCH_TAP) return;
- if (g.y >= LCD_HEIGHT-80 && g.x >= LCD_WIDTH/2-60 && g.x <= LCD_WIDTH/2+60) { companion_system.in_care_mode = true; return; }
- if (g.y >= LCD_HEIGHT-80 && g.x <= 110) { returnToAppGrid(); }
+void updateCompanionGame() {
+    if (!companion_system.current_game.active) return;
+    
+    // 30 second game duration
+    if (millis() - companion_system.current_game.start_time >= 30000) {
+        endCompanionGame();
+        return;
+    }
+    
+    // Move target every 2 seconds
+    if ((millis() - companion_system.current_game.start_time) % 2000 < 100) {
+        companion_system.current_game.target_x = random(50, LCD_WIDTH - 50);
+        companion_system.current_game.target_y = random(100, LCD_HEIGHT - 100);
+    }
 }
 
-void handleCareMenuTouch(TouchGesture& g) {
- if (g.event != TOUCH_TAP) return;
- int by = 70, bh = 60, bg = 15;
- if (g.y >= by && g.y <= by+bh) { feedCompanion(); return; }
- by += bh+bg; if (g.y >= by && g.y <= by+bh) { playWithCompanion(); return; }
- by += bh+bg; if (g.y >= by && g.y <= by+bh) { trainCompanion(); return; }
- by += bh+bg; if (g.y >= by && g.y <= by+bh) { toggleCompanionSleep(); return; }
- if (g.y >= LCD_HEIGHT-60 && g.x <= 110) { companion_system.in_care_mode = false; }
+void endCompanionGame() {
+    companion_system.current_game.active = false;
+    companion_system.in_mini_game = false;
+    
+    // Update high score
+    if (companion_system.current_game.score > companion_system.current_game.high_score) {
+        companion_system.current_game.high_score = companion_system.current_game.score;
+    }
+    
+    // Reward based on score
+    if (companion_system.current_companion && companion_system.current_game.score > 0) {
+        companion_system.current_companion->stats.happiness = 
+            min(STAT_MAX, companion_system.current_companion->stats.happiness + companion_system.current_game.score / 2);
+        companion_system.current_companion->stats.bond_level = 
+            min(BOND_MAX, companion_system.current_companion->stats.bond_level + companion_system.current_game.score / 5);
+        
+        saveCompanionDataForIndex(companion_system.current_companion_index);
+    }
 }
 
-// Helpers
-const char* getMoodText(CompanionMood m) { switch(m) { case MOOD_ECSTATIC: return "Ecstatic!"; case MOOD_HAPPY: return "Happy"; case MOOD_CONTENT: return "Content"; case MOOD_SAD: return "Sad"; case MOOD_MISERABLE: return "Miserable"; default: return "?"; } }
-uint16_t getMoodColor(CompanionMood m) { switch(m) { case MOOD_ECSTATIC: return COLOR_GOLD; case MOOD_HAPPY: return COLOR_GREEN; case MOOD_CONTENT: return COLOR_CYAN; case MOOD_SAD: return COLOR_ORANGE; case MOOD_MISERABLE: return COLOR_RED; default: return COLOR_GRAY; } }
-const char* getEvolutionText(CompanionEvolution e) { switch(e) { case EVO_BABY: return "Baby"; case EVO_CHILD: return "Child"; case EVO_ADULT: return "Adult"; case EVO_AWAKENED: return "Awakened"; default: return "?"; } }
-int getStatPercentage(int s) { return constrain(s,STAT_MIN,STAT_MAX); }
-bool isStatCritical(int s) { return s <= STAT_CRITICAL; }
-bool isStatLow(int s) { return s <= STAT_LOW; }
+bool handleGameTouch(int tx, int ty) {
+    if (!companion_system.current_game.active) return false;
+    
+    int dx = tx - companion_system.current_game.target_x;
+    int dy = ty - companion_system.current_game.target_y;
+    int dist = sqrt(dx * dx + dy * dy);
+    
+    if (dist < 40) {  // Hit!
+        companion_system.current_game.score += 10;
+        companion_system.current_game.target_x = random(50, LCD_WIDTH - 50);
+        companion_system.current_game.target_y = random(100, LCD_HEIGHT - 100);
+        return true;
+    }
+    
+    return false;
+}
+
+// ============================================================================
+// ANIMATION
+// ============================================================================
+
+void updateCompanionAnimation() {
+    if (millis() - companion_system.last_animation_time >= 500) {
+        companion_system.animation_frame = (companion_system.animation_frame + 1) % 4;
+        companion_system.last_animation_time = millis();
+    }
+}
+
+// ============================================================================
+// SPRITE DRAWING FUNCTIONS
+// ============================================================================
+
+void drawSunnySprite(int x, int y, int size, CompanionEvolution evo) {
+    int frame = companion_system.animation_frame;
+    
+    // Sun-petal mane (7 orange petals radiating from head)
+    uint16_t maneOrange = RGB565(255, 160, 30);
+    uint16_t maneDark = RGB565(220, 120, 20);
+    int maneR = size/2 + size/6;
+    for (int p = 0; p < 7; p++) {
+        float angle = (p * 51 - 153) * PI / 180.0;
+        int px = x + cos(angle) * maneR;
+        int py = y - size/4 + sin(angle) * maneR;
+        int bx1 = x + cos(angle - 0.3) * (size/3);
+        int by1 = y - size/4 + sin(angle - 0.3) * (size/3);
+        int bx2 = x + cos(angle + 0.3) * (size/3);
+        int by2 = y - size/4 + sin(angle + 0.3) * (size/3);
+        gfx->fillTriangle(bx1, by1, bx2, by2, px, py, maneOrange);
+        gfx->drawLine((bx1+bx2)/2, (by1+by2)/2, px, py, maneDark);
+    }
+    
+    // Body
+    uint16_t skinTone = RGB565(255, 220, 180);
+    gfx->fillCircle(x, y, size/2, skinTone);
+    
+    // Eyes
+    int eyeY = y - size/8;
+    int eyeSpacing = size/4;
+    gfx->fillCircle(x - eyeSpacing, eyeY, size/8, TFT_BLACK);
+    gfx->fillCircle(x + eyeSpacing, eyeY, size/8, TFT_BLACK);
+    gfx->fillCircle(x - eyeSpacing + 2, eyeY - 2, size/16, TFT_WHITE);
+    gfx->fillCircle(x + eyeSpacing + 2, eyeY - 2, size/16, TFT_WHITE);
+    
+    // Smile
+    int smileY = y + size/6;
+    gfx->drawArc(x, smileY, size/4, size/5, 200, 340, TFT_BLACK);
+    
+    // Scar under left eye
+    gfx->drawLine(x - eyeSpacing - size/10, eyeY + size/6, x - eyeSpacing + size/10, eyeY + size/5, RGB565(180, 100, 100));
+    
+    // Straw hat
+    uint16_t hatYellow = RGB565(255, 220, 80);
+    uint16_t hatRed = RGB565(200, 50, 50);
+    int hatY = y - size/2 - size/6;
+    gfx->fillEllipse(x, hatY, size/2 + size/4, size/8, hatYellow);
+    gfx->fillEllipse(x, hatY - size/10, size/3, size/5, hatYellow);
+    gfx->fillRect(x - size/3, hatY - size/12, size*2/3, size/10, hatRed);
+    
+    // Animation: bouncing
+    if (frame == 1 || frame == 3) {
+        gfx->drawLine(x - size/2, y + size/2 + 5, x - size/4, y + size/2 + 10, skinTone);
+        gfx->drawLine(x + size/2, y + size/2 + 5, x + size/4, y + size/2 + 10, skinTone);
+    }
+    
+    // Evolution effects
+    if (evo >= EVO_ADULT) {
+        for (int i = 0; i < 8; i++) {
+            float angle = (i * 45 + frame * 10) * PI / 180.0;
+            int gx = x + cos(angle) * (size + 10);
+            int gy = y + sin(angle) * (size + 10);
+            gfx->fillCircle(gx, gy, 3, LUFFY_NIKA_WHITE);
+        }
+    }
+    if (evo >= EVO_AWAKENED) {
+        gfx->drawCircle(x, y, size + 15, LUFFY_SUN_GOLD);
+        gfx->drawCircle(x, y, size + 17, LUFFY_SUN_GOLD);
+    }
+}
+
+void drawShadowSprite(int x, int y, int size, CompanionEvolution evo) {
+    int frame = companion_system.animation_frame;
+    
+    uint16_t armorDark = RGB565(40, 40, 50);
+    uint16_t armorHighlight = RGB565(80, 80, 100);
+    uint16_t redGlow = RGB565(200, 50, 50);
+    
+    gfx->fillCircle(x, y, size/2, armorDark);
+    gfx->drawArc(x, y, size/2, size/2 - 3, 220, 320, armorHighlight);
+    gfx->drawArc(x, y, size/2, size/2 - 3, 40, 140, armorHighlight);
+    
+    int helmetY = y - size/3;
+    gfx->fillEllipse(x, helmetY, size/2, size/3, armorDark);
+    gfx->drawLine(x - size/3, helmetY, x + size/3, helmetY, armorHighlight);
+    
+    int eyeY = y - size/6;
+    int eyeSize = size/10 + (frame % 2);
+    gfx->fillCircle(x - size/5, eyeY, eyeSize, redGlow);
+    gfx->fillCircle(x + size/5, eyeY, eyeSize, redGlow);
+    
+    gfx->fillTriangle(x - size/3, y + size/4, x + size/3, y + size/4, x, y + size, armorDark);
+    
+    if (evo >= EVO_ADULT) {
+        for (int i = 0; i < 5; i++) {
+            float angle = (i * 72 + frame * 15) * PI / 180.0;
+            int wx = x + cos(angle) * (size/2 + 5);
+            int wy = y + sin(angle) * (size/2 + 5);
+            gfx->drawLine(x, y, wx, wy, RGB565(60, 60, 80));
+        }
+    }
+    if (evo >= EVO_AWAKENED) {
+        gfx->drawCircle(x, y, size + 10, JINWOO_ARISE_GLOW);
+    }
+}
+
+void drawPortalSprite(int x, int y, int size, CompanionEvolution evo) {
+    int frame = companion_system.animation_frame;
+    
+    uint16_t skinTone = RGB565(255, 220, 180);
+    uint16_t hatBlue = RGB565(80, 140, 200);
+    uint16_t portalCyan = YUGO_PORTAL_CYAN;
+    
+    gfx->fillCircle(x, y, size/2, skinTone);
+    
+    int hatY = y - size/2;
+    gfx->fillCircle(x, hatY, size/2 + size/6, hatBlue);
+    gfx->fillCircle(x, hatY - size/4, size/3, hatBlue);
+    
+    int eyeY = y - size/10;
+    gfx->fillCircle(x - size/4, eyeY, size/6, TFT_WHITE);
+    gfx->fillCircle(x + size/4, eyeY, size/6, TFT_WHITE);
+    gfx->fillCircle(x - size/4, eyeY, size/10, RGB565(100, 80, 60));
+    gfx->fillCircle(x + size/4, eyeY, size/10, RGB565(100, 80, 60));
+    
+    gfx->drawArc(x, y + size/6, size/5, size/6, 200, 340, TFT_BLACK);
+    
+    int portalR = size/2 + 10 + (frame * 3);
+    gfx->drawCircle(x, y, portalR, portalCyan);
+    gfx->drawCircle(x, y, portalR + 2, portalCyan);
+    
+    if (evo >= EVO_ADULT) {
+        gfx->drawCircle(x, y, size + 20, portalCyan);
+        gfx->drawCircle(x, y, size + 25, YUGO_HAT_GOLD);
+    }
+    if (evo >= EVO_AWAKENED) {
+        for (int i = 0; i < 6; i++) {
+            float angle = (i * 60 + frame * 20) * PI / 180.0;
+            int dx = x + cos(angle) * (size + 15);
+            int dy = y + sin(angle) * (size + 15);
+            gfx->fillCircle(dx, dy, 4, YUGO_HAT_GOLD);
+        }
+    }
+}
+
+void drawFoxSprite(int x, int y, int size, CompanionEvolution evo) {
+    int frame = companion_system.animation_frame;
+    
+    uint16_t foxOrange = NARUTO_KURAMA_FLAME;
+    uint16_t foxDark = RGB565(180, 80, 30);
+    
+    gfx->fillCircle(x, y, size/2, foxOrange);
+    
+    gfx->fillTriangle(x - size/2, y - size/4, x - size/4, y - size/2 - size/4, x - size/6, y - size/4, foxOrange);
+    gfx->fillTriangle(x + size/2, y - size/4, x + size/4, y - size/2 - size/4, x + size/6, y - size/4, foxOrange);
+    gfx->fillTriangle(x - size/3, y - size/4, x - size/4, y - size/2 - size/8, x - size/5, y - size/4, foxDark);
+    gfx->fillTriangle(x + size/3, y - size/4, x + size/4, y - size/2 - size/8, x + size/5, y - size/4, foxDark);
+    
+    int eyeY = y - size/8;
+    gfx->fillCircle(x - size/4, eyeY, size/8, TFT_WHITE);
+    gfx->fillCircle(x + size/4, eyeY, size/8, TFT_WHITE);
+    gfx->fillRect(x - size/4 - 1, eyeY - size/10, 2, size/5, TFT_BLACK);
+    gfx->fillRect(x + size/4 - 1, eyeY - size/10, 2, size/5, TFT_BLACK);
+    
+    gfx->fillEllipse(x, y + size/6, size/5, size/8, RGB565(255, 200, 180));
+    gfx->fillCircle(x, y + size/8, size/12, TFT_BLACK);
+    
+    for (int i = 0; i < 3; i++) {
+        int wy = y + (i - 1) * 5;
+        gfx->drawLine(x - size/2 - 5, wy, x - size/4, wy, TFT_BLACK);
+        gfx->drawLine(x + size/2 + 5, wy, x + size/4, wy, TFT_BLACK);
+    }
+    
+    int tailCount = min(3 + (int)evo * 2, 9);
+    for (int t = 0; t < tailCount; t++) {
+        float angle = ((t - tailCount/2) * 20 + frame * 5) * PI / 180.0;
+        int tx2 = x + sin(angle) * size/4;
+        int ty2 = y + size/2;
+        int tex = tx2 + sin(angle + 0.5) * size/2;
+        int tey = ty2 + size/2 + t * 3;
+        gfx->drawLine(tx2, ty2, tex, tey, foxOrange);
+        gfx->drawLine(tx2+1, ty2, tex+1, tey, foxOrange);
+    }
+    
+    if (evo >= EVO_AWAKENED) {
+        for (int i = 0; i < 8; i++) {
+            float angle = (i * 45 + frame * 10) * PI / 180.0;
+            int fx = x + cos(angle) * (size + 10);
+            int fy = y + sin(angle) * (size + 10);
+            gfx->fillTriangle(fx, fy - 5, fx - 3, fy + 5, fx + 3, fy + 5, NARUTO_CHAKRA_ORANGE);
+        }
+    }
+}
+
+void drawCatSprite(int x, int y, int size, CompanionEvolution evo) {
+    int frame = companion_system.animation_frame;
+    
+    uint16_t catBlue = RGB565(100, 150, 255);
+    
+    gfx->fillCircle(x, y, size/2, catBlue);
+    
+    gfx->fillTriangle(x - size/3, y - size/4, x - size/6, y - size/2, x, y - size/4, catBlue);
+    gfx->fillTriangle(x + size/3, y - size/4, x + size/6, y - size/2, x, y - size/4, catBlue);
+    
+    int eyeY = y - size/8;
+    gfx->fillCircle(x - size/5, eyeY, size/6, TFT_WHITE);
+    gfx->fillCircle(x + size/5, eyeY, size/6, TFT_WHITE);
+    gfx->fillCircle(x - size/5, eyeY, size/10, TFT_BLACK);
+    gfx->fillCircle(x + size/5, eyeY, size/10, TFT_BLACK);
+    
+    gfx->fillTriangle(x, y + size/10, x - size/15, y + size/6, x + size/15, y + size/6, RGB565(255, 150, 150));
+    gfx->drawLine(x, y + size/6, x, y + size/4, TFT_BLACK);
+    gfx->drawArc(x - size/10, y + size/4, size/10, size/12, 270, 360, TFT_BLACK);
+    gfx->drawArc(x + size/10, y + size/4, size/10, size/12, 180, 270, TFT_BLACK);
+    
+    int tailWave = sin(frame * PI / 2) * 5;
+    gfx->drawLine(x + size/3, y + size/4, x + size/2 + tailWave, y + size/2, catBlue);
+    gfx->drawLine(x + size/3 + 1, y + size/4, x + size/2 + 1 + tailWave, y + size/2, catBlue);
+    
+    if (evo >= EVO_CHILD) {
+        for (int i = 0; i < 4; i++) {
+            float angle = (i * 90 + frame * 30) * PI / 180.0;
+            int sx = x + cos(angle) * (size/2 + 8);
+            int sy = y + sin(angle) * (size/2 + 8);
+            gfx->drawLine(sx - 2, sy, sx + 2, sy, TFT_WHITE);
+            gfx->drawLine(sx, sy - 2, sx, sy + 2, TFT_WHITE);
+        }
+    }
+}
+
+void drawDemonSprite(int x, int y, int size, CompanionEvolution evo) {
+    int frame = companion_system.animation_frame;
+    
+    uint16_t skinPale = RGB565(255, 230, 230);
+    uint16_t hairBlack = RGB565(20, 20, 30);
+    uint16_t pinkAccent = RGB565(255, 150, 180);
+    
+    gfx->fillCircle(x, y - size/4, size/2 + size/6, hairBlack);
+    gfx->fillCircle(x, y, size/2, skinPale);
+    
+    int eyeY = y - size/10;
+    gfx->fillCircle(x - size/4, eyeY, size/6, pinkAccent);
+    gfx->fillCircle(x + size/4, eyeY, size/6, pinkAccent);
+    gfx->fillCircle(x - size/4, eyeY, size/10, TFT_BLACK);
+    gfx->fillCircle(x + size/4, eyeY, size/10, TFT_BLACK);
+    
+    uint16_t bambooGreen = RGB565(100, 180, 100);
+    gfx->fillRect(x - size/3, y + size/8, size*2/3, size/6, bambooGreen);
+    gfx->drawRect(x - size/3, y + size/8, size*2/3, size/6, RGB565(60, 120, 60));
+    
+    gfx->fillTriangle(x + size/4, y - size/2, x + size/3, y - size/2 - size/4, x + size/5, y - size/2, RGB565(255, 200, 200));
+    gfx->fillRect(x - size/2, y - size/3, size/8, size/4, pinkAccent);
+    
+    if (evo >= EVO_ADULT) {
+        gfx->drawLine(x - size/3, y - size/4, x - size/4, y - size/6, pinkAccent);
+        gfx->drawLine(x + size/3, y - size/4, x + size/4, y - size/6, pinkAccent);
+    }
+    if (evo >= EVO_AWAKENED) {
+        for (int i = 0; i < 6; i++) {
+            float angle = (i * 60 + frame * 15) * PI / 180.0;
+            int bx = x + cos(angle) * (size + 12);
+            int by = y + sin(angle) * (size + 12);
+            gfx->fillCircle(bx, by, 3, pinkAccent);
+        }
+    }
+}
+
+void drawInfinitySprite(int x, int y, int size, CompanionEvolution evo) {
+    int frame = companion_system.animation_frame;
+    
+    uint16_t skinTone = RGB565(255, 220, 200);
+    uint16_t hairWhite = RGB565(240, 240, 255);
+    uint16_t eyeBlue = GOJO_INFINITY_BLUE;
+    
+    gfx->fillCircle(x, y - size/4, size/2, hairWhite);
+    gfx->fillRect(x - size/2, y - size/3, size, size/3, hairWhite);
+    gfx->fillCircle(x, y, size/2, skinTone);
+    
+    if (evo < EVO_AWAKENED) {
+        gfx->fillRect(x - size/2, y - size/6, size, size/5, TFT_BLACK);
+    } else {
+        int eyeY = y - size/10;
+        gfx->fillCircle(x - size/4, eyeY, size/6, TFT_WHITE);
+        gfx->fillCircle(x + size/4, eyeY, size/6, TFT_WHITE);
+        gfx->fillCircle(x - size/4, eyeY, size/8, eyeBlue);
+        gfx->fillCircle(x + size/4, eyeY, size/8, eyeBlue);
+        gfx->drawCircle(x - size/4, eyeY, size/6 + 2, eyeBlue);
+        gfx->drawCircle(x + size/4, eyeY, size/6 + 2, eyeBlue);
+    }
+    
+    gfx->drawArc(x + size/8, y + size/6, size/6, size/8, 200, 320, TFT_BLACK);
+    
+    int barrierR = size/2 + 5 + frame * 2;
+    gfx->drawCircle(x, y, barrierR, eyeBlue);
+    if (evo >= EVO_ADULT) {
+        gfx->drawCircle(x, y, barrierR + 3, RGB565(200, 220, 255));
+        gfx->drawCircle(x, y, barrierR + 6, RGB565(220, 230, 255));
+    }
+    
+    gfx->fillRect(x - size/3, y + size/3, size*2/3, size/6, TFT_BLACK);
+}
+
+void drawBladesSprite(int x, int y, int size, CompanionEvolution evo) {
+    int frame = companion_system.animation_frame;
+    
+    uint16_t skinTone = RGB565(255, 230, 210);
+    uint16_t hairBlack = RGB565(30, 30, 35);
+    uint16_t cloakGreen = LEVI_SURVEY_GREEN;
+    uint16_t bladeGray = LEVI_SILVER_BLADE;
+    
+    gfx->fillTriangle(x - size/2, y, x + size/2, y, x, y + size/2 + size/4, cloakGreen);
+    gfx->fillCircle(x, y - size/6, size/2, skinTone);
+    
+    gfx->fillRect(x - size/2, y - size/2, size, size/4, hairBlack);
+    gfx->fillCircle(x, y - size/3, size/3, hairBlack);
+    
+    int eyeY = y - size/5;
+    gfx->fillRect(x - size/3, eyeY, size/6, size/12, TFT_BLACK);
+    gfx->fillRect(x + size/6, eyeY, size/6, size/12, TFT_BLACK);
+    
+    gfx->fillTriangle(x, y + size/6, x - size/8, y + size/3, x + size/8, y + size/3, TFT_WHITE);
+    
+    int bladeLen = size/2 + (frame % 2) * 3;
+    gfx->fillRect(x - size/2 - bladeLen, y - size/8, bladeLen, size/10, bladeGray);
+    gfx->fillRect(x + size/2, y - size/8, bladeLen, size/10, bladeGray);
+    gfx->drawLine(x - size/2 - bladeLen + 2, y - size/8 + 1, x - size/2 - 5, y - size/8 + 1, TFT_WHITE);
+    gfx->drawLine(x + size/2 + 5, y - size/8 + 1, x + size/2 + bladeLen - 2, y - size/8 + 1, TFT_WHITE);
+    
+    gfx->fillRect(x - size/3, y + size/4, size/10, size/6, RGB565(100, 100, 110));
+    gfx->fillRect(x + size/4, y + size/4, size/10, size/6, RGB565(100, 100, 110));
+    
+    if (evo >= EVO_AWAKENED) {
+        gfx->drawLine(x - size/2, y + size/3, x - size/2 - size/4, y + size/2, cloakGreen);
+        gfx->drawLine(x + size/2, y + size/3, x + size/2 + size/4, y + size/2, cloakGreen);
+    }
+}
+
+void drawHeroSprite(int x, int y, int size, CompanionEvolution evo) {
+    int frame = companion_system.animation_frame;
+    
+    uint16_t metalGray = RGB565(180, 180, 190);
+    uint16_t metalDark = RGB565(80, 80, 90);
+    uint16_t eyeYellow = RGB565(255, 220, 50);
+    
+    gfx->fillCircle(x, y, size/2, metalGray);
+    gfx->fillCircle(x, y, size/4, metalDark);
+    gfx->fillCircle(x, y, size/6, eyeYellow);
+    
+    int headY = y - size/2;
+    gfx->fillCircle(x, headY, size/3, metalGray);
+    
+    gfx->fillRect(x - size/4, headY - size/12, size/6, size/8, TFT_BLACK);
+    gfx->fillRect(x + size/10, headY - size/12, size/6, size/8, TFT_BLACK);
+    gfx->fillCircle(x - size/6, headY - size/16, size/16, eyeYellow);
+    gfx->fillCircle(x + size/5, headY - size/16, size/16, eyeYellow);
+    
+    int armWave = sin(frame * PI / 2) * 3;
+    gfx->fillRect(x - size/2 - size/4, y - size/8 + armWave, size/4, size/6, metalGray);
+    gfx->fillRect(x + size/2, y - size/8 - armWave, size/4, size/6, metalGray);
+    
+    for (int i = 0; i < 3; i++) {
+        gfx->drawLine(x - size/3 + i * size/6, y + size/4, x - size/3 + i * size/6, y + size/3, metalDark);
+    }
+    
+    if (evo >= EVO_ADULT) {
+        gfx->drawCircle(x, y, size/6 + 2, RGB565(255, 150, 50));
+    }
+    if (evo >= EVO_AWAKENED) {
+        for (int i = 0; i < 8; i++) {
+            float angle = (i * 45 + frame * 20) * PI / 180.0;
+            int px2 = x + cos(angle) * (size + 8);
+            int py2 = y + sin(angle) * (size + 8);
+            gfx->fillCircle(px2, py2, 2, eyeYellow);
+        }
+    }
+}
+
+void drawMightSprite(int x, int y, int size, CompanionEvolution evo) {
+    int frame = companion_system.animation_frame;
+    
+    uint16_t skinTone = RGB565(255, 220, 180);
+    uint16_t hairGreen = DEKU_HERO_GREEN;
+    uint16_t suitGreen = RGB565(60, 140, 80);
+    
+    gfx->fillCircle(x, y, size/2, suitGreen);
+    gfx->fillCircle(x, y - size/8, size/3, skinTone);
+    
+    for (int i = 0; i < 7; i++) {
+        float angle = (i * 25 - 75) * PI / 180.0;
+        int hx = x + cos(angle) * (size/3);
+        int hy = y - size/3 + sin(angle) * (size/4);
+        gfx->fillCircle(hx, hy - size/6, size/8, hairGreen);
+    }
+    
+    int eyeY = y - size/6;
+    gfx->fillCircle(x - size/6, eyeY, size/8, TFT_WHITE);
+    gfx->fillCircle(x + size/6, eyeY, size/8, TFT_WHITE);
+    gfx->fillCircle(x - size/6, eyeY, size/12, hairGreen);
+    gfx->fillCircle(x + size/6, eyeY, size/12, hairGreen);
+    
+    for (int i = 0; i < 4; i++) {
+        gfx->fillCircle(x - size/5 + (i % 2) * size/10, y + (i / 2) * 4, 1, RGB565(200, 150, 130));
+    }
+    
+    gfx->drawArc(x, y + size/10, size/8, size/10, 200, 340, TFT_BLACK);
+    
+    if (evo >= EVO_CHILD) {
+        int boltCount = 3 + (int)evo;
+        for (int i = 0; i < boltCount; i++) {
+            int bx = x + random(-size/2, size/2);
+            int by = y + random(-size/2, size/2);
+            gfx->drawLine(bx, by, bx + random(-5, 5), by + random(5, 10), DEKU_ALLMIGHT_GOLD);
+            gfx->drawLine(bx + random(-5, 5), by + random(5, 10), bx + random(-5, 5), by + random(10, 15), DEKU_ALLMIGHT_GOLD);
+        }
+    }
+    
+    if (evo >= EVO_AWAKENED) {
+        gfx->drawCircle(x, y, size/2 + 8, DEKU_HERO_GREEN);
+        gfx->drawCircle(x, y, size/2 + 10, DEKU_ALLMIGHT_GOLD);
+    }
+}
+
+void drawElementSprite(int x, int y, int size, CompanionEvolution evo) {
+    int frame = companion_system.animation_frame;
+    
+    uint16_t skinTone = RGB565(200, 160, 120);
+    uint16_t capOrange = BBB_BAND_ORANGE;
+    uint16_t vestBlack = RGB565(30, 30, 40);
+    
+    gfx->fillCircle(x, y, size/2, vestBlack);
+    gfx->fillCircle(x, y - size/8, size/3, skinTone);
+    
+    gfx->fillCircle(x, y - size/3, size/3, capOrange);
+    gfx->fillRect(x - size/3, y - size/3 - size/10, size*2/3, size/8, capOrange);
+    
+    int eyeY = y - size/6;
+    gfx->fillCircle(x - size/6, eyeY, size/8, TFT_WHITE);
+    gfx->fillCircle(x + size/6, eyeY, size/8, TFT_WHITE);
+    gfx->fillCircle(x - size/6, eyeY, size/12, RGB565(80, 60, 40));
+    gfx->fillCircle(x + size/6, eyeY, size/12, RGB565(80, 60, 40));
+    
+    gfx->drawArc(x, y + size/10, size/6, size/8, 200, 340, TFT_BLACK);
+    gfx->drawCircle(x, y, size/2 + 5, capOrange);
+    
+    int elements = 1 + (int)evo;
+    uint16_t elemColors[] = {
+        RGB565(255, 100, 50),   // Fire
+        RGB565(50, 150, 255),   // Water
+        RGB565(100, 200, 100),  // Earth
+        RGB565(200, 200, 50),   // Lightning
+        RGB565(150, 150, 150),  // Wind
+        RGB565(100, 50, 150),   // Shadow
+        RGB565(255, 255, 200)   // Light
+    };
+    
+    for (int e = 0; e < min(elements, 7); e++) {
+        float angle = (e * (360 / elements) + frame * 10) * PI / 180.0;
+        int ex = x + cos(angle) * (size/2 + 12);
+        int ey = y + sin(angle) * (size/2 + 12);
+        gfx->fillCircle(ex, ey, 5, elemColors[e]);
+    }
+    
+    if (evo >= EVO_CHILD) {
+        int ox = x + size/2 + 10;
+        int oy = y - size/4;
+        gfx->fillCircle(ox, oy, size/6, BBB_OCHOBOT_WHITE);
+        gfx->fillCircle(ox - 3, oy - 2, 2, TFT_BLACK);
+        gfx->fillCircle(ox + 3, oy - 2, 2, TFT_BLACK);
+        gfx->drawArc(ox, oy + 2, 3, 2, 200, 340, TFT_BLACK);
+    }
+}
+
+// Main sprite dispatcher
+void drawCompanionSprite(int x, int y, CompanionType type, CompanionEvolution evo) {
+    int size = 60;
+    
+    switch (type) {
+        case COMP_SUNNY:    drawSunnySprite(x, y, size, evo); break;
+        case COMP_IGRIS:    drawShadowSprite(x, y, size, evo); break;
+        case COMP_AZ:       drawPortalSprite(x, y, size, evo); break;
+        case COMP_KURAMA:   drawFoxSprite(x, y, size, evo); break;
+        case COMP_PUAR:     drawCatSprite(x, y, size, evo); break;
+        case COMP_NEZUKO:   drawDemonSprite(x, y, size, evo); break;
+        case COMP_SPIRIT:   drawInfinitySprite(x, y, size, evo); break;
+        case COMP_BLADES:   drawBladesSprite(x, y, size, evo); break;
+        case COMP_GENOS:    drawHeroSprite(x, y, size, evo); break;
+        case COMP_ALLMIGHT: drawMightSprite(x, y, size, evo); break;
+        case COMP_OCHOBOT:  drawElementSprite(x, y, size, evo); break;
+        default: break;
+    }
+}
+
+// ============================================================================
+// CARE MODE UI
+// ============================================================================
+
+void enterCompanionCareMode() {
+    companion_system.in_care_mode = true;
+    companion_system.care_menu_selection = 0;
+}
+
+void exitCompanionCareMode() {
+    companion_system.in_care_mode = false;
+    companion_system.in_mini_game = false;
+    companion_system.current_game.active = false;
+}
+
+void drawCompanionCareScreen() {
+    if (!companion_system.current_companion) return;
+    
+    CompanionData* c = companion_system.current_companion;
+    
+    gfx->fillScreen(TFT_BLACK);
+    
+    // Draw companion sprite
+    drawCompanionSprite(LCD_WIDTH / 2, 120, c->type, c->stats.evolution);
+    
+    // Name and series
+    gfx->setTextColor(c->profile->primary_color);
+    gfx->setTextSize(2);
+    gfx->setCursor(10, 10);
+    gfx->print(c->profile->name);
+    gfx->setTextSize(1);
+    gfx->setCursor(10, 35);
+    gfx->setTextColor(RGB565(150, 150, 150));
+    gfx->print(c->profile->series);
+    
+    // Stats bars
+    int barY = 200;
+    int barW = LCD_WIDTH - 40;
+    int barH = 12;
+    
+    gfx->setTextColor(TFT_WHITE);
+    gfx->setCursor(20, barY);
+    gfx->print("Hunger");
+    gfx->drawRect(20, barY + 15, barW, barH, TFT_WHITE);
+    gfx->fillRect(21, barY + 16, (barW - 2) * c->stats.hunger / 100, barH - 2, RGB565(255, 150, 50));
+    
+    barY += 35;
+    gfx->setCursor(20, barY);
+    gfx->print("Happy");
+    gfx->drawRect(20, barY + 15, barW, barH, TFT_WHITE);
+    gfx->fillRect(21, barY + 16, (barW - 2) * c->stats.happiness / 100, barH - 2, RGB565(255, 200, 50));
+    
+    barY += 35;
+    gfx->setCursor(20, barY);
+    gfx->print("Energy");
+    gfx->drawRect(20, barY + 15, barW, barH, TFT_WHITE);
+    gfx->fillRect(21, barY + 16, (barW - 2) * c->stats.energy / 100, barH - 2, RGB565(50, 200, 100));
+    
+    barY += 35;
+    gfx->setCursor(20, barY);
+    gfx->print("Bond Lv.");
+    gfx->print(c->stats.bond_rank);
+    gfx->drawRect(20, barY + 15, barW, barH, TFT_WHITE);
+    gfx->fillRect(21, barY + 16, (barW - 2) * c->stats.bond_level / 100, barH - 2, RGB565(200, 100, 255));
+    
+    // Care menu buttons
+    int btnY = 380;
+    int btnW = 90;
+    int btnH = 40;
+    int btnSpacing = 10;
+    int startX = (LCD_WIDTH - (4 * btnW + 3 * btnSpacing)) / 2;
+    
+    const char* btnLabels[] = {"Feed", "Play", "Train", "Rest"};
+    uint16_t btnColors[] = {RGB565(255, 150, 50), RGB565(255, 200, 50), RGB565(50, 200, 100), RGB565(100, 150, 255)};
+    
+    for (int i = 0; i < 4; i++) {
+        int bx = startX + i * (btnW + btnSpacing);
+        uint16_t col = (companion_system.care_menu_selection == i) ? TFT_WHITE : btnColors[i];
+        gfx->drawRoundRect(bx, btnY, btnW, btnH, 5, col);
+        gfx->setTextColor(col);
+        gfx->setCursor(bx + 15, btnY + 15);
+        gfx->print(btnLabels[i]);
+    }
+    
+    // Mood indicator
+    const char* moodStr[] = {"Ecstatic!", "Happy", "Content", "Sad...", "Miserable"};
+    gfx->setTextColor(c->profile->secondary_color);
+    gfx->setCursor(LCD_WIDTH - 100, 10);
+    gfx->print(moodStr[c->stats.mood]);
+    
+    // Evolution stage
+    const char* evoStr[] = {"Baby", "Child", "Adult", "Awakened"};
+    gfx->setCursor(LCD_WIDTH - 100, 30);
+    gfx->print(evoStr[c->stats.evolution]);
+    
+    // Back button hint
+    gfx->setTextColor(RGB565(100, 100, 100));
+    gfx->setCursor(10, LCD_HEIGHT - 25);
+    gfx->print("< Swipe left to exit");
+}
+
+void handleCareModeTouch(int tx, int ty) {
+    if (ty >= 380 && ty <= 420) {
+        int btnW = 90;
+        int btnSpacing = 10;
+        int startX = (LCD_WIDTH - (4 * btnW + 3 * btnSpacing)) / 2;
+        
+        for (int i = 0; i < 4; i++) {
+            int bx = startX + i * (btnW + btnSpacing);
+            if (tx >= bx && tx <= bx + btnW) {
+                companion_system.care_menu_selection = i;
+                
+                switch (i) {
+                    case 0: feedCompanion(); break;
+                    case 1: playWithCompanion(); break;
+                    case 2: trainCompanion(); break;
+                    case 3: toggleCompanionSleep(); break;
+                }
+                break;
+            }
+        }
+    }
+}
+
+// ============================================================================
+// GETTERS
+// ============================================================================
+
+CompanionData* getCurrentCompanion() {
+    return companion_system.current_companion;
+}
+
+bool isCompanionCareMode() {
+    return companion_system.in_care_mode;
+}
+
+bool isCompanionGameActive() {
+    return companion_system.in_mini_game && companion_system.current_game.active;
+}

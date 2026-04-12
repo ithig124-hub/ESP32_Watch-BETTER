@@ -1,6 +1,8 @@
 /*
- * companion.h - Virtual Pet/Companion System with NVS + Detailed Sprites
- * FUSION OS - Virtual Companion System
+ * companion.h - Virtual Pet System Header
+ * FUSION OS - 11 unique companions with evolution sprites
+ * 
+ * FIXED: Watchdog-safe, companion matches current theme
  */
 
 #ifndef COMPANION_H
@@ -10,6 +12,10 @@
 #include <Preferences.h>
 #include "config.h"
 #include "types.h"
+
+// ============================================================================
+// CONSTANTS
+// ============================================================================
 
 #define COMPANION_COUNT THEME_COUNT
 
@@ -43,24 +49,63 @@
 
 #define COMPANION_NVS_NAMESPACE "companion_data"
 
-enum CompanionMood { MOOD_ECSTATIC = 0, MOOD_HAPPY, MOOD_CONTENT, MOOD_SAD, MOOD_MISERABLE };
-enum CompanionEvolution { EVO_BABY = 0, EVO_CHILD, EVO_ADULT, EVO_AWAKENED };
-enum CompanionType {
-    COMP_SUNNY = 0, COMP_IGRIS, COMP_AZ, COMP_KURAMA, COMP_PUAR,
-    COMP_NEZUKO, COMP_SPIRIT, COMP_BLADES, COMP_GENOS, COMP_ALLMIGHT, COMP_OCHOBOT
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum CompanionMood {
+    MOOD_ECSTATIC = 0,
+    MOOD_HAPPY,
+    MOOD_CONTENT,
+    MOOD_SAD,
+    MOOD_MISERABLE
 };
 
+enum CompanionEvolution {
+    EVO_BABY = 0,
+    EVO_CHILD,
+    EVO_ADULT,
+    EVO_AWAKENED
+};
+
+enum CompanionType {
+    COMP_SUNNY = 0,      // Luffy theme
+    COMP_IGRIS,          // Jinwoo theme
+    COMP_AZ,             // Yugo theme
+    COMP_KURAMA,         // Naruto theme
+    COMP_PUAR,           // Goku theme
+    COMP_NEZUKO,         // Tanjiro theme
+    COMP_SPIRIT,         // Gojo theme
+    COMP_BLADES,         // Levi theme
+    COMP_GENOS,          // Saitama theme
+    COMP_ALLMIGHT,       // Deku theme
+    COMP_OCHOBOT         // BoBoiBoy theme
+};
+
+// ============================================================================
+// STRUCTS
+// ============================================================================
+
 struct CompanionStats {
-    int hunger, happiness, energy;
-    int bond_level, bond_rank;
+    int hunger;
+    int happiness;
+    int energy;
+    int bond_level;
+    int bond_rank;
     CompanionMood mood;
     CompanionEvolution evolution;
-    int total_interactions, days_together;
+    int total_interactions;
+    int days_together;
 };
 
 struct CompanionCare {
-    unsigned long last_feed_time, last_play_time, last_train_time, last_stat_update;
-    int daily_feed_count, daily_play_count, daily_train_count;
+    unsigned long last_feed_time;
+    unsigned long last_play_time;
+    unsigned long last_train_time;
+    unsigned long last_stat_update;
+    int daily_feed_count;
+    int daily_play_count;
+    int daily_train_count;
     bool is_sleeping;
     unsigned long sleep_start_time;
 };
@@ -84,17 +129,20 @@ struct CompanionData {
 
 struct CurrentGame {
     const char* name;
-    int score, high_score;
+    int score;
+    int high_score;
     bool active;
     unsigned long start_time;
-    int target_x, target_y;
+    int target_x;
+    int target_y;
 };
 
 struct CompanionSystemState {
     CompanionData companions[COMPANION_COUNT];
     CompanionData* current_companion;
     int current_companion_index;
-    bool in_care_mode, in_mini_game;
+    bool in_care_mode;
+    bool in_mini_game;
     int care_menu_selection;
     CurrentGame current_game;
     Preferences prefs;
@@ -103,19 +151,42 @@ struct CompanionSystemState {
     unsigned long last_animation_time;
 };
 
+// ============================================================================
+// EXTERN DECLARATIONS
+// ============================================================================
+
 extern CompanionSystemState companion_system;
 extern CompanionProfile COMPANION_PROFILES[COMPANION_COUNT];
 
-void initCompanionSystem();
-void saveCompanionData();
-void loadCompanionData();
-void saveCompanionDataForIndex(int index);
-void loadCompanionDataForIndex(int index);
-void clearAllCompanionData();
+// ============================================================================
+// INITIALIZATION & NVS (Watchdog-safe, loads only active companion)
+// ============================================================================
 
-void setCurrentCompanion(ThemeType theme);
-CompanionData* getCurrentCompanion();
-CompanionData* getCompanionByType(CompanionType type);
+void initCompanionSystem();                    // Initializes system, loads companion for current theme
+void saveCompanionData();                      // Saves current companion to NVS
+void loadCompanionData();                      // Loads current companion from NVS
+void saveCompanionDataForIndex(int index);     // Saves specific companion to NVS
+void loadCompanionDataForIndex(int index);     // Loads specific companion from NVS
+void clearAllCompanionData();                  // Clears all NVS data
+
+// ============================================================================
+// COMPANION SELECTION (Companion always matches current theme)
+// ============================================================================
+
+void syncCompanionWithTheme();                 // Sync companion to current theme (call after theme change)
+
+// ============================================================================
+// STATS MANAGEMENT
+// ============================================================================
+
+void updateCompanionStats();
+void updateCompanionMood();
+void updateCompanionEvolution();
+void checkCompanionDailyReset();
+
+// ============================================================================
+// CARE ACTIONS
+// ============================================================================
 
 bool feedCompanion();
 bool playWithCompanion();
@@ -123,52 +194,53 @@ bool trainCompanion();
 void toggleCompanionSleep();
 void wakeCompanion();
 
-void updateCompanionStats();
-void updateCompanionMood();
-void updateCompanionEvolution();
-void updateCompanionAnimation();
-void checkCompanionDailyReset();
-
-void addBondPoints(int points);
-int getBondRank();
-const char* getBondRankName();
-float getXPBonus();
+// ============================================================================
+// MINI GAME
+// ============================================================================
 
 void startCompanionGame();
 void updateCompanionGame();
 void endCompanionGame();
-void handleCompanionGameTouch(TouchGesture& gesture);
+bool handleGameTouch(int tx, int ty);
 
-void drawCompanionScreen();
+// ============================================================================
+// ANIMATION
+// ============================================================================
+
+void updateCompanionAnimation();
+
+// ============================================================================
+// SPRITE DRAWING
+// ============================================================================
+
 void drawCompanionSprite(int x, int y, CompanionType type, CompanionEvolution evo);
-void drawCompanionStats();
-void drawCareMenu();
-void drawCompanionMood();
-void drawBondLevel();
-void drawCompanionGame();
-void drawCompanionAnimation();
+void drawSunnySprite(int x, int y, int size, CompanionEvolution evo);
+void drawShadowSprite(int x, int y, int size, CompanionEvolution evo);
+void drawPortalSprite(int x, int y, int size, CompanionEvolution evo);
+void drawFoxSprite(int x, int y, int size, CompanionEvolution evo);
+void drawCatSprite(int x, int y, int size, CompanionEvolution evo);
+void drawDemonSprite(int x, int y, int size, CompanionEvolution evo);
+void drawInfinitySprite(int x, int y, int size, CompanionEvolution evo);
+void drawBladesSprite(int x, int y, int size, CompanionEvolution evo);
+void drawHeroSprite(int x, int y, int size, CompanionEvolution evo);
+void drawMightSprite(int x, int y, int size, CompanionEvolution evo);
+void drawElementSprite(int x, int y, int size, CompanionEvolution evo);
 
-// Individual detailed sprite functions
-void drawSunnySprite(int x, int y, int size, int frame);
-void drawShadowSprite(int x, int y, int size, int frame);
-void drawAzSprite(int x, int y, int size, int frame);
-void drawKuramaSprite(int x, int y, int size, int frame);
-void drawPuarSprite(int x, int y, int size, int frame);
-void drawNezukoSprite(int x, int y, int size, int frame);
-void drawSpiritSprite(int x, int y, int size, int frame);
-void drawBladesSprite(int x, int y, int size, int frame);
-void drawGenosSprite(int x, int y, int size, int frame);
-void drawAllMightSprite(int x, int y, int size, int frame);
-void drawOchobotSprite(int x, int y, int size, int frame);
+// ============================================================================
+// CARE MODE UI
+// ============================================================================
 
-void handleCompanionScreenTouch(TouchGesture& gesture);
-void handleCareMenuTouch(TouchGesture& gesture);
+void enterCompanionCareMode();
+void exitCompanionCareMode();
+void drawCompanionCareScreen();
+void handleCareModeTouch(int tx, int ty);
 
-const char* getMoodText(CompanionMood mood);
-uint16_t getMoodColor(CompanionMood mood);
-const char* getEvolutionText(CompanionEvolution evo);
-int getStatPercentage(int stat);
-bool isStatCritical(int stat);
-bool isStatLow(int stat);
+// ============================================================================
+// GETTERS
+// ============================================================================
 
-#endif
+CompanionData* getCurrentCompanion();
+bool isCompanionCareMode();
+bool isCompanionGameActive();
+
+#endif // COMPANION_H

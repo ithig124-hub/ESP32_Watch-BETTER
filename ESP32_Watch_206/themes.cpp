@@ -20,6 +20,7 @@
 #include "dynamic_bg.h"
 #include "ochobot.h"
 #include "navigation.h"
+#include "companion.h"
 
 extern Arduino_CO5300 *gfx;
 extern SystemState system_state;
@@ -365,6 +366,7 @@ void initializeThemes() {
 void setTheme(ThemeType theme) {
   system_state.current_theme = theme;
   current_theme = getThemeColors(theme);
+  syncCompanionWithTheme();  // Companion follows theme
   Serial.printf("[Themes] Active: %s\n", getThemeName(theme));
 }
 

@@ -729,9 +729,10 @@ void openApp(const char* appName) {
     // NEW: COMPANION CARE APP
     // =========================================================================
     else if (strcmp(appName, "CARE") == 0) {
-        setCurrentCompanion(system_state.current_theme);
+        syncCompanionWithTheme();  // Make sure companion matches current theme
+        enterCompanionCareMode();
         system_state.current_screen = SCREEN_COMPANION;
-        drawCompanionScreen();
+        drawCompanionCareScreen();
     }
     else if (strcmp(appName, "COMPASS") == 0) {
         system_state.current_screen = SCREEN_SETTINGS;
