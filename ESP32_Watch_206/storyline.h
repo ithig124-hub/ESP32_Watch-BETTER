@@ -14,13 +14,14 @@
 #include "types.h"
 
 // =============================================================================
-// STORY CONSTANTS
+// STORY CONSTANTS - EXPANDED TO 15 CHAPTERS
 // =============================================================================
-#define MAX_CHAPTERS_PER_CHARACTER 10
+#define MAX_CHAPTERS_PER_CHARACTER 15
 #define MAX_DIALOGUE_SCREENS 8
 #define MAX_BOSS_TYPES 5
+#define NOTIFICATION_TIMEOUT_MS 5000  // Auto-dismiss notification after 5 seconds
 
-// Chapter unlock levels
+// Chapter unlock levels (15 chapters with progressive level requirements)
 #define CHAPTER_1_LEVEL 1
 #define CHAPTER_2_LEVEL 3
 #define CHAPTER_3_LEVEL 5
@@ -31,6 +32,11 @@
 #define CHAPTER_8_LEVEL 25
 #define CHAPTER_9_LEVEL 30
 #define CHAPTER_10_LEVEL 35
+#define CHAPTER_11_LEVEL 42
+#define CHAPTER_12_LEVEL 50
+#define CHAPTER_13_LEVEL 60
+#define CHAPTER_14_LEVEL 75
+#define CHAPTER_15_LEVEL 90
 
 // Rewards
 #define XP_CHAPTER_COMPLETE 100
@@ -39,6 +45,18 @@
 #define GEMS_BOSS_DEFEAT 100
 
 #define STORY_NVS_NAMESPACE "story_data"
+
+// =============================================================================
+// CHAPTER UNLOCK NOTIFICATION SYSTEM
+// =============================================================================
+struct ChapterUnlockNotification {
+    bool isActive;                  // Notification currently showing
+    bool isPending;                 // Waiting to show
+    int chapterUnlocked;            // Which chapter was just unlocked
+    unsigned long startTime;        // When notification started (for auto-dismiss)
+    bool userDismissed;             // User chose "Later"
+    bool userAccepted;              // User chose "Ready"
+};
 
 // =============================================================================
 // YUGO'S BRANCHING PATH
@@ -133,6 +151,8 @@ struct StorySystemState {
     int last_event_check_day;
     Preferences prefs;
     bool nvs_initialized;
+    ChapterUnlockNotification notification;  // NEW: Chapter unlock notification
+    int lastCheckedLevel;                     // NEW: Track level for unlock checks
 };
 
 // =============================================================================
@@ -187,11 +207,20 @@ void drawBossSprite(int x, int y, StoryBoss* boss, int size, int anim_frame);
 void drawChapterRewards();
 void drawStoryEventPopup();
 void drawYugoPathChoice();
+void drawChapterUnlockNotification();  // NEW: Draw "New Chapter Unlocked!" popup
 
 void handleStoryMenuTouch(TouchGesture& gesture);
 void handleChapterSelectTouch(TouchGesture& gesture);
 void handleDialogueTouch(TouchGesture& gesture);
 void handleStoryBossTouch(TouchGesture& gesture);
+void handleUnlockNotificationTouch(TouchGesture& gesture);  // NEW: Handle notification buttons
+
+// NEW: Chapter unlock notification functions
+void checkChapterUnlocks();             // Check if new chapters unlocked based on level
+void triggerChapterUnlock(int chapterNum);  // Show unlock notification
+void dismissNotification();             // User chose "Later"
+void acceptNotification();              // User chose "Ready" - go to chapter
+void updateNotificationTimeout();       // Auto-dismiss after 5 seconds
 
 uint16_t getStoryThemeColor(ThemeType theme);
 const char* getChapterStatusText(int chapter);

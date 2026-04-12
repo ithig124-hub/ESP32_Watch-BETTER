@@ -1,6 +1,7 @@
 /*
  * games.cpp - Complete Games Implementation
  * Battle Arena, Snake (Enhanced), Memory, + Gacha, Training, Boss Rush integration
+ * UPDATED: Added Story Mode integration
  */
 
 #include "games.h"
@@ -11,6 +12,7 @@
 #include "gacha.h"
 #include "training.h"
 #include "boss_rush.h"
+#include "storyline.h"   // FUSION OS: Enhanced Story Mode system
 
 extern Arduino_CO5300 *gfx;
 extern SystemState system_state;
@@ -136,82 +138,107 @@ void drawGameMenu() {
   gfx->print("GAMES");
   
   // Game buttons - larger for 410x502
-  const char* games[] = {"Battle", "Snake", "Memory", "Gacha", "Training", "Boss Rush"};
-  uint16_t colors[] = {COLOR_RED, COLOR_GREEN, COLOR_BLUE, COLOR_PURPLE, COLOR_ORANGE, COLOR_RED};
+  // UPDATED: Added Story Mode (7 games in grid)
+  const char* games[] = {"Story", "Battle", "Snake", "Memory", "Gacha", "Training", "Boss Rush"};
+  uint16_t colors[] = {COLOR_GOLD, COLOR_RED, COLOR_GREEN, COLOR_BLUE, COLOR_PURPLE, COLOR_ORANGE, COLOR_RED};
   
-  int cardW = 120;
-  int cardH = 95;
-  int gapX = 15;
-  int gapY = 10;
+  int cardW = 115;  // Slightly smaller to fit 7
+  int cardH = 80;
+  int gapX = 12;
+  int gapY = 8;
   int startX = (LCD_WIDTH - (3 * cardW + 2 * gapX)) / 2;
-  int startY = headerH + 12;
+  int startY = headerH + 10;
   
-  for (int i = 0; i < 6; i++) {
-    int col = i % 3;
-    int row = i / 3;
-    int x = startX + col * (cardW + gapX);
-    int y = startY + row * (cardH + gapY);
+  // Draw 7 game cards (3 + 3 + 1 layout)
+  for (int i = 0; i < 7; i++) {
+    int col, row, x, y;
     
-    gfx->fillRect(x, y, cardW, cardH, RGB565(12, 14, 20));
-    gfx->drawRect(x, y, cardW, cardH, RGB565(40, 45, 60));
+    if (i < 6) {
+      col = i % 3;
+      row = i / 3;
+      x = startX + col * (cardW + gapX);
+      y = startY + row * (cardH + gapY);
+    } else {
+      // 7th card centered on third row
+      x = LCD_WIDTH / 2 - cardW / 2;
+      y = startY + 2 * (cardH + gapY);
+    }
+    
+    // Special styling for Story Mode (first card)
+    bool isStory = (i == 0);
+    uint16_t bgColor = isStory ? RGB565(20, 18, 10) : RGB565(12, 14, 20);
+    
+    gfx->fillRect(x, y, cardW, cardH, bgColor);
+    gfx->drawRect(x, y, cardW, cardH, isStory ? COLOR_GOLD : RGB565(40, 45, 60));
+    
     // Pixel corners with game color
     gfx->fillRect(x, y, 6, 6, colors[i]);
     gfx->fillRect(x + cardW - 6, y, 6, 6, colors[i]);
     gfx->fillRect(x, y + cardH - 6, 6, 6, colors[i]);
     gfx->fillRect(x + cardW - 6, y + cardH - 6, 6, 6, colors[i]);
+    
     // Color stripe at top
     gfx->fillRect(x + 2, y + 2, cardW - 4, 5, colors[i]);
     
-    gfx->setTextColor(RGB565(200, 205, 220));
+    // Special "NEW" badge for Story Mode
+    if (isStory) {
+      gfx->fillRect(x + cardW - 35, y + 10, 30, 14, COLOR_RED);
+      gfx->setTextColor(COLOR_WHITE);
+      gfx->setTextSize(1);
+      gfx->setCursor(x + cardW - 32, y + 13);
+      gfx->print("NEW");
+    }
+    
+    gfx->setTextColor(isStory ? COLOR_GOLD : RGB565(200, 205, 220));
     gfx->setTextSize(2);
     int textW = strlen(games[i]) * 12;
-    gfx->setCursor(x + (cardW - textW)/2, y + 42);
+    gfx->setCursor(x + (cardW - textW)/2, y + 35);
     gfx->print(games[i]);
   }
   
-  // Player stats - retro panel (positioned for taller display)
-  int statsY = startY + 2 * (cardH + gapY) + 15;
+  // Player stats - retro panel (positioned for new layout)
+  int statsY = startY + 3 * (cardH + gapY) + 5;
   int statsW = LCD_WIDTH - 30;
-  gfx->fillRect(15, statsY, statsW, 35, RGB565(10, 12, 18));
-  gfx->drawRect(15, statsY, statsW, 35, RGB565(35, 40, 55));
+  gfx->fillRect(15, statsY, statsW, 32, RGB565(10, 12, 18));
+  gfx->drawRect(15, statsY, statsW, 32, RGB565(35, 40, 55));
   gfx->setTextColor(COLOR_GOLD);
   gfx->setTextSize(2);
   gfx->setCursor(25, statsY + 8);
   gfx->printf("GEMS: %d | LVL: %d", system_state.player_gems, system_state.player_level);
   
-  gfx->fillRect(15, statsY + 40, statsW, 25, RGB565(10, 12, 18));
-  gfx->drawRect(15, statsY + 40, statsW, 25, RGB565(35, 40, 55));
+  gfx->fillRect(15, statsY + 37, statsW, 22, RGB565(10, 12, 18));
+  gfx->drawRect(15, statsY + 37, statsW, 22, RGB565(35, 40, 55));
   gfx->setTextColor(RGB565(130, 135, 150));
   gfx->setTextSize(1);
-  gfx->setCursor(25, statsY + 48);
+  gfx->setCursor(25, statsY + 44);
   gfx->printf("Cards: %d/100 | Bosses: %d/20", 
               system_state.gacha_cards_collected, system_state.bosses_defeated);
   
-  // Adventures section - retro header
-  int advY = statsY + 75;
+  // Adventures section - retro header (compact)
+  int advY = statsY + 65;
   gfx->setTextColor(theme->accent);
   gfx->setTextSize(2);
   gfx->setCursor(45, advY);
   gfx->print("ADVENTURES");
   // Pixel underline
   for (int x = 45; x < 215; x += 6) {
-    gfx->fillRect(x, advY + 22, 4, 2, theme->accent);
+    gfx->fillRect(x, advY + 20, 4, 2, theme->accent);
   }
   
   const char* adv[] = {"Shadow", "Pirate", "Wakfu"};
-  int advCardW = 115;
-  int advStartX = (LCD_WIDTH - (3 * advCardW + 2 * 15)) / 2;
+  int advCardW = 110;
+  int advStartX = (LCD_WIDTH - (3 * advCardW + 2 * 12)) / 2;
   for (int i = 0; i < 3; i++) {
-    int x = advStartX + i * (advCardW + 15);
-    int y = advY + 30;
-    gfx->fillRect(x, y, advCardW, 40, RGB565(15, 18, 25));
-    gfx->drawRect(x, y, advCardW, 40, RGB565(40, 45, 60));
+    int x = advStartX + i * (advCardW + 12);
+    int y = advY + 26;
+    gfx->fillRect(x, y, advCardW, 35, RGB565(15, 18, 25));
+    gfx->drawRect(x, y, advCardW, 35, RGB565(40, 45, 60));
     gfx->fillRect(x, y, 5, 5, theme->accent);
     gfx->fillRect(x + advCardW - 5, y, 5, 5, theme->accent);
     gfx->setTextColor(RGB565(180, 185, 200));
     gfx->setTextSize(2);
     int tw = strlen(adv[i]) * 12;
-    gfx->setCursor(x + (advCardW - tw)/2, y + 12);
+    gfx->setCursor(x + (advCardW - tw)/2, y + 10);
     gfx->print(adv[i]);
   }
   
@@ -229,35 +256,67 @@ void handleGameMenuTouch(TouchGesture& gesture) {
   
   int x = gesture.x, y = gesture.y;
   
-  // Match the new layout for 410x502
-  int cardW = 120;
-  int cardH = 95;
-  int gapX = 15;
-  int gapY = 10;
+  // Match the UPDATED layout for 410x502 (7 games)
+  int cardW = 115;
+  int cardH = 80;
+  int gapX = 12;
+  int gapY = 8;
   int headerH = 55;
   int startX = (LCD_WIDTH - (3 * cardW + 2 * gapX)) / 2;
-  int startY = headerH + 12;
+  int startY = headerH + 10;
   
-  // Check main game buttons (top grid)
-  for (int i = 0; i < 6; i++) {
-    int col = i % 3;
-    int row = i / 3;
-    int bx = startX + col * (cardW + gapX);
-    int by = startY + row * (cardH + gapY);
+  // Check main game buttons (7 games: Story, Battle, Snake, Memory, Gacha, Training, Boss Rush)
+  for (int i = 0; i < 7; i++) {
+    int col, row, bx, by;
+    
+    if (i < 6) {
+      col = i % 3;
+      row = i / 3;
+      bx = startX + col * (cardW + gapX);
+      by = startY + row * (cardH + gapY);
+    } else {
+      // 7th card centered on third row
+      bx = LCD_WIDTH / 2 - cardW / 2;
+      by = startY + 2 * (cardH + gapY);
+    }
+    
     if (x >= bx && x < bx + cardW && y >= by && y < by + cardH) {
-      GameType gameMap[] = {GAME_BATTLE_ARENA, GAME_MINI_SNAKE, GAME_MEMORY_MATCH,
-                            GAME_GACHA, GAME_TRAINING_REFLEX, GAME_BOSS_RUSH};
-      launchGame(gameMap[i]);
-      return;
+      // Map game buttons to actions
+      if (i == 0) {
+        // Story Mode - uses storyline system
+        setCurrentStory(system_state.current_theme);
+        system_state.current_screen = SCREEN_STORY_MENU;
+        drawStoryMenu();
+        return;
+      } else {
+        // Other games (offset by 1 due to Story being first)
+        GameType gameMap[] = {GAME_BATTLE_ARENA, GAME_MINI_SNAKE, GAME_MEMORY_MATCH,
+                              GAME_GACHA, GAME_TRAINING_REFLEX, GAME_BOSS_RUSH};
+        launchGame(gameMap[i - 1]);
+        return;
+      }
     }
   }
   
-  // Adventure buttons
-  if (y >= 380 && y < 415) {
-    if (x >= 30 && x < 130) launchGame(GAME_SHADOW_DUNGEON);
-    else if (x >= 140 && x < 240) launchGame(GAME_PIRATE_ADVENTURE);
-    else if (x >= 250 && x < 350) launchGame(GAME_WAKFU_QUEST);
-    return;
+  // Adventure buttons (adjusted Y positions)
+  int statsY = startY + 3 * (cardH + gapY) + 5;
+  int advY = statsY + 65 + 26;
+  int advCardW = 110;
+  int advStartX = (LCD_WIDTH - (3 * advCardW + 2 * 12)) / 2;
+  
+  if (y >= advY && y < advY + 35) {
+    if (x >= advStartX && x < advStartX + advCardW) {
+      launchGame(GAME_SHADOW_DUNGEON);
+      return;
+    }
+    else if (x >= advStartX + advCardW + 12 && x < advStartX + 2 * advCardW + 12) {
+      launchGame(GAME_PIRATE_ADVENTURE);
+      return;
+    }
+    else if (x >= advStartX + 2 * (advCardW + 12) && x < advStartX + 3 * advCardW + 24) {
+      launchGame(GAME_WAKFU_QUEST);
+      return;
+    }
   }
   
   // Back button
