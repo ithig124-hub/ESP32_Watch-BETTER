@@ -1124,10 +1124,16 @@ void saveStoryProgressForCharacter(ThemeType character) {
    getChKey(character, j, "boss", key, sizeof(key)); story_system.prefs.putBool(key, st->chapters[j].boss_defeated);
    getChKey(character, j, "reward", key, sizeof(key)); story_system.prefs.putBool(key, st->chapters[j].rewards_claimed);
  }
+ // FIX: Also set initialized flag so loadStoryProgress() works after reboot
+ story_system.prefs.putBool("initialized", true);
+ Serial.printf("[Story] Saved progress for character %d (completed: %d)\n", (int)character, st->chapters_completed);
 }
 
 void loadStoryProgress() {
- if (!story_system.nvs_initialized || !story_system.prefs.getBool("initialized", false)) return;
+ if (!story_system.nvs_initialized) return;
+ // FIX: Removed "initialized" check - if NVS has no data, getBool/getInt
+ // return defaults anyway. The old check caused chapter progress to be lost
+ // because saveStoryProgressForCharacter() didn't set the flag.
  for (int i = 0; i < THEME_COUNT; i++) loadStoryProgressForCharacter((ThemeType)i);
  story_system.last_event_check_day = story_system.prefs.getInt("last_event_day", -1);
  for (int i = 0; i < 4; i++) {

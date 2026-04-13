@@ -90,7 +90,7 @@
 // =============================================================================
 // NAVIGATION CONFIGURATION - FIXED
 // =============================================================================
-#define APP_GRID_PAGES 3   // Three pages of apps (0, 1, 2)
+#define APP_GRID_PAGES 4   // Four pages of apps (0, 1, 2, 3)
 // NOTE: MAIN_SCREEN_COUNT is defined later with the MainScreen enum (= 4)
 
 // =============================================================================
@@ -405,7 +405,10 @@ enum ScreenType {
     SCREEN_STORY_BOSS,
     SCREEN_COMPANION,
     SCREEN_COMPANION_GAME,
-    SCREEN_SLEEP
+    SCREEN_SLEEP,
+    SCREEN_POMODORO,
+    SCREEN_HABITS,
+    SCREEN_DUNGEON
 };
 
 // App Types

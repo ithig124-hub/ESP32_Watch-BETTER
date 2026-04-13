@@ -50,7 +50,8 @@ void drawStatsBar();
 // App Grid screens - IMPROVED LAYOUT
 void drawAppGrid1();
 void drawAppGrid2();
-void drawAppGrid3();  // NEW: Third page
+void drawAppGrid3();
+void drawAppGrid4();  // Extra: Pomodoro, Habits, Dungeon, Streak, Craft
 
 // Character stats screen
 void drawStatBar(int x, int y, const char* name, int value, uint16_t color);

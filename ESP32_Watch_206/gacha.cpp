@@ -112,8 +112,11 @@ void initGachaSystem() {
   initCardDatabase();
 
   if (!loadGachaProgress()) {
-    // Initialize fresh
-    system_state.player_gems = 500; // Starting gems
+    // Initialize fresh gacha-specific data only
+    // NOTE: Do NOT overwrite system_state.player_gems here!
+    // Gems are already loaded from NVS by loadAllGameData() in setup().
+    // Overwriting here was causing gems to reset to 500 after every reboot
+    // when the SD card gacha save file didn't exist.
     system_state.gacha_cards_collected = 0;
     system_state.pity_counter = 0;
     system_state.pity_legendary_counter = 0;
@@ -126,6 +129,8 @@ void initGachaSystem() {
       gacha_cards[i].evolution_level = 0;
     }
   }
+
+  Serial.printf("[Gacha] Init complete. Gems: %d\n", system_state.player_gems);
 }
 
 void initCardDatabase() {
@@ -354,11 +359,17 @@ int getPlayerGems() {
 void addGems(int amount, const char* source) {
   system_state.player_gems += amount;
   Serial.printf("[Gacha] +%d gems from %s (Total: %d)\n", amount, source, system_state.player_gems);
+  // Persist gems to NVS immediately so they survive reboot
+  extern void saveAllGameData();
+  saveAllGameData();
 }
 
 bool spendGems(int amount) {
   if (system_state.player_gems >= amount) {
     system_state.player_gems -= amount;
+    // Persist gems to NVS immediately so they survive reboot
+    extern void saveAllGameData();
+    saveAllGameData();
     return true;
   }
   return false;

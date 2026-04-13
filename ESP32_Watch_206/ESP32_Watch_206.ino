@@ -55,6 +55,7 @@
 #include "time_edit.h"
 #include "storyline.h"
 #include "companion.h"
+#include "new_apps.h"
 
 // =============================================================================
 // POWER MANAGEMENT DEFINES
@@ -493,6 +494,8 @@ void setup() {
   feedWatchdog();
   initStorySystem();
   feedWatchdog();
+  initCompanionSystem();
+  feedWatchdog();
   
   lastActivityMs = millis();
   screenOn = true;
@@ -579,6 +582,9 @@ void loop() {
       checkDailyReset();
       lastQuestCheck = millis();
     }
+    
+    // Update Pomodoro timer
+    updatePomodoro();
     
     // SIMPLE 5-SECOND TIMEOUT CHECK (bypasses power manager)
     if (millis() - lastActivityMs >= SCREEN_OFF_TIMEOUT_MS) {
@@ -812,6 +818,30 @@ void handleTouchGesture(TouchGesture& gesture) {
       }
       break;
     
+    case SCREEN_POMODORO:
+      if (gesture.event == TOUCH_TAP) {
+        handlePomodoroTouch(gesture.x, gesture.y);
+      } else if (gesture.event == TOUCH_SWIPE_LEFT || gesture.event == TOUCH_SWIPE_DOWN) {
+        returnToAppGrid();
+      }
+      break;
+    
+    case SCREEN_HABITS:
+      if (gesture.event == TOUCH_TAP) {
+        handleHabitsTouch(gesture.x, gesture.y);
+      } else if (gesture.event == TOUCH_SWIPE_LEFT || gesture.event == TOUCH_SWIPE_DOWN) {
+        returnToAppGrid();
+      }
+      break;
+    
+    case SCREEN_DUNGEON:
+      if (gesture.event == TOUCH_TAP) {
+        handleDungeonTouch(gesture.x, gesture.y);
+      } else if (gesture.event == TOUCH_SWIPE_LEFT || gesture.event == TOUCH_SWIPE_DOWN) {
+        returnToAppGrid();
+      }
+      break;
+    
     default:
       break;
   }
@@ -974,5 +1004,6 @@ void saveAllData() {
   saveBossProgress();
   saveXPData();
   saveStepsData();
-  Serial.println("[SAVE] All data saved");
+  saveStoryProgress();
+  Serial.println("[SAVE] All data saved (including story progress)");
 }

@@ -18,8 +18,9 @@ extern Arduino_CO5300 *gfx;
 extern SystemState system_state;
 
 StepsData steps_data = {0, 10000, 0.0, 0, 0, 0, {}, {}, 0};
-// SUPER SENSITIVE: Lower threshold (0.3 instead of 1.2), shorter cooldown (150ms instead of 250ms)
-ActivityThresholds activity_config = {0.3, 150, 0.75};
+// ULTRA SENSITIVE: Lowest possible threshold (0.15), shortest cooldown (100ms)
+// Any wrist movement will register as a step
+ActivityThresholds activity_config = {0.15, 100, 0.65};
 
 static float last_magnitude = 1.0;
 static unsigned long last_step_time = 0;
@@ -344,8 +345,8 @@ void updateStepCount() {
     Wire.endTransmission();
     
     Wire.beginTransmission(QMI8658_ADDR);
-    Wire.write(0x0D);  // CAL2_L - peak2peak threshold low (50mg = 0x32) SUPER SENSITIVE
-    Wire.write(0x32);  // Was 0xCC (200mg) - now 50mg for easy detection
+    Wire.write(0x0D);  // CAL2_L - peak2peak threshold low (20mg = 0x14) ULTRA SENSITIVE
+    Wire.write(0x14);  // Was 0x32 (50mg) - now 20mg for any tiny movement!
     Wire.endTransmission();
     
     Wire.beginTransmission(QMI8658_ADDR);
@@ -354,8 +355,8 @@ void updateStepCount() {
     Wire.endTransmission();
     
     Wire.beginTransmission(QMI8658_ADDR);
-    Wire.write(0x0F);  // CAL3_L - peak threshold low (30mg = 0x1E) SUPER SENSITIVE
-    Wire.write(0x1E);  // Was 0x66 (100mg) - now 30mg for easy detection
+    Wire.write(0x0F);  // CAL3_L - peak threshold low (15mg = 0x0F) ULTRA SENSITIVE
+    Wire.write(0x0F);  // Was 0x1E (30mg) - now 15mg for any tiny movement!
     Wire.endTransmission();
     
     Wire.beginTransmission(QMI8658_ADDR);
@@ -377,8 +378,8 @@ void updateStepCount() {
     
     // Phase 2: Timing parameters - FASTER DETECTION
     Wire.beginTransmission(QMI8658_ADDR);
-    Wire.write(0x0B);  // CAL1_L - time_up low (0.8s @ 50Hz = 40)
-    Wire.write(0x28);  // Was 0x50 (1.6s) - now 0.8s for faster step window
+    Wire.write(0x0B);  // CAL1_L - time_up low (0.5s @ 50Hz = 25)
+    Wire.write(0x19);  // Was 0x28 (0.8s) - now 0.5s for even faster step window
     Wire.endTransmission();
     
     Wire.beginTransmission(QMI8658_ADDR);
@@ -387,13 +388,13 @@ void updateStepCount() {
     Wire.endTransmission();
     
     Wire.beginTransmission(QMI8658_ADDR);
-    Wire.write(0x0D);  // CAL2_L - time_low (0.15s @ 50Hz = 7)
-    Wire.write(0x07);  // Was 0x0C (0.25s) - faster minimum step time
+    Wire.write(0x0D);  // CAL2_L - time_low (0.1s @ 50Hz = 5)
+    Wire.write(0x05);  // Was 0x07 (0.15s) - even faster minimum step time
     Wire.endTransmission();
     
     Wire.beginTransmission(QMI8658_ADDR);
-    Wire.write(0x0E);  // CAL2_H - time_cnt_entry (2 steps to confirm) INSTANT
-    Wire.write(0x02);  // Was 0x0A (10 steps) - now only 2 steps to start counting!
+    Wire.write(0x0E);  // CAL2_H - time_cnt_entry (1 step to confirm) INSTANT
+    Wire.write(0x01);  // Was 0x02 (2 steps) - now just 1 step to start counting!
     Wire.endTransmission();
     
     Wire.beginTransmission(QMI8658_ADDR);

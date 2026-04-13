@@ -307,7 +307,8 @@ void drawCurrentScreen() {
         case MAIN_APP_GRID_1:
             if (navState.appGridPage == 0) drawAppGrid1();
             else if (navState.appGridPage == 1) drawAppGrid2();
-            else drawAppGrid3();
+            else if (navState.appGridPage == 2) drawAppGrid3();
+            else drawAppGrid4();
             break;
 
         case MAIN_CHARACTER_STATS:
@@ -374,6 +375,11 @@ uint16_t getAppColor(const char* appName) {
     if (strcmp(appName, "FUSION") == 0) return RGB565(200, 150, 255);
     if (strcmp(appName, "ABOUT") == 0) return RGB565(180, 180, 190);
     if (strcmp(appName, "WALLPAPER") == 0) return RGB565(200, 120, 180);
+    if (strcmp(appName, "POMODORO") == 0) return RGB565(255, 80, 80);
+    if (strcmp(appName, "HABITS") == 0) return RGB565(80, 220, 160);
+    if (strcmp(appName, "DUNGEON") == 0) return RGB565(180, 60, 255);
+    if (strcmp(appName, "STREAK") == 0) return RGB565(255, 200, 50);
+    if (strcmp(appName, "CRAFT") == 0) return RGB565(200, 150, 100);
     return RGB565(100, 100, 120);
 }
 
@@ -459,8 +465,9 @@ void drawAppGrid1() {
     gfx->setCursor(LCD_WIDTH/2 - 25, 12);
     gfx->print("RPG");
 
-    // Page indicator
-    gfx->fillRect(LCD_WIDTH - 50, 22, 10, 10, theme->primary);
+    // Page indicator (4 pages)
+    gfx->fillRect(LCD_WIDTH - 65, 22, 10, 10, theme->primary);
+    gfx->drawRect(LCD_WIDTH - 50, 22, 10, 10, RGB565(50, 55, 70));
     gfx->drawRect(LCD_WIDTH - 35, 22, 10, 10, RGB565(50, 55, 70));
     gfx->drawRect(LCD_WIDTH - 20, 22, 10, 10, RGB565(50, 55, 70));
 
@@ -519,8 +526,9 @@ void drawAppGrid2() {
     gfx->setCursor(LCD_WIDTH/2 - 41, 12);
     gfx->print("Daily");
 
-    gfx->drawRect(LCD_WIDTH - 50, 22, 10, 10, RGB565(50, 55, 70));
-    gfx->fillRect(LCD_WIDTH - 35, 22, 10, 10, theme->accent);
+    gfx->drawRect(LCD_WIDTH - 65, 22, 10, 10, RGB565(50, 55, 70));
+    gfx->fillRect(LCD_WIDTH - 50, 22, 10, 10, theme->accent);
+    gfx->drawRect(LCD_WIDTH - 35, 22, 10, 10, RGB565(50, 55, 70));
     gfx->drawRect(LCD_WIDTH - 20, 22, 10, 10, RGB565(50, 55, 70));
 
     // Grid 2: Daily Use
@@ -575,12 +583,13 @@ void drawAppGrid3() {
     gfx->setCursor(LCD_WIDTH/2 - 72, 12);
     gfx->print("New Apps");
 
+    gfx->drawRect(LCD_WIDTH - 65, 22, 10, 10, RGB565(50, 55, 70));
     gfx->drawRect(LCD_WIDTH - 50, 22, 10, 10, RGB565(50, 55, 70));
-    gfx->drawRect(LCD_WIDTH - 35, 22, 10, 10, RGB565(50, 55, 70));
-    gfx->fillRect(LCD_WIDTH - 20, 22, 10, 10, theme->effect1);
+    gfx->fillRect(LCD_WIDTH - 35, 22, 10, 10, theme->effect1);
+    gfx->drawRect(LCD_WIDTH - 20, 22, 10, 10, RGB565(50, 55, 70));
 
-    // UPDATED: SOCIAL replaced with STORY
-    const char* apps3[] = {"SETTINGS", "THEMES", "OTA", "WIFI", "FILES", "BACKUP", "ABOUT", "MUSIC", "WALLPAPER"};
+    // Page 3: System & media utilities
+    const char* apps3[] = {"SETTINGS", "THEMES", "WIFI", "FILES", "BACKUP", "MUSIC", "WALLPAPER", "OTA", "ABOUT"};
 
     int cols = 3;
     int iconW = 115;
@@ -599,6 +608,64 @@ void drawAppGrid3() {
         int y = startY + row * spacingY;
 
         drawAppIcon(x, y, iconW, iconH, apps3[i], getAppColor(apps3[i]), false);
+    }
+
+    gfx->setTextColor(RGB565(50, 55, 70));
+    gfx->setTextSize(1);
+    gfx->setCursor(LCD_WIDTH/2 - 40, LCD_HEIGHT - 25);
+    gfx->print("< SWIPE >");
+
+    drawSwipeIndicator();
+}
+
+void drawAppGrid4() {
+    gfx->fillScreen(RGB565(2, 2, 5));
+    for (int y = 0; y < LCD_HEIGHT; y += 4) {
+        gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+    }
+
+    ThemeColors* theme = getCurrentTheme();
+
+    int headerH = 55;
+    gfx->fillRect(0, 0, LCD_WIDTH, headerH, RGB565(10, 12, 18));
+    for (int x = 0; x < LCD_WIDTH; x += 8) {
+        gfx->fillRect(x, headerH - 3, 6, 3, RGB565(255, 180, 50));
+    }
+
+    gfx->setTextSize(3);
+    gfx->setTextColor(RGB565(30, 35, 50));
+    gfx->setCursor(LCD_WIDTH/2 - 55, 14);
+    gfx->print("Extra");
+    gfx->setTextColor(RGB565(255, 200, 80));
+    gfx->setCursor(LCD_WIDTH/2 - 57, 12);
+    gfx->print("Extra");
+
+    // Page indicator (page 4 active)
+    gfx->drawRect(LCD_WIDTH - 65, 22, 10, 10, RGB565(50, 55, 70));
+    gfx->drawRect(LCD_WIDTH - 50, 22, 10, 10, RGB565(50, 55, 70));
+    gfx->drawRect(LCD_WIDTH - 35, 22, 10, 10, RGB565(50, 55, 70));
+    gfx->fillRect(LCD_WIDTH - 20, 22, 10, 10, RGB565(255, 180, 50));
+
+    // Grid 4: Extra features
+    const char* apps4[] = {"POMODORO", "HABITS", "DUNGEON", "STREAK", "CRAFT", "SETTINGS", "THEMES", "OTA", "ABOUT"};
+
+    int cols = 3;
+    int iconW = 115;
+    int iconH = 100;
+    int gapX = 15;
+    int gapY = 12;
+    int startX = (LCD_WIDTH - (cols * iconW + (cols-1) * gapX)) / 2;
+    int startY = headerH + 12;
+    int spacingX = iconW + gapX;
+    int spacingY = iconH + gapY;
+
+    for (int i = 0; i < 9; i++) {
+        int col = i % cols;
+        int row = i / cols;
+        int x = startX + col * spacingX;
+        int y = startY + row * spacingY;
+
+        drawAppIcon(x, y, iconW, iconH, apps4[i], getAppColor(apps4[i]), false);
     }
 
     gfx->setTextColor(RGB565(50, 55, 70));
@@ -671,13 +738,17 @@ void handleAppGridTap(int x, int y) {
             const char* apps1_normal[] = {"GACHA", "STORY", "BOSS", "TRAINING", "QUESTS", "GAMES", "CARE", "FUSION", "COLLECT"};
             const char* apps1_boboiboy[] = {"GACHA", "STORY", "BOSS", "TRAINING", "QUESTS", "GAMES", "ELEMENTS", "FUSION", "COLLECT"};
             const char* apps2[] = {"STEPS", "TIMER", "CALC", "CONVERT", "TORCH", "WEATHER", "GALLERY", "ACHIEVE", "SHOP"};
-            const char* apps3[] = {"SETTINGS", "THEMES", "OTA", "WIFI", "FILES", "BACKUP", "ABOUT", "MUSIC", "WALLPAPER"};
+            const char* apps3[] = {"SETTINGS", "THEMES", "WIFI", "FILES", "BACKUP", "MUSIC", "WALLPAPER", "OTA", "ABOUT"};
 
             const char** apps1 = (system_state.current_theme == THEME_BOBOIBOY) ? apps1_boboiboy : apps1_normal;
             const char* appName;
             if (navState.appGridPage == 0) appName = apps1[i];
             else if (navState.appGridPage == 1) appName = apps2[i];
-            else appName = apps3[i];
+            else if (navState.appGridPage == 2) appName = apps3[i];
+            else {
+                const char* apps4[] = {"POMODORO", "HABITS", "DUNGEON", "STREAK", "CRAFT", "SETTINGS", "THEMES", "OTA", "ABOUT"};
+                appName = apps4[i];
+            }
 
             Serial.printf("[NAV] >>> OPENING APP: %s <<<\n", appName);
             openApp(appName);
@@ -932,6 +1003,56 @@ void openApp(const char* appName) {
     else if (strcmp(appName, "WALLPAPER") == 0) {
         initWallpaperSelector();
         drawWallpaperSelector();
+    }
+    // =========================================================================
+    // NEW APPS: POMODORO, HABITS, DUNGEON, STREAK, CRAFT
+    // =========================================================================
+    else if (strcmp(appName, "POMODORO") == 0) {
+        system_state.current_screen = SCREEN_POMODORO;
+        extern void initPomodoroApp();
+        extern void drawPomodoroApp();
+        initPomodoroApp();
+        drawPomodoroApp();
+    }
+    else if (strcmp(appName, "HABITS") == 0) {
+        system_state.current_screen = SCREEN_HABITS;
+        extern void initHabitsApp();
+        extern void drawHabitsApp();
+        initHabitsApp();
+        drawHabitsApp();
+    }
+    else if (strcmp(appName, "DUNGEON") == 0) {
+        system_state.current_screen = SCREEN_DUNGEON;
+        extern void initDungeonApp();
+        extern void drawDungeonApp();
+        initDungeonApp();
+        drawDungeonApp();
+    }
+    else if (strcmp(appName, "STREAK") == 0) {
+        system_state.current_screen = SCREEN_SHOP;
+        extern void drawStreakApp();
+        drawStreakApp();
+    }
+    else if (strcmp(appName, "CRAFT") == 0) {
+        system_state.current_screen = SCREEN_GACHA;
+        extern void initCraftApp();
+        extern void drawCraftApp();
+        initCraftApp();
+        drawCraftApp();
+    }
+    else if (strcmp(appName, "NOTES") == 0) {
+        system_state.current_screen = SCREEN_SETTINGS;
+        navState.navigationLocked = true;
+        gfx->fillScreen(RGB565(2, 2, 5));
+        gfx->setTextColor(getCurrentTheme()->primary);
+        gfx->setTextSize(2);
+        gfx->setCursor(LCD_WIDTH/2 - 42, 200);
+        gfx->print("NOTES");
+        gfx->setTextSize(1);
+        gfx->setTextColor(RGB565(100, 105, 120));
+        gfx->setCursor(LCD_WIDTH/2 - 45, 230);
+        gfx->print("Coming soon!");
+        drawSwipeIndicator();
     }
     else {
         Serial.printf("[NAV] Unknown app: %s\n", appName);

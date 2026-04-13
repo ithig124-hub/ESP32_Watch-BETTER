@@ -48,7 +48,9 @@
 #define XP_BOSS_TIER_2      250     // Tier 2 boss
 #define XP_BOSS_TIER_3      500     // Tier 3 boss
 #define XP_BOSS_TIER_4      750     // Tier 4 boss
-#define XP_BOSS_TIER_5      1000    // Tier 5 boss (final)
+#define XP_BOSS_TIER_5      1500    // Tier 5 boss (godlike)
+#define XP_BOSS_TIER_6      3000    // Tier 6 boss (multiverse)
+#define XP_BOSS_TIER_7      5000    // Tier 7 boss (final)
 
 // =============================================================================
 // XP REWARDS - Daily Quests
@@ -113,6 +115,11 @@ struct XPSystemState {
     int last_login_day;
     int last_hourly_claim_hour;
     bool daily_step_goal_claimed;
+    // Daily Login Streak
+    int login_streak;           // Consecutive days logged in
+    int last_streak_day;        // Day of month of last streak update
+    int last_streak_month;      // Month of last streak update
+    int longest_streak;         // All-time longest streak
 };
 
 extern XPSystemState xp_system;

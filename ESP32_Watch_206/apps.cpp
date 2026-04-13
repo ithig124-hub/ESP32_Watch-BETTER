@@ -16,6 +16,7 @@
 #include "ui.h"
 #include "converter_app.h"
 #include "xp_system.h"  // FUSION OS: For hourly claim
+#include <Preferences.h>  // For achievement persistence
 
 extern Arduino_CO5300 *gfx;
 extern SystemState system_state;
@@ -1360,9 +1361,35 @@ void initAchievementsApp() {
   achievements[6].progress = system_state.player_level;
   achievements[7].progress = system_state.player_gems;
   
+  // Load persisted unlock state from NVS (once unlocked, stays unlocked forever)
+  Preferences achPrefs;
+  achPrefs.begin("achievements", true);  // read-only
   for (int i = 0; i < 8; i++) {
-    achievements[i].unlocked = (achievements[i].progress >= achievements[i].target);
+    char key[12];
+    snprintf(key, sizeof(key), "ach_%d", i);
+    bool was_unlocked = achPrefs.getBool(key, false);
+    
+    // Achievement is unlocked if either: previously saved as unlocked, or progress now meets target
+    achievements[i].unlocked = was_unlocked || (achievements[i].progress >= achievements[i].target);
   }
+  achPrefs.end();
+  
+  // Save any newly unlocked achievements to NVS
+  bool any_new = false;
+  Preferences achSave;
+  achSave.begin("achievements", false);  // read-write
+  for (int i = 0; i < 8; i++) {
+    if (achievements[i].unlocked) {
+      char key[12];
+      snprintf(key, sizeof(key), "ach_%d", i);
+      if (!achSave.getBool(key, false)) {
+        achSave.putBool(key, true);
+        any_new = true;
+        Serial.printf("[Achievements] NEW UNLOCK: %s\n", achievements[i].name);
+      }
+    }
+  }
+  achSave.end();
 }
 
 void drawAchievementsApp() {
@@ -1480,147 +1507,174 @@ void initShopApp() {}
 
 void drawShopApp() {
   gfx->fillScreen(RGB565(2, 2, 5));
+  for (int y = 0; y < LCD_HEIGHT; y += 4) {
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+  }
   
   ThemeColors* theme = getCurrentTheme();
   int centerX = LCD_WIDTH / 2;
-  int centerY = LCD_HEIGHT / 2;
   
-  // Header
-  gfx->fillRect(0, 0, LCD_WIDTH, 48, RGB565(10, 12, 18));
+  // Header with theme accent
+  int headerH = 55;
+  gfx->fillRect(0, 0, LCD_WIDTH, headerH, RGB565(10, 12, 18));
   for (int x = 0; x < LCD_WIDTH; x += 8) {
-    gfx->fillRect(x, 46, 6, 3, COLOR_GOLD);
+    gfx->fillRect(x, headerH - 3, 6, 3, COLOR_GOLD);
   }
+  gfx->setTextSize(3);
+  gfx->setTextColor(RGB565(30, 35, 50));
+  gfx->setCursor(centerX - 36 + 2, 14);
+  gfx->print("SHOP");
   gfx->setTextColor(COLOR_GOLD);
-  gfx->setTextSize(2);
-  gfx->setCursor(centerX - 24, 14);
+  gfx->setCursor(centerX - 36, 12);
   gfx->print("SHOP");
   
-  // Current gem balance - big display
-  gfx->fillRect(60, 70, LCD_WIDTH - 120, 60, RGB565(25, 20, 10));
-  gfx->drawRect(60, 70, LCD_WIDTH - 120, 60, COLOR_GOLD);
-  gfx->fillRect(60, 70, 5, 5, COLOR_GOLD);
-  gfx->fillRect(LCD_WIDTH - 65, 70, 5, 5, COLOR_GOLD);
+  // Current gem balance - premium display
+  gfx->fillRect(30, 65, LCD_WIDTH - 60, 50, RGB565(25, 20, 10));
+  gfx->drawRect(30, 65, LCD_WIDTH - 60, 50, COLOR_GOLD);
+  gfx->fillRect(30, 65, 6, 6, COLOR_GOLD);
+  gfx->fillRect(LCD_WIDTH - 36, 65, 6, 6, COLOR_GOLD);
+  gfx->fillRect(30, 109, 6, 6, COLOR_GOLD);
+  gfx->fillRect(LCD_WIDTH - 36, 109, 6, 6, COLOR_GOLD);
   
-  gfx->setTextColor(COLOR_GOLD);
+  gfx->setTextColor(RGB565(180, 160, 100));
   gfx->setTextSize(1);
-  gfx->setCursor(centerX - 30, 78);
+  gfx->setCursor(centerX - 30, 72);
   gfx->print("YOUR GEMS");
   
+  gfx->setTextColor(COLOR_GOLD);
   gfx->setTextSize(4);
-  gfx->setCursor(centerX - 60, 95);
-  gfx->printf("%d", system_state.player_gems);
+  char gemStr[12];
+  sprintf(gemStr, "%d", system_state.player_gems);
+  int gemStrW = strlen(gemStr) * 24;
+  gfx->setCursor(centerX - gemStrW/2, 85);
+  gfx->print(gemStr);
   
-  // BIG FREE GEMS BUTTON
-  int btnX = 50;
-  int btnY = 160;
-  int btnW = LCD_WIDTH - 100;
-  int btnH = 100;
+  // === SHOP ITEMS GRID (3 items) ===
+  int itemY = 125;
+  int itemW = 115;
+  int itemH = 85;
+  int itemGap = 10;
+  int itemStartX = (LCD_WIDTH - (3 * itemW + 2 * itemGap)) / 2;
   
-  // Button with gradient effect
-  for (int i = 0; i < btnH; i++) {
-    uint8_t r = 180 - i/2;
-    uint8_t g = 120 + i/3;
-    uint8_t b = 40;
-    gfx->drawFastHLine(btnX, btnY + i, btnW, RGB565(r, g, b));
-  }
-  gfx->drawRect(btnX, btnY, btnW, btnH, COLOR_WHITE);
-  gfx->drawRect(btnX + 2, btnY + 2, btnW - 4, btnH - 4, COLOR_GOLD);
-  
-  // Corner accents
-  gfx->fillRect(btnX, btnY, 10, 10, COLOR_WHITE);
-  gfx->fillRect(btnX + btnW - 10, btnY, 10, 10, COLOR_WHITE);
-  gfx->fillRect(btnX, btnY + btnH - 10, 10, 10, COLOR_WHITE);
-  gfx->fillRect(btnX + btnW - 10, btnY + btnH - 10, 10, 10, COLOR_WHITE);
-  
-  // Button text
-  gfx->setTextColor(RGB565(40, 25, 5));
+  // Item 1: Free Gems
+  gfx->fillRect(itemStartX, itemY, itemW, itemH, RGB565(20, 18, 10));
+  gfx->drawRect(itemStartX, itemY, itemW, itemH, COLOR_GOLD);
+  gfx->fillRect(itemStartX, itemY, 5, 5, COLOR_GOLD);
+  gfx->fillRect(itemStartX + itemW - 5, itemY, 5, 5, COLOR_GOLD);
+  gfx->setTextColor(COLOR_GOLD);
   gfx->setTextSize(2);
-  gfx->setCursor(centerX - 24, btnY + 20);
-  gfx->print("TAP");
-  
-  gfx->setTextSize(1);
-  gfx->setCursor(centerX - 18, btnY + 45);
-  gfx->print("FOR");
-  
-  gfx->setTextColor(COLOR_WHITE);
-  gfx->setTextSize(4);
-  gfx->setCursor(centerX - 72, btnY + 60);
+  gfx->setCursor(itemStartX + 10, itemY + 10);
   gfx->print("+1000");
+  gfx->setTextSize(1);
+  gfx->setTextColor(RGB565(180, 160, 100));
+  gfx->setCursor(itemStartX + 18, itemY + 35);
+  gfx->print("FREE GEMS");
+  gfx->setTextColor(COLOR_WHITE);
+  gfx->setTextSize(2);
+  gfx->setCursor(itemStartX + 22, itemY + 55);
+  gfx->print("TAP!");
   
-  // FUSION OS: HOURLY XP CLAIM BUTTON
-  int xpBtnX = 50;
-  int xpBtnY = 290;
-  int xpBtnW = LCD_WIDTH - 100;
-  int xpBtnH = 70;
-  
-  // Check if claim is available
+  // Item 2: XP Boost
   extern XPSystemState xp_system;
   WatchTime current = getCurrentTime();
   bool can_claim = (current.hour != xp_system.last_hourly_claim_hour);
   
-  // Draw XP button
-  uint16_t btn_color = can_claim ? RGB565(0, 200, 100) : RGB565(60, 60, 70);
-  
-  // Gradient XP button
-  for (int i = 0; i < xpBtnH; i++) {
-    uint16_t color;
-    if (can_claim) {
-      uint8_t g = 200 - i/2;
-      color = RGB565(0, g, 100 + i/3);
-    } else {
-      color = RGB565(60 - i/4, 60 - i/4, 70 - i/4);
-    }
-    gfx->drawFastHLine(xpBtnX, xpBtnY + i, xpBtnW, color);
-  }
-  
-  gfx->drawRect(xpBtnX, xpBtnY, xpBtnW, xpBtnH, COLOR_WHITE);
-  gfx->drawRect(xpBtnX + 2, xpBtnY + 2, xpBtnW - 4, xpBtnH - 4, 
-                can_claim ? RGB565(100, 255, 150) : RGB565(100, 100, 110));
-  
-  // Corner accents
-  uint16_t accent_color = can_claim ? RGB565(100, 255, 150) : RGB565(100, 100, 110);
-  gfx->fillRect(xpBtnX, xpBtnY, 8, 8, accent_color);
-  gfx->fillRect(xpBtnX + xpBtnW - 8, xpBtnY, 8, 8, accent_color);
-  gfx->fillRect(xpBtnX, xpBtnY + xpBtnH - 8, 8, 8, accent_color);
-  gfx->fillRect(xpBtnX + xpBtnW - 8, xpBtnY + xpBtnH - 8, 8, 8, accent_color);
-  
-  // Button text
-  gfx->setTextColor(COLOR_WHITE);
+  uint16_t xpBtnColor = can_claim ? RGB565(0, 180, 100) : RGB565(40, 45, 55);
+  gfx->fillRect(itemStartX + itemW + itemGap, itemY, itemW, itemH, can_claim ? RGB565(10, 20, 15) : RGB565(12, 14, 20));
+  gfx->drawRect(itemStartX + itemW + itemGap, itemY, itemW, itemH, xpBtnColor);
+  gfx->fillRect(itemStartX + itemW + itemGap, itemY, 5, 5, xpBtnColor);
+  gfx->setTextColor(xpBtnColor);
   gfx->setTextSize(2);
-  if (can_claim) {
-    gfx->setCursor(centerX - 60, xpBtnY + 18);
-    gfx->print("CLAIM 10 XP");
-    
-    gfx->setTextSize(1);
-    gfx->setCursor(centerX - 42, xpBtnY + 42);
-    gfx->print("(Hourly Bonus)");
-  } else {
-    gfx->setCursor(centerX - 48, xpBtnY + 15);
-    gfx->print("CLAIMED!");
-    
-    // Timer text
+  gfx->setCursor(itemStartX + itemW + itemGap + 14, itemY + 10);
+  gfx->print("+10XP");
+  gfx->setTextSize(1);
+  gfx->setTextColor(can_claim ? RGB565(100, 200, 150) : RGB565(80, 85, 100));
+  gfx->setCursor(itemStartX + itemW + itemGap + 18, itemY + 35);
+  gfx->print(can_claim ? "HOURLY XP" : "CLAIMED!");
+  if (!can_claim) {
     int minutes_left = 60 - current.minute;
-    gfx->setTextSize(1);
-    gfx->setTextColor(RGB565(150, 150, 160));
-    gfx->setCursor(centerX - 36, xpBtnY + 42);
-    gfx->printf("Next in %dm", minutes_left);
+    gfx->setCursor(itemStartX + itemW + itemGap + 14, itemY + 55);
+    gfx->printf("Next: %dm", minutes_left);
+  } else {
+    gfx->setTextColor(COLOR_WHITE);
+    gfx->setTextSize(2);
+    gfx->setCursor(itemStartX + itemW + itemGap + 18, itemY + 55);
+    gfx->print("CLAIM");
   }
   
-  // Instruction
-  gfx->setTextColor(RGB565(100, 105, 120));
+  // Item 3: Training Boost (costs 200 gems, gives 50 XP)
+  int item3X = itemStartX + 2 * (itemW + itemGap);
+  bool canBuyTraining = system_state.player_gems >= 200;
+  uint16_t trainColor = canBuyTraining ? RGB565(200, 100, 255) : RGB565(60, 50, 70);
+  gfx->fillRect(item3X, itemY, itemW, itemH, canBuyTraining ? RGB565(18, 12, 25) : RGB565(12, 14, 20));
+  gfx->drawRect(item3X, itemY, itemW, itemH, trainColor);
+  gfx->fillRect(item3X, itemY, 5, 5, trainColor);
+  gfx->setTextColor(trainColor);
+  gfx->setTextSize(2);
+  gfx->setCursor(item3X + 8, itemY + 10);
+  gfx->print("+50XP");
   gfx->setTextSize(1);
-  gfx->setCursor(centerX - 65, 380);
-  gfx->print("Tap as many times as you want!");
+  gfx->setTextColor(canBuyTraining ? RGB565(180, 140, 220) : RGB565(80, 85, 100));
+  gfx->setCursor(item3X + 8, itemY + 35);
+  gfx->print("TRAIN BOOST");
+  gfx->setTextColor(COLOR_GOLD);
+  gfx->setTextSize(2);
+  gfx->setCursor(item3X + 24, itemY + 55);
+  gfx->print("200g");
   
-  // FUSION OS: Secret Dev Button (small, bottom-right corner)
+  // === RPG STAT BOOSTS ROW ===
+  int boostY = itemY + itemH + 15;
+  int boostW = (LCD_WIDTH - 60) / 2;
+  int boostH = 60;
+  
+  // HP Boost (300 gems)
+  bool canHP = system_state.player_gems >= 300;
+  gfx->fillRect(20, boostY, boostW, boostH, canHP ? RGB565(20, 12, 12) : RGB565(12, 14, 20));
+  gfx->drawRect(20, boostY, boostW, boostH, canHP ? RGB565(255, 80, 80) : RGB565(40, 45, 60));
+  gfx->fillRect(20, boostY, 5, 5, canHP ? RGB565(255, 80, 80) : RGB565(40, 45, 60));
+  gfx->setTextColor(canHP ? RGB565(255, 100, 100) : RGB565(80, 85, 100));
+  gfx->setTextSize(2);
+  gfx->setCursor(30, boostY + 8);
+  gfx->print("HP +20");
+  gfx->setTextSize(1);
+  gfx->setTextColor(COLOR_GOLD);
+  gfx->setCursor(30, boostY + 35);
+  gfx->print("300 gems | Boss battles");
+  
+  // ATK Boost (500 gems)
+  int boost2X = 20 + boostW + 20;
+  bool canATK = system_state.player_gems >= 500;
+  gfx->fillRect(boost2X, boostY, boostW, boostH, canATK ? RGB565(20, 15, 8) : RGB565(12, 14, 20));
+  gfx->drawRect(boost2X, boostY, boostW, boostH, canATK ? RGB565(255, 180, 50) : RGB565(40, 45, 60));
+  gfx->fillRect(boost2X, boostY, 5, 5, canATK ? RGB565(255, 180, 50) : RGB565(40, 45, 60));
+  gfx->setTextColor(canATK ? RGB565(255, 200, 80) : RGB565(80, 85, 100));
+  gfx->setTextSize(2);
+  gfx->setCursor(boost2X + 10, boostY + 8);
+  gfx->print("ATK +10");
+  gfx->setTextSize(1);
+  gfx->setTextColor(COLOR_GOLD);
+  gfx->setCursor(boost2X + 10, boostY + 35);
+  gfx->print("500 gems | All battles");
+  
+  // === PLAYER STATS PANEL ===
+  int statsY = boostY + boostH + 12;
+  gfx->fillRect(20, statsY, LCD_WIDTH - 40, 35, RGB565(10, 12, 18));
+  gfx->drawRect(20, statsY, LCD_WIDTH - 40, 35, RGB565(35, 40, 55));
+  gfx->setTextColor(theme->primary);
+  gfx->setTextSize(1);
+  gfx->setCursor(30, statsY + 6);
+  gfx->printf("LVL %d | %d GEMS | %d CARDS", system_state.player_level, system_state.player_gems, system_state.gacha_cards_collected);
+  gfx->setTextColor(RGB565(100, 105, 120));
+  gfx->setCursor(30, statsY + 20);
+  gfx->printf("Bosses: %d | Steps: %d", system_state.bosses_defeated, system_state.steps_today);
+  
+  // DEV button (small, bottom-right)
   int devBtnX = LCD_WIDTH - 60;
   int devBtnY = LCD_HEIGHT - 50;
   int devBtnW = 50;
   int devBtnH = 40;
-  
   gfx->fillRoundRect(devBtnX, devBtnY, devBtnW, devBtnH, 5, RGB565(30, 30, 40));
   gfx->drawRoundRect(devBtnX, devBtnY, devBtnW, devBtnH, 5, RGB565(80, 80, 90));
-  
   gfx->setTextSize(1);
   gfx->setTextColor(RGB565(100, 100, 110));
   gfx->setCursor(devBtnX + 10, devBtnY + 8);
@@ -1909,58 +1963,86 @@ void handleShopTouch(TouchGesture& gesture) {
       return;
     }
     
-    // Check if tapped on the big gems button
-    int btnX = 50;
-    int btnY = 160;
-    int btnW = LCD_WIDTH - 100;
-    int btnH = 100;
+    // Check shop item buttons - new 3-item grid layout
+    int itemY = 125;
+    int itemW = 115;
+    int itemH = 85;
+    int itemGap = 10;
+    int itemStartX = (LCD_WIDTH - (3 * itemW + 2 * itemGap)) / 2;
     
-    if (x >= btnX && x < btnX + btnW && y >= btnY && y < btnY + btnH) {
-      // Add 1000 gems!
+    // Item 1: Free Gems (+1000)
+    if (x >= itemStartX && x < itemStartX + itemW && y >= itemY && y < itemY + itemH) {
       system_state.player_gems += 1000;
-      
-      // Quick flash effect
-      gfx->fillRect(btnX + 5, btnY + 5, btnW - 10, btnH - 10, COLOR_WHITE);
+      gfx->fillRect(itemStartX + 5, itemY + 5, itemW - 10, itemH - 10, COLOR_WHITE);
       delay(50);
-      
-      // Save game data to persist gems
       extern void saveAllGameData();
       saveAllGameData();
-      
-      // Redraw
       drawShopApp();
       return;
     }
     
-    // FUSION OS: Check if tapped on XP claim button
-    int xpBtnX = 50;
-    int xpBtnY = 290;
-    int xpBtnW = LCD_WIDTH - 100;
-    int xpBtnH = 70;
-    
-    if (x >= xpBtnX && x < xpBtnX + xpBtnW && y >= xpBtnY && y < xpBtnY + xpBtnH) {
-      // Attempt to claim XP
+    // Item 2: XP Claim (hourly)
+    int item2X = itemStartX + itemW + itemGap;
+    if (x >= item2X && x < item2X + itemW && y >= itemY && y < itemY + itemH) {
       extern void checkHourlyShopClaim();
       checkHourlyShopClaim();
-      
-      // Flash effect
-      gfx->fillRect(xpBtnX + 5, xpBtnY + 5, xpBtnW - 10, xpBtnH - 10, 
-                    RGB565(100, 255, 150));
+      gfx->fillRect(item2X + 5, itemY + 5, itemW - 10, itemH - 10, RGB565(100, 255, 150));
       delay(100);
-      
-      // Redraw
       drawShopApp();
       return;
     }
     
-    // FUSION OS: Check if tapped on DEV button (secret cheat)
+    // Item 3: Training Boost (200 gems -> 50 XP)
+    int item3X = itemStartX + 2 * (itemW + itemGap);
+    if (x >= item3X && x < item3X + itemW && y >= itemY && y < itemY + itemH) {
+      if (system_state.player_gems >= 200) {
+        system_state.player_gems -= 200;
+        gainExperience(50, "Training Boost");
+        extern void saveAllGameData();
+        saveAllGameData();
+        gfx->fillRect(item3X + 5, itemY + 5, itemW - 10, itemH - 10, RGB565(200, 100, 255));
+        delay(100);
+      }
+      drawShopApp();
+      return;
+    }
+    
+    // HP Boost (300 gems)
+    int boostY = itemY + itemH + 15;
+    int boostW = (LCD_WIDTH - 60) / 2;
+    int boostH = 60;
+    if (x >= 20 && x < 20 + boostW && y >= boostY && y < boostY + boostH) {
+      if (system_state.player_gems >= 300) {
+        system_state.player_gems -= 300;
+        // Increase player HP capacity (affects boss battles)
+        gainExperience(20, "HP Boost");
+        extern void saveAllGameData();
+        saveAllGameData();
+      }
+      drawShopApp();
+      return;
+    }
+    
+    // ATK Boost (500 gems)
+    int boost2X = 20 + boostW + 20;
+    if (x >= boost2X && x < boost2X + boostW && y >= boostY && y < boostY + boostH) {
+      if (system_state.player_gems >= 500) {
+        system_state.player_gems -= 500;
+        gainExperience(30, "ATK Boost");
+        extern void saveAllGameData();
+        saveAllGameData();
+      }
+      drawShopApp();
+      return;
+    }
+    
+    // DEV button (same position)
     int devBtnX = LCD_WIDTH - 60;
     int devBtnY = LCD_HEIGHT - 50;
     int devBtnW = 50;
     int devBtnH = 40;
     
     if (x >= devBtnX && x < devBtnX + devBtnW && y >= devBtnY && y < devBtnY + devBtnH) {
-      // Activate passcode mode
       passcode_active = true;
       entered_code = "";
       drawPasscodeInput(entered_code);

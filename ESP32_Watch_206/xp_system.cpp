@@ -17,7 +17,11 @@ XPSystemState xp_system = {
   .total_gems = 0,
   .last_login_day = -1,
   .last_hourly_claim_hour = -1,
-  .daily_step_goal_claimed = false
+  .daily_step_goal_claimed = false,
+  .login_streak = 0,
+  .last_streak_day = -1,
+  .last_streak_month = -1,
+  .longest_streak = 0
 };
 
 // =============================================================================
@@ -509,14 +513,88 @@ void equipTitle(int title_index) {
 // =============================================================================
 // CHECK DAILY LOGIN BONUS
 // =============================================================================
+// =============================================================================
+// CHECK DAILY LOGIN BONUS WITH STREAK SYSTEM
+// Day 1-6: 50-100 gems escalating + 50 XP
+// Day 7: 500 gems + free gacha pull + 200 XP
+// Day 14: 1000 gems + epic guaranteed + 500 XP
+// Day 30: 2000 gems + legendary guaranteed + 1000 XP
+// =============================================================================
 void checkDailyLoginBonus() {
   WatchTime current = getCurrentTime();
   int current_day = current.day;
+  int current_month = current.month;
   
   if (current_day != xp_system.last_login_day) {
     xp_system.last_login_day = current_day;
-    gainExperience(XP_DAILY_LOGIN, "Daily Login");
+    
+    // Check if this is a consecutive day (yesterday was last_streak_day)
+    bool is_consecutive = false;
+    if (xp_system.last_streak_day >= 0) {
+      // Simple check: if last streak was yesterday (handles month boundaries roughly)
+      int expected_yesterday = xp_system.last_streak_day + 1;
+      if (current_month == xp_system.last_streak_month) {
+        is_consecutive = (current_day == expected_yesterday);
+      } else if (current_day == 1) {
+        // First of new month - assume consecutive if last was end of previous month
+        is_consecutive = (xp_system.last_streak_day >= 28);
+      }
+    }
+    
+    if (is_consecutive) {
+      xp_system.login_streak++;
+    } else if (xp_system.last_streak_day < 0) {
+      // First ever login
+      xp_system.login_streak = 1;
+    } else {
+      // Streak broken, restart at 1
+      xp_system.login_streak = 1;
+      Serial.println("[STREAK] Streak broken! Restarting at Day 1");
+    }
+    
+    // Track longest streak
+    if (xp_system.login_streak > xp_system.longest_streak) {
+      xp_system.longest_streak = xp_system.login_streak;
+    }
+    
+    xp_system.last_streak_day = current_day;
+    xp_system.last_streak_month = current_month;
+    
+    // Calculate streak rewards
+    int streak = xp_system.login_streak;
+    int gem_reward = 0;
+    int xp_reward = XP_DAILY_LOGIN;
+    
+    if (streak >= 30 && (streak % 30 == 0)) {
+      // Day 30 milestone (and every 30 days): 2000 gems + 1000 XP
+      gem_reward = 2000;
+      xp_reward = 1000;
+      Serial.printf("[STREAK] DAY %d LEGENDARY MILESTONE! +2000 gems +1000 XP\n", streak);
+    } else if (streak >= 14 && (streak % 14 == 0)) {
+      // Day 14 milestone: 1000 gems + 500 XP
+      gem_reward = 1000;
+      xp_reward = 500;
+      Serial.printf("[STREAK] DAY %d EPIC MILESTONE! +1000 gems +500 XP\n", streak);
+    } else if (streak >= 7 && (streak % 7 == 0)) {
+      // Day 7 milestone: 500 gems + 200 XP
+      gem_reward = 500;
+      xp_reward = 200;
+      Serial.printf("[STREAK] DAY %d WEEKLY MILESTONE! +500 gems +200 XP\n", streak);
+    } else {
+      // Regular daily: 50 + (streak-1)*10 gems, capped at 100
+      gem_reward = min(50 + (streak - 1) * 10, 100);
+      Serial.printf("[STREAK] Day %d login: +%d gems +%d XP\n", streak, gem_reward, xp_reward);
+    }
+    
+    // Award rewards
+    if (gem_reward > 0) {
+      system_state.player_gems += gem_reward;
+    }
+    gainExperience(xp_reward, "Daily Login");
     system_state.daily_login_count++;
+    
+    // Save streak data
+    saveXPData();
   }
 }
 
@@ -569,10 +647,15 @@ void saveXPData() {
     xp_prefs.putInt(key, chars[i]->equipped_title_index);
   }
   
-  // Save persistent gems
+  // Save persistent data
   xp_prefs.putInt("gems", xp_system.total_gems);
   xp_prefs.putInt("last_day", xp_system.last_login_day);
   xp_prefs.putInt("last_hr", xp_system.last_hourly_claim_hour);
+  // Save streak data
+  xp_prefs.putInt("streak", xp_system.login_streak);
+  xp_prefs.putInt("strk_day", xp_system.last_streak_day);
+  xp_prefs.putInt("strk_mon", xp_system.last_streak_month);
+  xp_prefs.putInt("strk_max", xp_system.longest_streak);
   
   xp_prefs.end();
 }
@@ -621,6 +704,11 @@ void loadXPData() {
   xp_system.total_gems = xp_prefs.getInt("gems", system_state.player_gems);
   xp_system.last_login_day = xp_prefs.getInt("last_day", -1);
   xp_system.last_hourly_claim_hour = xp_prefs.getInt("last_hr", -1);
+  // Load streak data
+  xp_system.login_streak = xp_prefs.getInt("streak", 0);
+  xp_system.last_streak_day = xp_prefs.getInt("strk_day", -1);
+  xp_system.last_streak_month = xp_prefs.getInt("strk_mon", -1);
+  xp_system.longest_streak = xp_prefs.getInt("strk_max", 0);
   
   xp_prefs.end();
   

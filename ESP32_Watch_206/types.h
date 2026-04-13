@@ -88,7 +88,10 @@ enum BossTier {
   BOSS_TIER_1 = 1,
   BOSS_TIER_2 = 2,
   BOSS_TIER_3 = 3,
-  BOSS_TIER_4 = 4
+  BOSS_TIER_4 = 4,
+  BOSS_TIER_5 = 5,
+  BOSS_TIER_6 = 6,
+  BOSS_TIER_7 = 7
 };
 
 // Gacha rarity
