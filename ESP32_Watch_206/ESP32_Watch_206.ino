@@ -24,6 +24,8 @@
  */
 
 #include <esp_task_wdt.h>
+#include <Preferences.h>
+#include <esp_system.h>
 
 #include "config.h"
 #include "display.h"
@@ -60,6 +62,7 @@
 #define BUTTON_DEBOUNCE_MS      50      // Button debounce time
 #define SCREEN_OFF_TIMEOUT_MS   5000    // 5 seconds to turn screen off (CHANGED from 3000)
 #define WATCHDOG_TIMEOUT_SEC    10      // Watchdog timeout in seconds
+#define BOOT_PANIC_THRESHOLD    3       // Skip WiFi after N consecutive WDT panics
 
 // =============================================================================
 // DISPLAY SETUP - CO5300 for 2.06" AMOLED
@@ -122,12 +125,16 @@ SystemState system_state = {
 // Touch interrupt flag
 volatile bool touch_interrupt = false;
 
+// Boot guard state
+static bool safeModeBoot = false;
+
 // =============================================================================
 // INTERRUPT SERVICE ROUTINES
 // =============================================================================
 
 void IRAM_ATTR touchWakeISR() {
     touchWakeFlag = true;
+    touch_interrupt = true;   // Also trigger touch input handling
     lastActivityMs = millis();
 }
 
@@ -142,20 +149,117 @@ void IRAM_ATTR powerButtonISR() {
 void initWatchdog() {
     Serial.println("[WDT] Initializing watchdog timer...");
     
+    // ==========================================================================
+    // FIX: On some ESP32-S3 boards with Arduino Core 3.x, the framework does NOT
+    // auto-initialize the TWDT before setup(). esp_task_wdt_reconfigure() fails
+    // with "TWDT was never initialized". We MUST call esp_task_wdt_init() ourselves.
+    //
+    // Strategy: deinit (clean slate) → init fresh → subscribe loopTask only.
+    // Use a long timeout (120s) for the entire setup() phase.
+    // Normal 10s timeout is set at end of setup() before loop() starts.
+    // ==========================================================================
+    
+    // Step 1: Clean slate - remove any pre-existing WDT (OK to fail if none exists)
+    esp_task_wdt_deinit();
+    
+    // Step 2: Initialize TWDT fresh with long timeout for setup phase
     esp_task_wdt_config_t wdt_config = {
-        .timeout_ms = WATCHDOG_TIMEOUT_SEC * 1000,
-        .idle_core_mask = (1 << portNUM_PROCESSORS) - 1,
+        .timeout_ms = 120000,      // 120s - covers entire setup() including WiFi
+        .idle_core_mask = 0,       // Do NOT monitor idle tasks (they can't feed during setup)
         .trigger_panic = true
     };
     
-    esp_task_wdt_reconfigure(&wdt_config);
-    esp_task_wdt_add(xTaskGetCurrentTaskHandle());
+    esp_err_t err = esp_task_wdt_init(&wdt_config);
+    if (err != ESP_OK) {
+        Serial.printf("[WDT] Init failed (%d) - trying reconfigure\n", err);
+        err = esp_task_wdt_reconfigure(&wdt_config);
+    }
     
-    Serial.printf("[WDT] Watchdog initialized: %d sec timeout\n", WATCHDOG_TIMEOUT_SEC);
+    if (err != ESP_OK) {
+        Serial.printf("[WDT] WARNING: Could not configure WDT (%d)\n", err);
+        return;  // Continue boot without WDT rather than crash
+    }
+    
+    // Step 3: Subscribe loopTask only
+    err = esp_task_wdt_add(xTaskGetCurrentTaskHandle());
+    if (err == ESP_ERR_INVALID_ARG) {
+        Serial.println("[WDT] Task already subscribed to watchdog");
+    } else if (err != ESP_OK) {
+        Serial.printf("[WDT] Add task result: %d\n", err);
+    }
+    
+    // Step 4: Verify we can feed it
+    err = esp_task_wdt_reset();
+    if (err != ESP_OK) {
+        Serial.printf("[WDT] WARNING: Feed failed (%d)\n", err);
+    }
+    
+    Serial.println("[WDT] Watchdog initialized: 120s timeout (setup phase)");
 }
 
 void feedWatchdog() {
     esp_task_wdt_reset();
+}
+
+// =============================================================================
+// BOOT GUARD - Skip WiFi after consecutive WDT panics
+// =============================================================================
+
+void checkBootPanic() {
+    Preferences bootPrefs;
+    bootPrefs.begin("bootguard", false);
+    
+    // Check what caused the last reboot
+    esp_reset_reason_t reason = esp_reset_reason();
+    bool was_panic = (reason == ESP_RST_TASK_WDT ||
+                      reason == ESP_RST_INT_WDT ||
+                      reason == ESP_RST_WDT ||
+                      reason == ESP_RST_PANIC);
+    
+    int panicCount = bootPrefs.getInt("panics", 0);
+    
+    if (was_panic) {
+        panicCount++;
+        bootPrefs.putInt("panics", panicCount);
+        Serial.printf("[BOOT GUARD] WDT/panic reboot detected! Count: %d/%d\n",
+            panicCount, BOOT_PANIC_THRESHOLD);
+    } else {
+        // Clean boot (power on, manual reset, etc.)
+        if (panicCount > 0) {
+            Serial.printf("[BOOT GUARD] Clean boot - resetting panic counter (was %d)\n", panicCount);
+            bootPrefs.putInt("panics", 0);
+        }
+        panicCount = 0;
+    }
+    
+    if (panicCount >= BOOT_PANIC_THRESHOLD) {
+        safeModeBoot = true;
+        Serial.println("[BOOT GUARD] *** SAFE MODE ACTIVATED ***");
+        Serial.printf("[BOOT GUARD] %d consecutive panics - WiFi SKIPPED this boot\n", panicCount);
+    }
+    
+    bootPrefs.end();
+    
+    // Log reset reason for debugging
+    const char* reasons[] = {
+        "UNKNOWN", "POWERON", "EXT", "SW", "PANIC",
+        "INT_WDT", "TASK_WDT", "WDT", "DEEPSLEEP", "BROWNOUT", "SDIO"
+    };
+    int r = (int)reason;
+    Serial.printf("[BOOT GUARD] Reset reason: %s (%d)\n",
+        (r >= 0 && r <= 10) ? reasons[r] : "?", r);
+}
+
+void clearBootPanicCounter() {
+    Preferences bootPrefs;
+    bootPrefs.begin("bootguard", false);
+    int oldCount = bootPrefs.getInt("panics", 0);
+    if (oldCount > 0) {
+        bootPrefs.putInt("panics", 0);
+        Serial.printf("[BOOT GUARD] Boot successful! Panic counter cleared (was %d)\n", oldCount);
+    }
+    bootPrefs.end();
+    safeModeBoot = false;
 }
 
 // =============================================================================
@@ -277,6 +381,9 @@ void setup() {
   initWatchdog();
   feedWatchdog();
   
+  checkBootPanic();
+  feedWatchdog();
+  
   initializeHardware();
   feedWatchdog();
   
@@ -291,7 +398,8 @@ void setup() {
     Serial.println("[INIT] Touch initialized");
     system_state.touch_available = true;
     
-    attachInterrupt(digitalPinToInterrupt(TP_INT), touchISR, FALLING);
+    // Single ISR handles both touch input and screen wake
+    // (only ONE ISR allowed per pin - second attachInterrupt overwrites the first)
     attachInterrupt(digitalPinToInterrupt(TP_INT), touchWakeISR, FALLING);
   }
   
@@ -318,8 +426,10 @@ void setup() {
   feedWatchdog();
   
   initTrainingSystem();
+  feedWatchdog();
   
   initBossRush();
+  feedWatchdog();
   
   initXPSystem();
   checkDailyLoginBonus();
@@ -332,43 +442,43 @@ void setup() {
   
   Serial.println("[INIT] Initializing WiFi sync...");
   feedWatchdog();
-  initWiFiSync();
+  initWiFiSync();  // Always load SD card networks (even in safe mode)
   feedWatchdog();
   
-  Serial.println("\n[BOOT] Starting WiFi boot sync...");
-  feedWatchdog();
-  
-  // Temporarily increase watchdog timeout for WiFi phase
-  esp_task_wdt_config_t wifi_wdt_config = {
-      .timeout_ms = 40000,  // 40 seconds during WiFi (covers scan + all networks + NTP)
-      .idle_core_mask = (1 << portNUM_PROCESSORS) - 1,
-      .trigger_panic = true
-  };
-  esp_task_wdt_reconfigure(&wifi_wdt_config);
-  
-  unsigned long beforeSync = millis();
-  bool wifi_synced = performBootSync();
-  unsigned long syncDuration = millis() - beforeSync;
-  
-  // Restore normal watchdog timeout
-  esp_task_wdt_config_t normal_wdt_config = {
-      .timeout_ms = WATCHDOG_TIMEOUT_SEC * 1000,
-      .idle_core_mask = (1 << portNUM_PROCESSORS) - 1,
-      .trigger_panic = true
-  };
-  esp_task_wdt_reconfigure(&normal_wdt_config);
-  feedWatchdog();
-  
-  Serial.printf("[WiFi] Sync attempt took %lu ms\n", syncDuration);
-  
-  if (wifi_synced) {
-    Serial.println("[BOOT] WiFi sync successful!");
-  } else {
-    Serial.println("[BOOT] WiFi sync failed or skipped");
+  if (safeModeBoot) {
+    // ==========================================================================
+    // SAFE MODE: Skip WiFi entirely - go straight to watchface with RTC time
+    // ==========================================================================
+    Serial.println("\n[BOOT] *** SAFE MODE: Skipping WiFi sync ***");
     Serial.println("[BOOT] -> Using RTC chip time (PCF85063)");
     WatchTime rtc = getCurrentTime();
     Serial.printf("[BOOT] -> RTC: %04d-%02d-%02d %02d:%02d:%02d\n",
       rtc.year, rtc.month, rtc.day, rtc.hour, rtc.minute, rtc.second);
+    Serial.println("[BOOT] -> WiFi networks loaded from SD (available for manual sync)");
+  } else {
+    Serial.println("\n[BOOT] Starting WiFi boot sync...");
+    feedWatchdog();
+    
+    // WDT already set to 120s in initWatchdog() — covers entire setup including WiFi
+    feedWatchdog();
+    
+    unsigned long beforeSync = millis();
+    bool wifi_synced = performBootSync();
+    unsigned long syncDuration = millis() - beforeSync;
+    
+    feedWatchdog();
+    
+    Serial.printf("[WiFi] Sync attempt took %lu ms\n", syncDuration);
+    
+    if (wifi_synced) {
+      Serial.println("[BOOT] WiFi sync successful!");
+    } else {
+      Serial.println("[BOOT] WiFi sync failed or skipped");
+      Serial.println("[BOOT] -> Using RTC chip time (PCF85063)");
+      WatchTime rtc = getCurrentTime();
+      Serial.printf("[BOOT] -> RTC: %04d-%02d-%02d %02d:%02d:%02d\n",
+        rtc.year, rtc.month, rtc.day, rtc.hour, rtc.minute, rtc.second);
+    }
   }
   
   feedWatchdog();
@@ -377,7 +487,9 @@ void setup() {
   feedWatchdog();
   
   initStepsTracker();
+  feedWatchdog();
   initDailyQuests();
+  feedWatchdog();
   initStorySystem();
   feedWatchdog();
   
@@ -391,11 +503,28 @@ void setup() {
   drawWatchFace();
   drawNavigationIndicators();
   
+  // =========================================================================
+  // SETUP COMPLETE: Clear boot panic counter + tighten WDT to runtime
+  // =========================================================================
+  clearBootPanicCounter();
+  
+  {
+    esp_task_wdt_config_t runtime_wdt = {
+        .timeout_ms = WATCHDOG_TIMEOUT_SEC * 1000,
+        .idle_core_mask = 0,
+        .trigger_panic = true
+    };
+    esp_task_wdt_reconfigure(&runtime_wdt);
+    esp_task_wdt_reset();
+  }
+  Serial.printf("[WDT] Watchdog tightened to %d seconds for runtime\n", WATCHDOG_TIMEOUT_SEC);
+  
   Serial.println("\n[INIT] ===== FUSION OS READY! =====");
   Serial.println("       - Screen Timeout: 5 seconds");
   Serial.println("       - Wake: Touch or GPIO 10 button");
-  Serial.println("       - Watchdog: 10 seconds");
-  Serial.println("       Battery Target: 8-12 hours 🔋");
+  Serial.printf("       - Watchdog: %d seconds\n", WATCHDOG_TIMEOUT_SEC);
+  Serial.printf("       - Boot guard: %d panic threshold\n", BOOT_PANIC_THRESHOLD);
+  Serial.println("       Battery Target: 8-12 hours");
 }
 
 // =============================================================================
@@ -730,7 +859,6 @@ void updateCurrentScreen() {
 // SAVE ALL DATA - Persistent Storage using Preferences (NVS)
 // =============================================================================
 
-#include <Preferences.h>
 Preferences gamePrefs;
 
 void saveAllGameData() {

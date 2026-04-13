@@ -216,6 +216,7 @@ void navigateToScreen(MainScreen screen) {
         }
         case MAIN_STEPS_TRACKER: {
             g_force_steps_redraw = true;
+            forceStepsCardRedraw();  // FIX: Also reset the internal anti-flicker static vars
             Serial.println("[NAV] Forced steps tracker redraw");
             break;
         }
@@ -276,6 +277,7 @@ void drawCurrentScreen() {
 
     if (navState.currentMain == MAIN_STEPS_TRACKER && last_screen != MAIN_STEPS_TRACKER) {
         g_force_steps_redraw = true;
+        forceStepsCardRedraw();  // FIX: Reset anti-flicker statics too
         Serial.println("[NAV] Entering Steps Tracker - forcing redraw");
     }
 
@@ -295,6 +297,7 @@ void drawCurrentScreen() {
         case MAIN_STEPS_TRACKER:
             if (g_force_steps_redraw) {
                 gfx->fillScreen(RGB565(2, 2, 5));
+                forceStepsCardRedraw();  // FIX: Ensure internal statics are reset
                 Serial.println("[NAV] Steps Tracker: Full screen clear done");
                 g_force_steps_redraw = false;
             }

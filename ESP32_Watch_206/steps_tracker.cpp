@@ -30,6 +30,19 @@ static bool goal_reached_today = false;
 
 Preferences prefs;
 
+// =============================================================================
+// FIX: External flag to force full redraw of steps card
+// This is needed because drawStepsCard() uses static vars for anti-flicker,
+// but when navigating BACK to the steps screen, the screen gets cleared
+// while the static vars still say "no redraw needed" → black screen!
+// =============================================================================
+static bool g_force_steps_card_redraw = true;
+
+void forceStepsCardRedraw() {
+  g_force_steps_card_redraw = true;
+  Serial.println("[Steps] Force full redraw requested");
+}
+
 void initStepsTracker() {
   loadStepsData();
   WatchTime current_time = getCurrentTime();
@@ -58,6 +71,12 @@ void drawStepsCard() {
   static bool needs_redraw = true;
   static int last_steps = -1;
   static int last_goal = -1;
+  
+  // FIX: Check external force redraw flag (set when navigating to this screen)
+  if (g_force_steps_card_redraw) {
+    needs_redraw = true;
+    g_force_steps_card_redraw = false;
+  }
   
   // Check if data changed
   bool data_changed = (steps_data.steps_today != last_steps) ||

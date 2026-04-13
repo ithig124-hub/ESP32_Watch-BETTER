@@ -136,34 +136,40 @@ bool createExampleConfig() {
     }
     
     // Write example config
+    // NOTE: Use same format as sd_manager.cpp: SSID1=, PASSWORD1=
     configFile.println("# WiFi Configuration File for ESP32 Watch");
     configFile.println("# Add your WiFi networks below (up to 5 networks)");
-    configFile.println("# Format: WIFIn_SSID=YourNetworkName");
-    configFile.println("#         WIFIn_PASS=YourPassword");
+    configFile.println("# Format: SSIDn=YourNetworkName");
+    configFile.println("#         PASSWORDn=YourPassword");
     configFile.println("# Leave password blank for open networks");
     configFile.println("#");
     configFile.println("# Timezone is AUTO-DETECTED from your IP location!");
     configFile.println("# But you can override it here if needed:");
     configFile.println("# GMT_OFFSET=8");
     configFile.println("#");
-    configFile.println("# Example networks:");
-    configFile.println("# WIFI1_SSID=HomeNetwork");
-    configFile.println("# WIFI1_PASS=secretpassword");
-    configFile.println("#");
-    configFile.println("# WIFI2_SSID=OfficeNetwork");
-    configFile.println("# WIFI2_PASS=office123");
+    configFile.println("# Example:");
+    configFile.println("# SSID1=HomeNetwork");
+    configFile.println("# PASSWORD1=secretpassword");
     configFile.println("");
-    configFile.println("# Add your networks below:");
-    configFile.println("# WIFI1_SSID=");
-    configFile.println("# WIFI1_PASS=");
-    configFile.println("# WIFI2_SSID=");
-    configFile.println("# WIFI2_PASS=");
-    configFile.println("# WIFI3_SSID=");
-    configFile.println("# WIFI3_PASS=");
-    configFile.println("# WIFI4_SSID=");
-    configFile.println("# WIFI4_PASS=");
-    configFile.println("# WIFI5_SSID=");
-    configFile.println("# WIFI5_PASS=");
+    configFile.println("# Network 1 (Primary)");
+    configFile.println("SSID1=");
+    configFile.println("PASSWORD1=");
+    configFile.println("");
+    configFile.println("# Network 2");
+    configFile.println("SSID2=");
+    configFile.println("PASSWORD2=");
+    configFile.println("");
+    configFile.println("# Network 3");
+    configFile.println("SSID3=");
+    configFile.println("PASSWORD3=");
+    configFile.println("");
+    configFile.println("# Network 4");
+    configFile.println("SSID4=");
+    configFile.println("PASSWORD4=");
+    configFile.println("");
+    configFile.println("# Network 5");
+    configFile.println("SSID5=");
+    configFile.println("PASSWORD5=");
     
     configFile.close();
     
@@ -212,6 +218,12 @@ int loadWiFiNetworksFromSD() {
     bool hasSSID = false;
     
     // Parse the config file (up to 5 networks from SD)
+    // ==========================================================================
+    // FIX: Support BOTH config formats:
+    //   Format A (sd_manager.cpp): SSID1=MyNetwork, PASSWORD1=MyPass
+    //   Format B (wifi_sync.cpp):  WIFI1_SSID=MyNetwork, WIFI1_PASS=MyPass
+    //   Format C (legacy):         SSID=MyNetwork, PASS=MyPass
+    // ==========================================================================
     while (configFile.available() && networksAdded < 5) {
         // Read a line
         int lineLen = 0;
@@ -225,59 +237,70 @@ int loadWiFiNetworksFromSD() {
         // Skip empty lines and comments
         if (lineLen == 0 || line[0] == '#') continue;
         
-        // Parse WIFI_SSID or WIFIn_SSID
-        if (strstr(line, "SSID=") != NULL) {
-            char* value = strchr(line, '=');
-            if (value) {
-                value++;  // Skip '='
-                // Trim whitespace
-                while (*value == ' ') value++;
-                if (strlen(value) > 0) {
-                    strncpy(currentSSID, value, sizeof(currentSSID) - 1);
-                    currentSSID[sizeof(currentSSID) - 1] = (char)0;
-                    hasSSID = true;
-                    Serial.printf("[WiFiSync] Found SSID: %s\n", currentSSID);
-                }
-            }
+        // Find the '=' separator
+        char* eqSign = strchr(line, '=');
+        if (!eqSign) continue;
+        
+        // Extract key and value
+        *eqSign = '\0';  // Split at '='
+        char* key = line;
+        char* value = eqSign + 1;
+        
+        // Trim leading whitespace from value
+        while (*value == ' ') value++;
+        
+        // =================================================================
+        // Match SSID patterns: "SSID1", "WIFI1_SSID", "SSID", etc.
+        // =================================================================
+        bool isSSID = false;
+        bool isPASS = false;
+        
+        // Check for SSID patterns (case: SSID1, SSID2, ..., SSID, WIFI1_SSID, etc.)
+        if (strstr(key, "SSID") != NULL && strstr(key, "PASS") == NULL) {
+            isSSID = true;
         }
-        // Parse WIFI_PASS or WIFIn_PASS
-        else if (strstr(line, "PASS=") != NULL) {
-            char* value = strchr(line, '=');
-            if (value) {
-                value++;  // Skip '='
-                // Trim whitespace
-                while (*value == ' ') value++;
-                strncpy(currentPass, value, sizeof(currentPass) - 1);
-                currentPass[sizeof(currentPass) - 1] = (char)0;
+        // Check for PASSWORD/PASS patterns (case: PASSWORD1, PASS, WIFI1_PASS, etc.)
+        else if (strstr(key, "PASS") != NULL) {
+            isPASS = true;
+        }
+        // Parse manual timezone override
+        else if (strcmp(key, "GMT_OFFSET") == 0) {
+            timezone_offset_hours = atoi(value);
+            Serial.printf("[WiFiSync] Manual timezone override: GMT%+d\n", timezone_offset_hours);
+            *eqSign = '=';  // Restore line
+            continue;
+        }
+        
+        *eqSign = '=';  // Restore line
+        
+        if (isSSID && strlen(value) > 0) {
+            strncpy(currentSSID, value, sizeof(currentSSID) - 1);
+            currentSSID[sizeof(currentSSID) - 1] = (char)0;
+            hasSSID = true;
+            Serial.printf("[WiFiSync] Found SSID: %s\n", currentSSID);
+        }
+        else if (isPASS) {
+            strncpy(currentPass, value, sizeof(currentPass) - 1);
+            currentPass[sizeof(currentPass) - 1] = (char)0;
+            
+            // If we have an SSID, add the network
+            if (hasSSID && strlen(currentSSID) > 0) {
+                // Find next available slot (slot 0 is hardcoded)
+                int slot = wifi_sync_state.networks_loaded;
+                if (slot < MAX_WIFI_NETWORKS) {
+                    strncpy(wifi_sync_state.networks[slot].ssid, currentSSID, sizeof(wifi_sync_state.networks[slot].ssid) - 1);
+                    strncpy(wifi_sync_state.networks[slot].password, currentPass, sizeof(wifi_sync_state.networks[slot].password) - 1);
+                    wifi_sync_state.networks[slot].valid = true;
+                    wifi_sync_state.networks[slot].isFromSD = true;
+                    wifi_sync_state.networks_loaded++;
+                    networksAdded++;
+                    Serial.printf("[WiFiSync] Added SD network [%d]: %s\n", slot, currentSSID);
+                }
                 
-                // If we have an SSID, add the network
-                if (hasSSID && strlen(currentSSID) > 0) {
-                    // Find next available slot (slot 0 is hardcoded)
-                    int slot = wifi_sync_state.networks_loaded;
-                    if (slot < MAX_WIFI_NETWORKS) {
-                        strncpy(wifi_sync_state.networks[slot].ssid, currentSSID, sizeof(wifi_sync_state.networks[slot].ssid) - 1);
-                        strncpy(wifi_sync_state.networks[slot].password, currentPass, sizeof(wifi_sync_state.networks[slot].password) - 1);
-                        wifi_sync_state.networks[slot].valid = true;
-                        wifi_sync_state.networks[slot].isFromSD = true;
-                        wifi_sync_state.networks_loaded++;
-                        networksAdded++;
-                        Serial.printf("[WiFiSync] Added SD network [%d]: %s\n", slot, currentSSID);
-                    }
-                    
-                    // Reset for next network
-                    hasSSID = false;
-                    currentSSID[0] = (char)0;
-                    currentPass[0] = (char)0;
-                }
-            }
-        }
-        // Parse manual timezone override (only if user explicitly sets it)
-        else if (strstr(line, "GMT_OFFSET=") != NULL) {
-            char* value = strchr(line, '=');
-            if (value) {
-                value++;
-                timezone_offset_hours = atoi(value);
-                Serial.printf("[WiFiSync] Manual timezone override: GMT%+d\n", timezone_offset_hours);
+                // Reset for next network
+                hasSSID = false;
+                currentSSID[0] = (char)0;
+                currentPass[0] = (char)0;
             }
         }
     }
@@ -629,8 +652,10 @@ void initWiFiSync() {
     Serial.println("[WiFiSync] Auto-timezone detection: ENABLED");
     Serial.printf("[WiFiSync] Default timezone: GMT%+d\n", timezone_offset_hours);
     
+    feedWatchdog();  // FIX: Feed before WiFi.mode() which can block
     WiFi.mode(WIFI_OFF);
     delay(100);
+    feedWatchdog();
     
     // NOTE: SD Card is already initialized by sd_manager.cpp
     // We just check if it's available
@@ -651,8 +676,11 @@ void initWiFiSync() {
 // =============================================================================
 
 bool connectToWiFi(const char* ssid, const char* password, int timeout_ms) {
+    feedWatchdog();  // FIX: Feed before WiFi.mode() which can block
     WiFi.mode(WIFI_STA);
+    feedWatchdog();  // FIX: Feed before WiFi.begin() which can block
     WiFi.begin(ssid, password);
+    feedWatchdog();
     
     unsigned long start = millis();
     
@@ -663,12 +691,16 @@ bool connectToWiFi(const char* ssid, const char* password, int timeout_ms) {
     }
     Serial.println();
     
+    feedWatchdog();
+    
     if (WiFi.status() == WL_CONNECTED) {
         Serial.printf("[WiFiSync] Connected! IP: %s\n", WiFi.localIP().toString().c_str());
         return true;
     }
     
+    feedWatchdog();  // FIX: Feed before WiFi.disconnect() which can block
     WiFi.disconnect();
+    feedWatchdog();
     return false;
 }
 
@@ -918,7 +950,9 @@ bool fetchWeather() {
 // =============================================================================
 
 void disconnectWiFi() {
+    feedWatchdog();  // FIX: Feed before WiFi operations that can block
     WiFi.disconnect(true);
+    feedWatchdog();
     WiFi.mode(WIFI_OFF);
     wifi_state = WIFI_DISCONNECTED;
     system_state.wifi_connected = false;
