@@ -446,7 +446,7 @@ void initStoryDialogues() {
  setDlg(&s->chapters[0].dialogues[1], "Yugo", "But why can only I make them? Where do I come from?", YUGO_PORTAL_CYAN);
  setDlg(&s->chapters[0].dialogues[2], "Narrator", "A young Eliatrope discovers his portal powers.", COLOR_WHITE);
  setDlg(&s->chapters[0].dialogues[3], "Az", "*chirps excitedly, flapping tiny wings*", YUGO_PORTAL_GLOW);
- setDlg(&s->chapters[0].dialogues[4], "Yugo", "Az! My dragon brother! Let's find our answers together!", YUGO_PORTAL_CYAN);
+ setDlg(&s->chapters[0].dialogues[4], "Yugo", "Az! My faithful tofu! Let's find our answers together!", YUGO_PORTAL_CYAN);
  s->chapters[0].dialogue_count = 5;
 
  setDlg(&s->chapters[1].dialogues[0], "Nox", "Time... I need more time... the Eliacube will give me everything.", YUGO_MYSTERY_BLUE);
@@ -467,7 +467,7 @@ void initStoryDialogues() {
 
  for (int ch = 3; ch < 15; ch++) {
    setDlg(&s->chapters[ch].dialogues[0], "Yugo", "Every portal takes me closer to the truth.", YUGO_PORTAL_CYAN);
-   setDlg(&s->chapters[ch].dialogues[1], "Az", "*roars protectively*", YUGO_PORTAL_GLOW);
+   setDlg(&s->chapters[ch].dialogues[1], "Az", "*chirps and flutters protectively*", YUGO_PORTAL_GLOW);
    setDlg(&s->chapters[ch].dialogues[2], "Narrator", s->chapters[ch].title, COLOR_WHITE);
    setDlg(&s->chapters[ch].dialogues[3], "Yugo", "I won't let anyone destroy the World of Twelve!", YUGO_PORTAL_CYAN);
    s->chapters[ch].dialogue_count = 4;
@@ -502,7 +502,7 @@ void initStoryDialogues() {
  // Ch 15 - Master of Portals
  setDlg(&s->chapters[14].dialogues[0], "Narrator", "Yugo channels the power of all six Dofus at once.", COLOR_WHITE);
  setDlg(&s->chapters[14].dialogues[1], "Yugo", "I can see it all... every dimension, every timeline!", YUGO_PORTAL_GLOW);
- setDlg(&s->chapters[14].dialogues[2], "Az", "*roars with the fury of a primordial dragon!*", YUGO_PORTAL_GLOW);
+ setDlg(&s->chapters[14].dialogues[2], "Az", "*chirps fiercely, feathers blazing with Wakfu energy!*", YUGO_PORTAL_GLOW);
  setDlg(&s->chapters[14].dialogues[3], "Yugo", "I am the Master of Portals. Guardian of the Krosmoz!", YUGO_PORTAL_CYAN);
  setDlg(&s->chapters[14].dialogues[4], "Narrator", "The World of Twelve has found its eternal protector.", COLOR_WHITE);
  s->chapters[14].dialogue_count = 5;
@@ -1551,48 +1551,86 @@ bool hasActiveEvent() { return getCurrentActiveEvent() != nullptr; }
 void drawStoryMenu() {
  // Check for auto-dismiss notification timeout
  updateNotificationTimeout();
- 
- // If notification is active, just draw it and return (no rechecking)
  if (story_system.notification.isActive) {
    drawChapterUnlockNotification();
    return;
  }
- 
- // Only check for new unlocks when not showing notification
- // checkChapterUnlocks has internal guards to avoid redundant checks
  checkChapterUnlocks();
- 
- // If checkChapterUnlocks just triggered a notification, draw it
  if (story_system.notification.isActive) {
    drawChapterUnlockNotification();
    return;
  }
  
- gfx->fillScreen(COLOR_BLACK);
- ThemeColors colors = *getThemeColors(system_state.current_theme);  // FIX: Added * to dereference pointer
- gfx->fillRect(0, 0, LCD_WIDTH, 55, colors.primary);
- gfx->setTextColor(COLOR_WHITE); gfx->setTextSize(3); gfx->setCursor(20, 15); gfx->print("Story Mode");
+ gfx->fillScreen(RGB565(2, 2, 8));
+ for (int sy = 0; sy < LCD_HEIGHT; sy += 4) {
+   gfx->drawFastHLine(0, sy, LCD_WIDTH, RGB565(4, 4, 10));
+ }
+ ThemeColors colors = *getThemeColors(system_state.current_theme);
+ 
+ // Dramatic header
+ gfx->fillRect(0, 0, LCD_WIDTH, 60, RGB565(8, 10, 16));
+ gfx->fillRect(0, 56, LCD_WIDTH, 4, colors.primary);
+ for (int i = 0; i < 6; i++) {
+   gfx->drawLine(LCD_WIDTH - 60 + i*10, 0, LCD_WIDTH - 30 + i*10, 56, RGB565(20, 25, 35));
+ }
+ gfx->setTextColor(colors.primary); gfx->setTextSize(3);
+ gfx->setCursor(20, 6); gfx->print("STORY");
+ gfx->setTextColor(COLOR_WHITE); gfx->setTextSize(2);
+ gfx->setCursor(20, 34); gfx->print("MODE");
+ 
  if (story_system.current_story) {
-   gfx->setTextSize(2); gfx->setTextColor(colors.accent); gfx->setCursor(20, 70);
+   gfx->fillRect(15, 72, 5, 30, colors.accent);
+   gfx->setTextSize(2); gfx->setTextColor(colors.accent);
+   gfx->setCursor(28, 76);
    gfx->print(story_system.current_story->story_name);
-   int p = (story_system.current_story->chapters_completed * 100) / MAX_CHAPTERS_PER_CHARACTER;
-   gfx->fillRect(20, 100, LCD_WIDTH-40, 20, COLOR_GRAY);
-   gfx->fillRect(20, 100, ((LCD_WIDTH-40)*p)/100, 20, colors.primary);
-   gfx->setTextSize(1); gfx->setTextColor(COLOR_WHITE); gfx->setCursor(LCD_WIDTH/2-15, 105);
-   char pt[10]; sprintf(pt, "%d%%", p); gfx->print(pt);
    
-   // Show total chapters info
-   gfx->setTextColor(colors.accent); gfx->setTextSize(1);
-   gfx->setCursor(LCD_WIDTH - 80, 105);
+   int p = (story_system.current_story->chapters_completed * 100) / MAX_CHAPTERS_PER_CHARACTER;
+   int barY = 110;
+   gfx->fillRoundRect(20, barY, LCD_WIDTH-40, 22, 6, RGB565(15, 18, 25));
+   gfx->drawRoundRect(20, barY, LCD_WIDTH-40, 22, 6, RGB565(40, 45, 60));
+   int fillW = ((LCD_WIDTH-44)*p)/100;
+   if (fillW > 0) {
+     gfx->fillRoundRect(22, barY+2, fillW, 18, 4, colors.primary);
+     gfx->drawFastHLine(22, barY+2, fillW, colors.accent);
+   }
+   gfx->setTextSize(1); gfx->setTextColor(COLOR_WHITE);
+   gfx->setCursor(LCD_WIDTH/2-15, barY+6);
+   char pt[10]; sprintf(pt, "%d%%", p); gfx->print(pt);
+   gfx->setTextColor(colors.accent);
+   gfx->setCursor(LCD_WIDTH - 90, barY+6);
    char chCnt[16]; sprintf(chCnt, "%d/%d Ch", getUnlockedChapterCount(), MAX_CHAPTERS_PER_CHARACTER);
    gfx->print(chCnt);
  }
- gfx->fillRoundRect(30, 150, LCD_WIDTH-60, 50, 10, colors.primary);
- gfx->setTextColor(COLOR_WHITE); gfx->setTextSize(2); gfx->setCursor(LCD_WIDTH/2-50, 165); gfx->print("Chapters");
- gfx->fillRoundRect(30, 220, LCD_WIDTH-60, 50, 10, colors.secondary);
- gfx->setCursor(LCD_WIDTH/2-40, 235); gfx->print("Events");
- gfx->fillRoundRect(30, LCD_HEIGHT-70, 80, 40, 8, COLOR_GRAY);
- gfx->setTextSize(2); gfx->setCursor(45, LCD_HEIGHT-58); gfx->print("Back");
+ 
+ // Chapters button - manga panel style
+ int btnY = 150;
+ gfx->fillRoundRect(25, btnY, LCD_WIDTH-50, 55, 8, RGB565(15, 20, 30));
+ gfx->drawRoundRect(25, btnY, LCD_WIDTH-50, 55, 8, colors.primary);
+ gfx->fillRect(25, btnY, 6, 55, colors.primary);
+ gfx->setTextColor(COLOR_WHITE); gfx->setTextSize(2);
+ gfx->setCursor(45, btnY+8); gfx->print("CHAPTERS");
+ gfx->setTextColor(colors.accent); gfx->setTextSize(1);
+ gfx->setCursor(45, btnY+32); gfx->print("Continue your adventure");
+ gfx->setTextColor(colors.primary); gfx->setTextSize(2);
+ gfx->setCursor(LCD_WIDTH-55, btnY+18); gfx->print(">>");
+ 
+ // Events button
+ btnY = 225;
+ gfx->fillRoundRect(25, btnY, LCD_WIDTH-50, 55, 8, RGB565(15, 20, 30));
+ gfx->drawRoundRect(25, btnY, LCD_WIDTH-50, 55, 8, colors.secondary);
+ gfx->fillRect(25, btnY, 6, 55, colors.secondary);
+ gfx->setTextColor(COLOR_WHITE); gfx->setTextSize(2);
+ gfx->setCursor(45, btnY+8); gfx->print("EVENTS");
+ gfx->setTextColor(RGB565(120, 125, 140)); gfx->setTextSize(1);
+ gfx->setCursor(45, btnY+32); gfx->print("Daily story challenges");
+ gfx->setTextColor(colors.secondary); gfx->setTextSize(2);
+ gfx->setCursor(LCD_WIDTH-55, btnY+18); gfx->print(">>");
+ 
+ // Back button
+ gfx->fillRoundRect(25, LCD_HEIGHT-65, 85, 42, 8, RGB565(15, 18, 25));
+ gfx->drawRoundRect(25, LCD_HEIGHT-65, 85, 42, 8, RGB565(50, 55, 70));
+ gfx->setTextColor(RGB565(150, 155, 170)); gfx->setTextSize(2);
+ gfx->setCursor(38, LCD_HEIGHT-52); gfx->print("Back");
 }
 
 // Chapter select scroll offset (for 15 chapters)
@@ -1852,54 +1890,164 @@ void drawStoryBossScreen() {
  int ch = story_system.current_story->current_chapter;
  StoryChapter* chapter = &story_system.current_story->chapters[ch-1];
  StoryBoss* boss = &chapter->boss;
- gfx->fillScreen(COLOR_BLACK);
- ThemeColors colors = *getThemeColors(system_state.current_theme);  // FIX: Added * to dereference pointer
+ 
+ gfx->fillScreen(RGB565(5, 2, 2));
+ // Battle scan lines
+ for (int sy = 0; sy < LCD_HEIGHT; sy += 3) {
+   gfx->drawFastHLine(0, sy, LCD_WIDTH, RGB565(8, 3, 3));
+ }
+ ThemeColors colors = *getThemeColors(system_state.current_theme);
 
- // Boss name
- gfx->setTextColor(COLOR_RED); gfx->setTextSize(2); gfx->setCursor(LCD_WIDTH/2-60, 15); gfx->print(boss->name);
- gfx->setTextColor(COLOR_GRAY); gfx->setTextSize(1); gfx->setCursor(LCD_WIDTH/2-40, 40); gfx->print(boss->series);
+ // Boss name header - dramatic red gradient bar
+ gfx->fillRect(0, 0, LCD_WIDTH, 55, RGB565(15, 5, 5));
+ gfx->fillRect(0, 51, LCD_WIDTH, 4, boss->boss_color);
+ gfx->setTextColor(boss->boss_color); gfx->setTextSize(3);
+ int nameLen = strlen(boss->name) * 18;
+ gfx->setCursor((LCD_WIDTH - nameLen) / 2, 6);
+ gfx->print(boss->name);
+ gfx->setTextColor(boss->boss_accent); gfx->setTextSize(1);
+ int serLen = strlen(boss->series) * 6;
+ gfx->setCursor((LCD_WIDTH - serLen) / 2, 38);
+ gfx->print(boss->series);
 
- // Boss sprite
+ // Boss sprite with aura glow
  static int boss_anim = 0; boss_anim++;
- drawBossSprite(LCD_WIDTH/2, 130, boss, 50, boss_anim);
+ // Aura rings behind boss
+ for (int r = 55; r >= 40; r -= 5) {
+   gfx->drawCircle(LCD_WIDTH/2, 140, r, boss->boss_color);
+ }
+ drawBossSprite(LCD_WIDTH/2, 140, boss, 50, boss_anim);
 
- // Boss HP
- int bhpw = (story_system.boss_hp * (LCD_WIDTH-80)) / story_system.boss_max_hp;
- gfx->fillRect(40, 200, LCD_WIDTH-80, 20, COLOR_GRAY);
- gfx->fillRect(40, 200, max(0, bhpw), 20, COLOR_RED);
- gfx->drawRect(40, 200, LCD_WIDTH-80, 20, COLOR_WHITE);
- gfx->setTextColor(COLOR_WHITE); gfx->setTextSize(1); gfx->setCursor(LCD_WIDTH/2-30, 204);
+ // Boss HP bar - styled
+ int barY = 210;
+ gfx->fillRoundRect(30, barY, LCD_WIDTH-60, 26, 6, RGB565(15, 8, 8));
+ gfx->drawRoundRect(30, barY, LCD_WIDTH-60, 26, 6, RGB565(60, 30, 30));
+ int bhpw = (story_system.boss_hp * (LCD_WIDTH-64)) / story_system.boss_max_hp;
+ if (bhpw > 0) {
+   gfx->fillRoundRect(32, barY+2, max(4, bhpw), 22, 4, COLOR_RED);
+   gfx->drawFastHLine(32, barY+2, max(4, bhpw), RGB565(255, 100, 100));
+ }
+ gfx->setTextColor(COLOR_WHITE); gfx->setTextSize(1);
+ gfx->setCursor(LCD_WIDTH/2-30, barY+8);
  char hp[20]; sprintf(hp, "%d/%d", story_system.boss_hp, story_system.boss_max_hp); gfx->print(hp);
 
- // Player HP
- int phpw = (story_system.player_hp * (LCD_WIDTH-80)) / story_system.player_max_hp;
- gfx->fillRect(40, LCD_HEIGHT-150, LCD_WIDTH-80, 20, COLOR_GRAY);
- gfx->fillRect(40, LCD_HEIGHT-150, max(0, phpw), 20, COLOR_GREEN);
- gfx->drawRect(40, LCD_HEIGHT-150, LCD_WIDTH-80, 20, COLOR_WHITE);
- gfx->setCursor(LCD_WIDTH/2-30, LCD_HEIGHT-146);
- sprintf(hp, "%d/%d", story_system.player_hp, story_system.player_max_hp); gfx->print(hp);
+ // "VS" divider
+ gfx->setTextColor(COLOR_RED); gfx->setTextSize(2);
+ gfx->setCursor(LCD_WIDTH/2-12, barY+35);
+ gfx->print("VS");
 
- // Buttons
- gfx->fillRoundRect(30, LCD_HEIGHT-110, 150, 50, 10, colors.primary);
- gfx->setTextColor(COLOR_WHITE); gfx->setTextSize(2); gfx->setCursor(60, LCD_HEIGHT-95); gfx->print("Attack");
- gfx->fillRoundRect(LCD_WIDTH-180, LCD_HEIGHT-110, 150, 50, 10, colors.accent);
- gfx->setCursor(LCD_WIDTH-150, LCD_HEIGHT-95); gfx->print("Special");
- gfx->fillRoundRect(LCD_WIDTH/2-50, LCD_HEIGHT-50, 100, 40, 8, COLOR_GRAY);
- gfx->setTextSize(1); gfx->setCursor(LCD_WIDTH/2-20, LCD_HEIGHT-40); gfx->print("Flee");
+ // Player HP bar
+ int pbarY = barY + 60;
+ gfx->fillRoundRect(30, pbarY, LCD_WIDTH-60, 26, 6, RGB565(8, 15, 8));
+ gfx->drawRoundRect(30, pbarY, LCD_WIDTH-60, 26, 6, RGB565(30, 60, 30));
+ int phpw = (story_system.player_hp * (LCD_WIDTH-64)) / story_system.player_max_hp;
+ if (phpw > 0) {
+   gfx->fillRoundRect(32, pbarY+2, max(4, phpw), 22, 4, COLOR_GREEN);
+   gfx->drawFastHLine(32, pbarY+2, max(4, phpw), RGB565(100, 255, 100));
+ }
+ gfx->setTextColor(COLOR_WHITE); gfx->setTextSize(1);
+ gfx->setCursor(LCD_WIDTH/2-30, pbarY+8);
+ sprintf(hp, "%d/%d", story_system.player_hp, story_system.player_max_hp); gfx->print(hp);
+ gfx->setTextColor(colors.accent); gfx->setTextSize(1);
+ gfx->setCursor(35, pbarY-12);
+ gfx->print("YOUR HP");
+
+ // Attack button - bold manga style
+ int btnY2 = LCD_HEIGHT-115;
+ gfx->fillRoundRect(20, btnY2, 170, 55, 10, colors.primary);
+ gfx->drawRoundRect(20, btnY2, 170, 55, 10, colors.accent);
+ gfx->fillRect(20, btnY2, 6, 55, colors.accent);
+ gfx->setTextColor(COLOR_WHITE); gfx->setTextSize(2);
+ gfx->setCursor(50, btnY2+18); gfx->print("ATTACK");
+ 
+ // Special button
+ gfx->fillRoundRect(LCD_WIDTH-190, btnY2, 170, 55, 10, colors.accent);
+ gfx->drawRoundRect(LCD_WIDTH-190, btnY2, 170, 55, 10, colors.primary);
+ gfx->fillRect(LCD_WIDTH-24, btnY2, 6, 55, colors.primary);
+ gfx->setTextColor(COLOR_WHITE); gfx->setTextSize(2);
+ gfx->setCursor(LCD_WIDTH-170, btnY2+18); gfx->print("SPECIAL");
+ 
+ // Flee button
+ gfx->fillRoundRect(LCD_WIDTH/2-45, LCD_HEIGHT-48, 90, 36, 8, RGB565(20, 20, 25));
+ gfx->drawRoundRect(LCD_WIDTH/2-45, LCD_HEIGHT-48, 90, 36, 8, RGB565(60, 60, 70));
+ gfx->setTextColor(RGB565(120, 120, 130)); gfx->setTextSize(1);
+ gfx->setCursor(LCD_WIDTH/2-12, LCD_HEIGHT-36);
+ gfx->print("Flee");
 }
 
 void drawChapterRewards() {
  if (!story_system.current_story) return;
  StoryChapter* ch = &story_system.current_story->chapters[story_system.current_story->current_chapter - 1];
- gfx->fillScreen(COLOR_BLACK);
- ThemeColors colors = *getThemeColors(system_state.current_theme);  // FIX: Added * to dereference pointer
- gfx->setTextColor(COLOR_GOLD); gfx->setTextSize(3); gfx->setCursor(LCD_WIDTH/2-70, 50); gfx->print("Victory!");
- gfx->setTextColor(COLOR_WHITE); gfx->setTextSize(2); gfx->setCursor(50, 120); gfx->print("Rewards:");
- gfx->setTextColor(COLOR_CYAN); gfx->setCursor(50, 160); gfx->print("XP: +"); gfx->print(ch->boss.xp_reward + XP_CHAPTER_COMPLETE);
- gfx->setTextColor(COLOR_YELLOW); gfx->setCursor(50, 200); gfx->print("Gems: +"); gfx->print(ch->boss.gem_reward + GEMS_CHAPTER_COMPLETE);
- if (ch->boss.exclusive_card_id >= 0) { gfx->setTextColor(COLOR_PURPLE); gfx->setCursor(50, 240); gfx->print("Exclusive Card!"); }
- gfx->fillRoundRect(LCD_WIDTH/2-80, LCD_HEIGHT-100, 160, 60, 10, colors.primary);
- gfx->setTextColor(COLOR_WHITE); gfx->setTextSize(2); gfx->setCursor(LCD_WIDTH/2-40, LCD_HEIGHT-80); gfx->print("Claim");
+ 
+ gfx->fillScreen(RGB565(2, 2, 8));
+ for (int sy = 0; sy < LCD_HEIGHT; sy += 4) {
+   gfx->drawFastHLine(0, sy, LCD_WIDTH, RGB565(5, 5, 12));
+ }
+ ThemeColors colors = *getThemeColors(system_state.current_theme);
+ 
+ // Victory banner - dramatic diagonal lines
+ gfx->fillRect(0, 0, LCD_WIDTH, 80, RGB565(10, 8, 2));
+ for (int i = 0; i < 8; i++) {
+   gfx->drawLine(i*60, 0, i*60 - 40, 80, RGB565(30, 25, 5));
+ }
+ gfx->fillRect(0, 76, LCD_WIDTH, 4, COLOR_GOLD);
+ 
+ // "VICTORY" text with shadow
+ gfx->setTextColor(RGB565(40, 35, 10)); gfx->setTextSize(4);
+ gfx->setCursor(LCD_WIDTH/2 - 80, 18);
+ gfx->print("VICTORY");
+ gfx->setTextColor(COLOR_GOLD); gfx->setTextSize(4);
+ gfx->setCursor(LCD_WIDTH/2 - 82, 16);
+ gfx->print("VICTORY");
+ // Subtitle
+ gfx->setTextColor(COLOR_WHITE); gfx->setTextSize(1);
+ gfx->setCursor(LCD_WIDTH/2 - 50, 58);
+ gfx->print(ch->boss.name);
+ gfx->print(" defeated!");
+ 
+ // Rewards panel
+ int panelY = 100;
+ gfx->fillRoundRect(25, panelY, LCD_WIDTH-50, 180, 10, RGB565(12, 14, 22));
+ gfx->drawRoundRect(25, panelY, LCD_WIDTH-50, 180, 10, colors.primary);
+ gfx->fillRect(25, panelY, 6, 180, colors.primary);
+ 
+ gfx->setTextColor(colors.primary); gfx->setTextSize(2);
+ gfx->setCursor(45, panelY+12); gfx->print("REWARDS");
+ gfx->drawFastHLine(45, panelY+34, LCD_WIDTH-100, RGB565(30, 35, 50));
+ 
+ // XP reward with icon
+ gfx->setTextColor(COLOR_CYAN); gfx->setTextSize(2);
+ gfx->setCursor(45, panelY+48);
+ gfx->print("XP  +"); gfx->print(ch->boss.xp_reward + XP_CHAPTER_COMPLETE);
+ 
+ // Gems reward
+ gfx->setTextColor(COLOR_YELLOW); gfx->setTextSize(2);
+ gfx->setCursor(45, panelY+78);
+ gfx->print("GEM +"); gfx->print(ch->boss.gem_reward + GEMS_CHAPTER_COMPLETE);
+ 
+ // Exclusive card
+ if (ch->boss.exclusive_card_id >= 0) {
+   gfx->fillRoundRect(40, panelY+110, LCD_WIDTH-80, 30, 6, RGB565(20, 12, 25));
+   gfx->drawRoundRect(40, panelY+110, LCD_WIDTH-80, 30, 6, COLOR_PURPLE);
+   gfx->setTextColor(COLOR_PURPLE); gfx->setTextSize(2);
+   gfx->setCursor(55, panelY+116); gfx->print("EXCLUSIVE CARD!");
+ }
+ 
+ // Level info
+ gfx->setTextColor(RGB565(100, 105, 120)); gfx->setTextSize(1);
+ gfx->setCursor(45, panelY+152);
+ gfx->print("Lv."); gfx->print(system_state.player_level);
+ gfx->print(" | "); gfx->print(system_state.player_gems); gfx->print(" gems");
+ 
+ // CLAIM button - large, glowing, unmissable
+ int claimY = LCD_HEIGHT - 90;
+ gfx->fillRoundRect(50, claimY, LCD_WIDTH-100, 60, 12, colors.primary);
+ gfx->drawRoundRect(50, claimY, LCD_WIDTH-100, 60, 12, colors.accent);
+ gfx->drawRoundRect(52, claimY+2, LCD_WIDTH-104, 56, 10, colors.accent);
+ gfx->setTextColor(COLOR_WHITE); gfx->setTextSize(3);
+ int claimTxtW = 5 * 18; // "CLAIM" = 5 chars
+ gfx->setCursor((LCD_WIDTH - claimTxtW) / 2, claimY + 16);
+ gfx->print("CLAIM");
 }
 
 void drawStoryEventPopup() {
@@ -2021,6 +2169,15 @@ void handleDialogueTouch(TouchGesture& g) {
 
 void handleStoryBossTouch(TouchGesture& g) {
  if (g.event != TOUCH_TAP) return;
+ // PRIORITY: If showing rewards, ONLY handle claim button (no attack/special overlap)
+ if (story_system.showing_rewards) {
+   if (g.y >= LCD_HEIGHT-120 && g.y <= LCD_HEIGHT-40) {
+     claimBossRewards();
+     system_state.current_screen = SCREEN_STORY_MENU;
+     drawStoryMenu();
+   }
+   return;
+ }
  if (g.y >= LCD_HEIGHT-110 && g.y <= LCD_HEIGHT-60) {
    if (g.x <= 180) { handleStoryBossAttack(); if (!story_system.in_boss_battle && story_system.showing_rewards) drawChapterRewards(); else drawStoryBossScreen(); return; }
    if (g.x >= LCD_WIDTH-180) { handleStoryBossSpecial(); if (!story_system.in_boss_battle && story_system.showing_rewards) drawChapterRewards(); else drawStoryBossScreen(); return; }
@@ -2028,7 +2185,6 @@ void handleStoryBossTouch(TouchGesture& g) {
  if (g.y >= LCD_HEIGHT-50 && g.x >= LCD_WIDTH/2-50 && g.x <= LCD_WIDTH/2+50) {
    story_system.in_boss_battle = false; story_system.in_story_mode = false; system_state.current_screen = SCREEN_STORY_MENU; drawStoryMenu(); return;
  }
- if (story_system.showing_rewards && g.y >= LCD_HEIGHT-100) { claimBossRewards(); system_state.current_screen = SCREEN_STORY_MENU; drawStoryMenu(); }
 }
 
 // =============================================================================

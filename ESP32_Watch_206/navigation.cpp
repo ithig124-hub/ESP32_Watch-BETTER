@@ -373,6 +373,7 @@ uint16_t getAppColor(const char* appName) {
     if (strcmp(appName, "BACKUP") == 0) return RGB565(150, 180, 200);
     if (strcmp(appName, "FUSION") == 0) return RGB565(200, 150, 255);
     if (strcmp(appName, "ABOUT") == 0) return RGB565(180, 180, 190);
+    if (strcmp(appName, "WALLPAPER") == 0) return RGB565(200, 120, 180);
     return RGB565(100, 100, 120);
 }
 
@@ -452,20 +453,20 @@ void drawAppGrid1() {
 
     gfx->setTextSize(3);
     gfx->setTextColor(RGB565(30, 35, 50));
-    gfx->setCursor(LCD_WIDTH/2 - 35, 14);
-    gfx->print("Apps");
+    gfx->setCursor(LCD_WIDTH/2 - 24, 14);
+    gfx->print("RPG");
     gfx->setTextColor(0xFFFF);
-    gfx->setCursor(LCD_WIDTH/2 - 36, 12);
-    gfx->print("Apps");
+    gfx->setCursor(LCD_WIDTH/2 - 25, 12);
+    gfx->print("RPG");
 
     // Page indicator
     gfx->fillRect(LCD_WIDTH - 50, 22, 10, 10, theme->primary);
     gfx->drawRect(LCD_WIDTH - 35, 22, 10, 10, RGB565(50, 55, 70));
     gfx->drawRect(LCD_WIDTH - 20, 22, 10, 10, RGB565(50, 55, 70));
 
-    // UPDATED: MUSIC replaced with CARE (Companion)
-    const char* apps1_normal[] = {"GACHA", "TRAINING", "BOSS", "QUESTS", "CARE", "WEATHER", "WIFI", "TIMER", "SETTINGS"};
-    const char* apps1_boboiboy[] = {"GACHA", "TRAINING", "BOSS", "ELEMENTS", "CARE", "WEATHER", "WIFI", "TIMER", "SETTINGS"};
+    // Grid 1: RPG & Gaming
+    const char* apps1_normal[] = {"GACHA", "STORY", "BOSS", "TRAINING", "QUESTS", "GAMES", "CARE", "FUSION", "COLLECT"};
+    const char* apps1_boboiboy[] = {"GACHA", "STORY", "BOSS", "TRAINING", "QUESTS", "GAMES", "ELEMENTS", "FUSION", "COLLECT"};
 
     const char** apps1 = (system_state.current_theme == THEME_BOBOIBOY) ? apps1_boboiboy : apps1_normal;
 
@@ -512,17 +513,18 @@ void drawAppGrid2() {
 
     gfx->setTextSize(3);
     gfx->setTextColor(RGB565(30, 35, 50));
-    gfx->setCursor(LCD_WIDTH/2 - 35, 14);
-    gfx->print("More");
+    gfx->setCursor(LCD_WIDTH/2 - 40, 14);
+    gfx->print("Daily");
     gfx->setTextColor(0xFFFF);
-    gfx->setCursor(LCD_WIDTH/2 - 36, 12);
-    gfx->print("More");
+    gfx->setCursor(LCD_WIDTH/2 - 41, 12);
+    gfx->print("Daily");
 
     gfx->drawRect(LCD_WIDTH - 50, 22, 10, 10, RGB565(50, 55, 70));
     gfx->fillRect(LCD_WIDTH - 35, 22, 10, 10, theme->accent);
     gfx->drawRect(LCD_WIDTH - 20, 22, 10, 10, RGB565(50, 55, 70));
 
-    const char* apps2[] = {"THEMES", "COLLECT", "FILES", "CALC", "TORCH", "OTA", "BACKUP", "FUSION", "ABOUT"};
+    // Grid 2: Daily Use
+    const char* apps2[] = {"STEPS", "TIMER", "CALC", "CONVERT", "TORCH", "WEATHER", "GALLERY", "ACHIEVE", "SHOP"};
 
     int cols = 3;
     int iconW = 115;
@@ -578,7 +580,7 @@ void drawAppGrid3() {
     gfx->fillRect(LCD_WIDTH - 20, 22, 10, 10, theme->effect1);
 
     // UPDATED: SOCIAL replaced with STORY
-    const char* apps3[] = {"QUESTS", "STEPS", "ACHIEVE", "SHOP", "STORY", "GALLERY", "TIMER", "GAMES", "CONVERT"};
+    const char* apps3[] = {"SETTINGS", "THEMES", "OTA", "WIFI", "FILES", "BACKUP", "ABOUT", "MUSIC", "WALLPAPER"};
 
     int cols = 3;
     int iconW = 115;
@@ -665,11 +667,11 @@ void handleAppGridTap(int x, int y) {
         if (x >= appX && x < appX + iconW &&
             y >= appY && y < appY + iconH) {
 
-            // UPDATED: MUSIC->CARE in page 1, SOCIAL->STORY in page 3
-            const char* apps1_normal[] = {"GACHA", "TRAINING", "BOSS", "QUESTS", "CARE", "WEATHER", "WIFI", "TIMER", "SETTINGS"};
-            const char* apps1_boboiboy[] = {"GACHA", "TRAINING", "BOSS", "ELEMENTS", "CARE", "WEATHER", "WIFI", "TIMER", "SETTINGS"};
-            const char* apps2[] = {"THEMES", "COLLECT", "FILES", "CALC", "TORCH", "OTA", "BACKUP", "FUSION", "ABOUT"};
-            const char* apps3[] = {"QUESTS", "STEPS", "ACHIEVE", "SHOP", "STORY", "GALLERY", "TIMER", "GAMES", "CONVERT"};
+            // Grid 1: RPG, Grid 2: Daily, Grid 3: System
+            const char* apps1_normal[] = {"GACHA", "STORY", "BOSS", "TRAINING", "QUESTS", "GAMES", "CARE", "FUSION", "COLLECT"};
+            const char* apps1_boboiboy[] = {"GACHA", "STORY", "BOSS", "TRAINING", "QUESTS", "GAMES", "ELEMENTS", "FUSION", "COLLECT"};
+            const char* apps2[] = {"STEPS", "TIMER", "CALC", "CONVERT", "TORCH", "WEATHER", "GALLERY", "ACHIEVE", "SHOP"};
+            const char* apps3[] = {"SETTINGS", "THEMES", "OTA", "WIFI", "FILES", "BACKUP", "ABOUT", "MUSIC", "WALLPAPER"};
 
             const char** apps1 = (system_state.current_theme == THEME_BOBOIBOY) ? apps1_boboiboy : apps1_normal;
             const char* appName;
@@ -926,6 +928,10 @@ void openApp(const char* appName) {
     else if (strcmp(appName, "ABOUT") == 0) {
         system_state.current_screen = SCREEN_SETTINGS;
         drawAboutScreen();
+    }
+    else if (strcmp(appName, "WALLPAPER") == 0) {
+        initWallpaperSelector();
+        drawWallpaperSelector();
     }
     else {
         Serial.printf("[NAV] Unknown app: %s\n", appName);
