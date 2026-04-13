@@ -3,6 +3,7 @@
  */
 
 #include "wifi_apps.h"
+#include "wifi_sync.h"
 #include "config.h"
 #include "display.h"
 #include "themes.h"
@@ -26,6 +27,36 @@ static NetworkInfo available_networks[20];
 static int network_count = 0;
 static int selected_network = -1;
 static String password_input = "";
+
+// =============================================================================
+// MANUAL WIFI CONNECT - Status tracking
+// =============================================================================
+#define MANUAL_MAX_NETWORKS 10
+
+enum ManualConnectStatus {
+  MWIFI_WAITING = 0,
+  MWIFI_TRYING,
+  MWIFI_CONNECTED,
+  MWIFI_FAILED
+};
+
+struct ManualNetworkEntry {
+  char ssid[64];
+  char password[64];
+  bool isFromSD;
+  bool valid;
+  ManualConnectStatus status;
+};
+
+static ManualNetworkEntry manualNetworks[MANUAL_MAX_NETWORKS];
+static int manualNetworkCount = 0;
+static int manualScrollOffset = 0;
+static bool manualConnectDone = false;
+static bool manualConnectRunning = false;
+static int manualConnectedIndex = -1;  // which network connected
+static bool manualTimeSynced = false;
+static bool manualWeatherFetched = false;
+static bool manualTimezoneFetched = false;
 
 // Weather data - struct order: location, description, icon, last_update, temperature, humidity, wind_speed, pressure, valid
 static WeatherData cached_weather = {"Unknown", "Clear", "01d", "", 20.0f, 50.0f, 5.0f, 1013, false};
@@ -255,6 +286,12 @@ void handleWiFiSetupTouch(TouchGesture& gesture) {
 
 // Alias function for handleWiFiSetupTouch
 void handleWifiManagerTouch(TouchGesture& gesture) {
+  // If manual connect results screen is active, handle its touch events
+  if (manualConnectDone && !manualConnectRunning) {
+    handleManualConnectTouch(gesture);
+    return;
+  }
+  
   if (gesture.event != TOUCH_TAP) return;
   
   int x = gesture.x, y = gesture.y;
@@ -271,76 +308,11 @@ void handleWifiManagerTouch(TouchGesture& gesture) {
     }
   }
   
-  // NEW: Connect hardcoded button (green button above scan)
+  // NEW: Connect button - launches Manual WiFi Connect
   int connectBtnY = LCD_HEIGHT - 130;
   if (y >= connectBtnY && y < connectBtnY + 50) {
-    Serial.println("[WiFi] Connect button tapped - connecting to hardcoded WiFi...");
-    
-    gfx->fillScreen(RGB565(10, 10, 20));
-    gfx->setTextColor(COLOR_WHITE);
-    gfx->setTextSize(2);
-    gfx->setCursor(LCD_WIDTH/2 - 60, LCD_HEIGHT/2 - 20);
-    gfx->print("Connecting...");
-    
-    // Actually connect to WiFi
-    WiFi.mode(WIFI_STA);
-    WiFi.begin("Optus_9D2E3D", "snucktemptGLeQU");
-    
-    // Wait for connection (5 second timeout)
-    extern void feedWatchdog();
-    unsigned long start = millis();
-    bool connected = false;
-    
-    while (WiFi.status() != WL_CONNECTED && (millis() - start) < 5000) {
-      delay(100);
-      feedWatchdog();
-    }
-    
-    connected = (WiFi.status() == WL_CONNECTED);
-    
-    if (connected) {
-      Serial.println("[WiFi] Connected! Syncing time via NTP...");
-      
-      // Sync time via NTP
-      extern bool syncNTPTime();
-      bool time_synced = syncNTPTime();
-      
-      // Success feedback
-      gfx->fillScreen(RGB565(20, 100, 20));
-      gfx->setTextSize(3);
-      gfx->setTextColor(COLOR_WHITE);
-      gfx->setCursor(LCD_WIDTH/2 - 80, LCD_HEIGHT/2 - 40);
-      gfx->print("Connected!");
-      
-      gfx->setTextSize(2);
-      gfx->setCursor(LCD_WIDTH/2 - 70, LCD_HEIGHT/2 + 10);
-      gfx->print(WiFi.localIP().toString());
-      
-      if (time_synced) {
-        gfx->setTextSize(1);
-        gfx->setCursor(LCD_WIDTH/2 - 45, LCD_HEIGHT/2 + 40);
-        gfx->print("Time synced ✓");
-      }
-      
-      delay(2000);
-    } else {
-      Serial.println("[WiFi] Connection failed!");
-      
-      // Failure feedback
-      gfx->fillScreen(RGB565(100, 20, 20));
-      gfx->setTextSize(3);
-      gfx->setTextColor(COLOR_WHITE);
-      gfx->setCursor(LCD_WIDTH/2 - 60, LCD_HEIGHT/2 - 20);
-      gfx->print("Failed!");
-      
-      gfx->setTextSize(1);
-      gfx->setCursor(LCD_WIDTH/2 - 70, LCD_HEIGHT/2 + 20);
-      gfx->print("Check WiFi signal");
-      
-      delay(2000);
-    }
-    
-    drawNetworkListScreen();  // Refresh
+    Serial.println("[WiFi] Connect button tapped - starting Manual WiFi Connect...");
+    runManualWiFiConnect();
     return;
   }
   
@@ -352,6 +324,10 @@ void handleWifiManagerTouch(TouchGesture& gesture) {
 }
 
 void drawNetworkListScreen() {
+  // Reset manual connect state when entering normal WiFi screen
+  manualConnectDone = false;
+  manualConnectRunning = false;
+  
   gfx->fillScreen(RGB565(2, 2, 5));
   for (int y = 0; y < LCD_HEIGHT; y += 4) {
     gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
@@ -408,17 +384,17 @@ void drawNetworkListScreen() {
     }
   }
   
-  // Connect button - NEW! For hardcoded WiFi
+  // Connect button - NEW! Try all WiFi networks
   int connectBtnY = LCD_HEIGHT - 130;
   gfx->fillRect(LCD_WIDTH/2 - 85, connectBtnY, 170, 50, RGB565(50, 150, 50));  // Green button
   gfx->drawRect(LCD_WIDTH/2 - 85, connectBtnY, 170, 50, COLOR_WHITE);
   gfx->setTextColor(COLOR_WHITE);
   gfx->setTextSize(2);
-  gfx->setCursor(LCD_WIDTH/2 - 62, connectBtnY + 8);
-  gfx->print("Connect");
+  gfx->setCursor(LCD_WIDTH/2 - 72, connectBtnY + 8);
+  gfx->print("Connect All");
   gfx->setTextSize(1);
-  gfx->setCursor(LCD_WIDTH/2 - 42, connectBtnY + 30);
-  gfx->print("(Hardcoded)");
+  gfx->setCursor(LCD_WIDTH/2 - 55, connectBtnY + 30);
+  gfx->print("(HC + SD Card)");
   
   // Scan button - larger and positioned for taller display
   int btnY = LCD_HEIGHT - 65;
@@ -525,8 +501,8 @@ void drawWeatherApp() {
   gfx->setCursor(LCD_WIDTH/2 - 63, 14);
   gfx->print("WEATHER");
   
-  // Auto-refresh if not valid yet
-  if (!cached_weather.valid && isWiFiConnected()) {
+  // Auto-refresh: try loading cached data from wifi_sync, or fetch live
+  if (!cached_weather.valid) {
     refreshWeatherData();
   }
   
@@ -539,10 +515,10 @@ void drawWeatherApp() {
     if (isWiFiConnected()) {
       gfx->print("Loading...");
     } else {
-      gfx->print("No WiFi");
+      gfx->print("No Data");
       gfx->setTextSize(2);
       gfx->setCursor(LCD_WIDTH/2 - 100, 245);
-      gfx->print("Connect to WiFi first");
+      gfx->print("Use WiFi Connect first");
     }
   } else {
     // Location - larger
@@ -630,19 +606,65 @@ void handleWeatherTouch(TouchGesture& gesture) {
 }
 
 void refreshWeatherData() {
+  // If we have weather data from wifi_sync (fetched during manual connect), use it
+  if (isWeatherValid()) {
+    cached_weather.location = String(getDetectedCity());
+    cached_weather.description = String(getWeatherDescription());
+    cached_weather.icon = String(getWeatherIcon());
+    cached_weather.temperature = getWeatherTemp();
+    cached_weather.humidity = getWeatherHumidity();
+    cached_weather.wind_speed = getWeatherWindSpeed();
+    cached_weather.pressure = getWeatherPressure();
+    cached_weather.valid = true;
+    Serial.println("[Weather] Loaded real weather from wifi_sync cache");
+    return;
+  }
+  
+  // Fallback: try fetching live if WiFi connected
   if (!isWiFiConnected()) return;
   cached_weather = fetchWeatherData("");
 }
 
 WeatherData fetchWeatherData(const String& location) {
-  // Struct order: location, description, icon, last_update, temperature, humidity, wind_speed, pressure, valid
-  WeatherData data = {"Demo City", "Partly Cloudy", "02d", "", 22.5f, 65.0f, 3.5f, 1015, true};
+  // Check if we have real weather data from wifi_sync (Open-Meteo)
+  if (isWeatherValid()) {
+    WeatherData data;
+    data.location = String(getDetectedCity());
+    data.description = String(getWeatherDescription());
+    data.icon = String(getWeatherIcon());
+    data.last_update = "";
+    data.temperature = getWeatherTemp();
+    data.humidity = getWeatherHumidity();
+    data.wind_speed = getWeatherWindSpeed();
+    data.pressure = getWeatherPressure();
+    data.valid = true;
+    Serial.println("[Weather] Using real Open-Meteo weather data");
+    return data;
+  }
   
-  // In production, this would call OpenWeatherMap API
-  // HTTPClient http;
-  // http.begin("http://api.openweathermap.org/data/2.5/weather?q=...&appid=...");
+  // Fallback: try live fetch if connected
+  if (isWiFiConnected()) {
+    // Trigger a live fetch through wifi_sync
+    extern bool fetchWeather();
+    if (fetchWeather()) {
+      WeatherData data;
+      data.location = String(getDetectedCity());
+      data.description = String(getWeatherDescription());
+      data.icon = String(getWeatherIcon());
+      data.last_update = "";
+      data.temperature = getWeatherTemp();
+      data.humidity = getWeatherHumidity();
+      data.wind_speed = getWeatherWindSpeed();
+      data.pressure = getWeatherPressure();
+      data.valid = true;
+      Serial.println("[Weather] Fetched live weather via Open-Meteo");
+      return data;
+    }
+  }
   
-  Serial.println("[Weather] Fetched weather data (demo)");
+  // No weather available
+  WeatherData data = {"Unknown", "No data", "01d", "", 0.0f, 0.0f, 0.0f, 0, false};
+  Serial.println("[Weather] No weather data available");
   return data;
 }
 
@@ -826,4 +848,441 @@ void drawNetworkDiagnostics() {
 void runSpeedTest() {
   Serial.println("[Network] Running speed test...");
   // Would download test file and measure speed
+}
+
+
+// =============================================================================
+// MANUAL WIFI CONNECT - Try all networks (hardcoded + SD) with scrollable status
+// =============================================================================
+
+// External references from wifi_sync.cpp
+extern WiFiSyncState wifi_sync_state;
+extern void initWiFiSync();
+extern int loadWiFiNetworks();
+extern bool connectToWiFi(const char* ssid, const char* password, int timeout_ms);
+extern bool fetchLocationFromIP();
+extern bool syncNTPTime();
+extern bool fetchWeather();
+extern const char* getDetectedCity();
+extern const char* getDetectedCountry();
+extern int getTimezoneOffsetHours();
+extern int getTimezoneOffsetMinutes();
+extern void feedWatchdog();
+extern bool saveTimeBackup();
+extern void deleteTimeBackup();
+
+// Draw helper: single network row on the manual connect screen
+static void drawManualNetworkRow(int index, int drawY) {
+  if (index < 0 || index >= manualNetworkCount) return;
+  
+  ManualNetworkEntry& net = manualNetworks[index];
+  
+  int rowH = 58;
+  int rowW = LCD_WIDTH - 40;
+  int rowX = 20;
+  
+  // Background based on status
+  uint16_t bgColor = RGB565(12, 14, 20);     // default
+  uint16_t borderColor = RGB565(40, 45, 60);  // default
+  uint16_t statusColor = RGB565(100, 105, 120);
+  const char* statusText = "Waiting";
+  
+  switch (net.status) {
+    case MWIFI_WAITING:
+      bgColor = RGB565(12, 14, 20);
+      borderColor = RGB565(40, 45, 60);
+      statusColor = RGB565(100, 105, 120);
+      statusText = "Waiting";
+      break;
+    case MWIFI_TRYING:
+      bgColor = RGB565(20, 20, 35);
+      borderColor = RGB565(80, 130, 255);
+      statusColor = RGB565(80, 180, 255);
+      statusText = ".....";
+      break;
+    case MWIFI_CONNECTED:
+      bgColor = RGB565(15, 35, 15);
+      borderColor = RGB565(0, 200, 80);
+      statusColor = RGB565(0, 255, 100);
+      statusText = "Connected";
+      break;
+    case MWIFI_FAILED:
+      bgColor = RGB565(30, 15, 15);
+      borderColor = RGB565(200, 60, 60);
+      statusColor = RGB565(255, 80, 80);
+      statusText = "Cannot connect";
+      break;
+  }
+  
+  // Row background
+  gfx->fillRect(rowX, drawY, rowW, rowH, bgColor);
+  gfx->drawRect(rowX, drawY, rowW, rowH, borderColor);
+  
+  // Left accent bar
+  gfx->fillRect(rowX, drawY + 2, 4, rowH - 4, borderColor);
+  
+  // Corner pixel accents
+  gfx->fillRect(rowX, drawY, 5, 5, borderColor);
+  gfx->fillRect(rowX + rowW - 5, drawY, 5, 5, borderColor);
+  
+  // Network number
+  gfx->setTextColor(RGB565(80, 85, 100));
+  gfx->setTextSize(1);
+  gfx->setCursor(rowX + 12, drawY + 8);
+  gfx->printf("#%d", index + 1);
+  
+  // Source tag (HC / SD)
+  uint16_t tagColor = net.isFromSD ? RGB565(80, 180, 255) : RGB565(255, 180, 50);
+  gfx->setTextColor(tagColor);
+  gfx->setCursor(rowX + 38, drawY + 8);
+  gfx->print(net.isFromSD ? "[SD]" : "[HC]");
+  
+  // SSID name - larger
+  gfx->setTextColor(RGB565(220, 225, 240));
+  gfx->setTextSize(2);
+  // Truncate long SSIDs
+  char truncSSID[20];
+  strncpy(truncSSID, net.ssid, 18);
+  truncSSID[18] = '\0';
+  if (strlen(net.ssid) > 18) {
+    truncSSID[17] = '.';
+    truncSSID[16] = '.';
+  }
+  gfx->setCursor(rowX + 12, drawY + 24);
+  gfx->print(truncSSID);
+  
+  // Status text - right aligned
+  gfx->setTextColor(statusColor);
+  gfx->setTextSize(2);
+  int statusLen = strlen(statusText) * 12;
+  gfx->setCursor(rowX + rowW - statusLen - 10, drawY + 24);
+  gfx->print(statusText);
+}
+
+// Draw the full manual connect screen
+void drawManualConnectScreen() {
+  gfx->fillScreen(RGB565(2, 2, 5));
+  // CRT scanlines
+  for (int y = 0; y < LCD_HEIGHT; y += 4) {
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+  }
+  
+  ThemeColors* theme = getCurrentTheme();
+  uint16_t wifiBlue = RGB565(80, 180, 255);
+  
+  // Header
+  int headerH = 50;
+  gfx->fillRect(0, 0, LCD_WIDTH, headerH, RGB565(10, 12, 18));
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, headerH - 3, 6, 3, wifiBlue);
+  }
+  gfx->setTextColor(wifiBlue);
+  gfx->setTextSize(2);
+  gfx->setCursor(LCD_WIDTH/2 - 72, 8);
+  gfx->print("WiFi Connect");
+  
+  // Network count subtitle
+  gfx->setTextColor(RGB565(100, 105, 120));
+  gfx->setTextSize(1);
+  gfx->setCursor(LCD_WIDTH/2 - 50, 30);
+  gfx->printf("%d networks loaded", manualNetworkCount);
+  
+  // Network list area
+  int listStartY = headerH + 8;
+  int rowH = 58;
+  int rowGap = 6;
+  int maxVisible = 6;  // How many rows fit on screen
+  
+  for (int i = 0; i < maxVisible; i++) {
+    int netIdx = i + manualScrollOffset;
+    if (netIdx >= manualNetworkCount) break;
+    
+    int drawY = listStartY + i * (rowH + rowGap);
+    drawManualNetworkRow(netIdx, drawY);
+  }
+  
+  // Scroll indicators
+  if (manualNetworkCount > maxVisible) {
+    gfx->setTextColor(RGB565(60, 65, 80));
+    gfx->setTextSize(1);
+    if (manualScrollOffset > 0) {
+      gfx->setCursor(LCD_WIDTH/2 - 10, listStartY - 6);
+      gfx->print("^^");
+    }
+    int bottomY = listStartY + maxVisible * (rowH + rowGap);
+    if (manualScrollOffset + maxVisible < manualNetworkCount) {
+      gfx->setCursor(LCD_WIDTH/2 - 10, bottomY);
+      gfx->print("vv");
+    }
+  }
+  
+  // Bottom status area - sync results (only shown when done)
+  if (manualConnectDone) {
+    int statusY = LCD_HEIGHT - 95;
+    gfx->fillRect(15, statusY, LCD_WIDTH - 30, 80, RGB565(10, 12, 18));
+    gfx->drawRect(15, statusY, LCD_WIDTH - 30, 80, RGB565(40, 45, 60));
+    
+    gfx->setTextSize(1);
+    
+    if (manualConnectedIndex >= 0) {
+      // Show sync results
+      gfx->setTextColor(RGB565(0, 200, 80));
+      gfx->setCursor(25, statusY + 8);
+      gfx->printf("Connected: %s", manualNetworks[manualConnectedIndex].ssid);
+      
+      gfx->setTextColor(manualTimezoneFetched ? RGB565(0, 200, 80) : RGB565(200, 60, 60));
+      gfx->setCursor(25, statusY + 24);
+      gfx->printf("Timezone: %s", manualTimezoneFetched ? "Synced" : "Failed");
+      if (manualTimezoneFetched) {
+        gfx->printf(" (GMT%+d)", getTimezoneOffsetHours());
+      }
+      
+      gfx->setTextColor(manualTimeSynced ? RGB565(0, 200, 80) : RGB565(200, 60, 60));
+      gfx->setCursor(25, statusY + 40);
+      gfx->printf("Time:     %s", manualTimeSynced ? "Synced" : "Failed");
+      
+      gfx->setTextColor(manualWeatherFetched ? RGB565(0, 200, 80) : RGB565(200, 60, 60));
+      gfx->setCursor(25, statusY + 56);
+      gfx->printf("Weather:  %s", manualWeatherFetched ? "Fetched" : "Failed");
+      if (manualTimezoneFetched) {
+        gfx->printf(" (%s, %s)", getDetectedCity(), getDetectedCountry());
+      }
+    } else {
+      // No connection
+      gfx->setTextColor(RGB565(200, 60, 60));
+      gfx->setCursor(25, statusY + 15);
+      gfx->print("No network connected");
+      gfx->setTextColor(RGB565(130, 135, 150));
+      gfx->setCursor(25, statusY + 35);
+      gfx->print("Check WiFi credentials & signal");
+      gfx->setCursor(25, statusY + 55);
+      gfx->print("Edit SD:/WATCH/wifi/config.txt");
+    }
+  }
+  
+  // Back button at very bottom
+  if (manualConnectDone || !manualConnectRunning) {
+    int btnY = LCD_HEIGHT - 12;
+    gfx->setTextColor(RGB565(80, 85, 100));
+    gfx->setTextSize(1);
+    gfx->setCursor(LCD_WIDTH/2 - 30, btnY);
+    gfx->print("< BACK >");
+  }
+}
+
+// Run the manual WiFi connect process (blocking with display updates)
+void runManualWiFiConnect() {
+  Serial.println("[ManualWiFi] === MANUAL WIFI CONNECT START ===");
+  
+  // Reset state
+  manualNetworkCount = 0;
+  manualScrollOffset = 0;
+  manualConnectDone = false;
+  manualConnectRunning = true;
+  manualConnectedIndex = -1;
+  manualTimeSynced = false;
+  manualWeatherFetched = false;
+  manualTimezoneFetched = false;
+  
+  // Load networks from wifi_sync system (hardcoded + SD card)
+  // This calls loadWiFiNetworks() which loads hardcoded as slot 0, then SD card networks
+  initWiFiSync();
+  
+  // Copy networks into our local tracking array
+  for (int i = 0; i < wifi_sync_state.networks_loaded && i < MANUAL_MAX_NETWORKS; i++) {
+    if (!wifi_sync_state.networks[i].valid) continue;
+    
+    ManualNetworkEntry& entry = manualNetworks[manualNetworkCount];
+    strncpy(entry.ssid, wifi_sync_state.networks[i].ssid, 63);
+    entry.ssid[63] = '\0';
+    strncpy(entry.password, wifi_sync_state.networks[i].password, 63);
+    entry.password[63] = '\0';
+    entry.isFromSD = wifi_sync_state.networks[i].isFromSD;
+    entry.valid = true;
+    entry.status = MWIFI_WAITING;
+    manualNetworkCount++;
+  }
+  
+  Serial.printf("[ManualWiFi] Loaded %d networks (hardcoded + SD)\n", manualNetworkCount);
+  
+  if (manualNetworkCount == 0) {
+    Serial.println("[ManualWiFi] No networks available!");
+    manualConnectDone = true;
+    manualConnectRunning = false;
+    drawManualConnectScreen();
+    return;
+  }
+  
+  // Draw initial screen with all networks showing "Waiting"
+  drawManualConnectScreen();
+  delay(500);
+  feedWatchdog();
+  
+  // Set WiFi mode
+  WiFi.mode(WIFI_STA);
+  WiFi.disconnect();
+  delay(100);
+  feedWatchdog();
+  
+  // Try each network once
+  bool connected = false;
+  
+  for (int i = 0; i < manualNetworkCount; i++) {
+    if (connected) break;
+    
+    ManualNetworkEntry& net = manualNetworks[i];
+    
+    // Auto-scroll to show current network being tried
+    int maxVisible = 6;
+    if (i >= manualScrollOffset + maxVisible) {
+      manualScrollOffset = i - maxVisible + 1;
+    }
+    if (i < manualScrollOffset) {
+      manualScrollOffset = i;
+    }
+    
+    // Update status to TRYING
+    net.status = MWIFI_TRYING;
+    drawManualConnectScreen();
+    feedWatchdog();
+    
+    Serial.printf("[ManualWiFi] Trying [%d/%d]: %s (%s)\n", 
+      i + 1, manualNetworkCount, net.ssid, net.isFromSD ? "SD" : "HC");
+    
+    // Attempt connection (4 second timeout per network)
+    feedWatchdog();
+    WiFi.disconnect();
+    delay(50);
+    feedWatchdog();
+    WiFi.begin(net.ssid, net.password);
+    feedWatchdog();
+    
+    unsigned long start = millis();
+    while (WiFi.status() != WL_CONNECTED && (millis() - start) < 5000) {
+      delay(200);
+      feedWatchdog();
+    }
+    feedWatchdog();
+    
+    if (WiFi.status() == WL_CONNECTED) {
+      // SUCCESS
+      net.status = MWIFI_CONNECTED;
+      manualConnectedIndex = i;
+      connected = true;
+      
+      Serial.printf("[ManualWiFi] CONNECTED to: %s (IP: %s)\n", 
+        net.ssid, WiFi.localIP().toString().c_str());
+      
+      // Update system state
+      wifi_state = WIFI_CONNECTED;
+      system_state.wifi_connected = true;
+      system_state.wifi_ssid = String(net.ssid);
+      system_state.wifi_signal_strength = WiFi.RSSI();
+      
+      // Redraw to show connected
+      drawManualConnectScreen();
+      delay(300);
+      feedWatchdog();
+      
+    } else {
+      // FAILED
+      net.status = MWIFI_FAILED;
+      
+      Serial.printf("[ManualWiFi] FAILED: %s\n", net.ssid);
+      
+      WiFi.disconnect();
+      feedWatchdog();
+      
+      // Redraw to show failure
+      drawManualConnectScreen();
+      delay(200);
+      feedWatchdog();
+    }
+  }
+  
+  // === POST-CONNECTION: Sync data if connected ===
+  if (connected) {
+    Serial.println("[ManualWiFi] === SYNCING DATA ===");
+    
+    // Step 1: Fetch timezone from IP geolocation
+    Serial.println("[ManualWiFi] Step 1: Detecting timezone...");
+    feedWatchdog();
+    manualTimezoneFetched = fetchLocationFromIP();
+    feedWatchdog();
+    drawManualConnectScreen();  // Show progress
+    
+    // Step 2: Sync NTP time (uses detected timezone)
+    Serial.println("[ManualWiFi] Step 2: Syncing NTP time...");
+    feedWatchdog();
+    manualTimeSynced = syncNTPTime();
+    feedWatchdog();
+    drawManualConnectScreen();  // Show progress
+    
+    // Step 3: Fetch weather
+    Serial.println("[ManualWiFi] Step 3: Fetching weather...");
+    feedWatchdog();
+    manualWeatherFetched = fetchWeather();
+    feedWatchdog();
+    
+    // Save time backup if NTP synced
+    if (manualTimeSynced) {
+      deleteTimeBackup();
+      saveTimeBackup();
+    }
+    
+    Serial.println("[ManualWiFi] === SYNC COMPLETE ===");
+    Serial.printf("[ManualWiFi] Timezone: %s, Time: %s, Weather: %s\n",
+      manualTimezoneFetched ? "OK" : "FAIL",
+      manualTimeSynced ? "OK" : "FAIL",
+      manualWeatherFetched ? "OK" : "FAIL");
+    
+    // Disconnect to save power
+    WiFi.disconnect(true);
+    WiFi.mode(WIFI_OFF);
+    wifi_state = WIFI_DISCONNECTED;
+    system_state.wifi_connected = false;
+    Serial.println("[ManualWiFi] WiFi disconnected (power save)");
+    
+  } else {
+    Serial.println("[ManualWiFi] === NO CONNECTION - ALL NETWORKS FAILED ===");
+  }
+  
+  // Mark as done
+  manualConnectDone = true;
+  manualConnectRunning = false;
+  
+  // Final draw showing all results
+  drawManualConnectScreen();
+  
+  Serial.println("[ManualWiFi] === MANUAL WIFI CONNECT END ===");
+}
+
+// Handle touch on the manual connect screen (scrolling + back)
+void handleManualConnectTouch(TouchGesture& gesture) {
+  // Only handle when connect process is done
+  if (manualConnectRunning) return;
+  
+  if (gesture.event == TOUCH_SWIPE_UP) {
+    int maxVisible = 6;
+    if (manualScrollOffset + maxVisible < manualNetworkCount) {
+      manualScrollOffset++;
+      drawManualConnectScreen();
+    }
+    return;
+  }
+  
+  if (gesture.event == TOUCH_SWIPE_DOWN) {
+    if (manualScrollOffset > 0) {
+      manualScrollOffset--;
+      drawManualConnectScreen();
+    }
+    return;
+  }
+  
+  // Any tap when done goes back to WiFi manager
+  if (gesture.event == TOUCH_TAP && manualConnectDone) {
+    system_state.current_screen = SCREEN_WIFI_MANAGER;
+    drawNetworkListScreen();
+    return;
+  }
 }

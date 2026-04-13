@@ -113,8 +113,17 @@ const char* getDetectedCountry();
 // WEATHER
 // =============================================================================
 
-// Fetch weather data
+// Fetch weather data via Open-Meteo API (free, no key needed)
 bool fetchWeather();
+
+// Weather data getters (populated after fetchWeather() succeeds)
+float getWeatherTemp();
+float getWeatherHumidity();
+float getWeatherWindSpeed();
+int getWeatherPressure();
+const char* getWeatherDescription();
+const char* getWeatherIcon();
+bool isWeatherValid();
 
 // =============================================================================
 // STATUS FUNCTIONS

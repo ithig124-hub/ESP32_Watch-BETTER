@@ -67,6 +67,13 @@ void handleNetworkListTouch(TouchGesture& gesture);
 void handlePasswordEntryTouch(TouchGesture& gesture);
 
 // =============================================================================
+// MANUAL WIFI CONNECT - Try all networks with on-screen status
+// =============================================================================
+void runManualWiFiConnect();
+void drawManualConnectScreen();
+void handleManualConnectTouch(TouchGesture& gesture);
+
+// =============================================================================
 // INTERNET APPS
 // =============================================================================
 

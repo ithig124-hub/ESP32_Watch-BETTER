@@ -34,6 +34,17 @@ static bool daylight_saving = false;
 static char detectedCity[64] = "Unknown";
 static char detectedCountry[8] = "??";
 static bool locationDetected = false;
+static float detectedLat = 0.0f;
+static float detectedLon = 0.0f;
+
+// Cached weather data (fetched via Open-Meteo)
+static float weatherTemp = 0.0f;
+static float weatherHumidity = 0.0f;
+static float weatherWindSpeed = 0.0f;
+static int weatherPressure = 0;
+static char weatherDescription[32] = "";
+static char weatherIcon[8] = "";
+static bool weatherValid = false;
 
 // SD Card state - USE THE ONE FROM sd_manager.cpp
 extern bool sdCardInitialized;  // From sd_manager.cpp
@@ -367,8 +378,8 @@ bool fetchLocationFromIP() {
     
     HTTPClient http;
     
-    // Use ip-api.com (free, no API key needed, includes timezone)
-    http.begin("http://ip-api.com/json/?fields=status,country,countryCode,city,timezone,offset");
+    // Use ip-api.com (free, no API key needed, includes timezone + lat/lon)
+    http.begin("http://ip-api.com/json/?fields=status,country,countryCode,city,timezone,offset,lat,lon");
     http.setTimeout(HTTP_TIMEOUT);
     
     int httpCode = http.GET();
@@ -405,10 +416,14 @@ bool fetchLocationFromIP() {
     const char* countryCode = doc["countryCode"] | "??";
     const char* timezone = doc["timezone"] | "Unknown";
     int offsetSeconds = doc["offset"] | 0;  // Offset in seconds from UTC
+    float lat = doc["lat"] | 0.0f;
+    float lon = doc["lon"] | 0.0f;
     
     // Store detected location
     strncpy(detectedCity, city, sizeof(detectedCity) - 1);
     strncpy(detectedCountry, countryCode, sizeof(detectedCountry) - 1);
+    detectedLat = lat;
+    detectedLon = lon;
     locationDetected = true;
     
     // Convert offset from seconds to hours/minutes
@@ -418,6 +433,7 @@ bool fetchLocationFromIP() {
     Serial.println("[WiFiSync] =======================================");
     Serial.println("[WiFiSync] OK LOCATION DETECTED!");
     Serial.printf("[WiFiSync]   City: %s, %s\n", detectedCity, detectedCountry);
+    Serial.printf("[WiFiSync]   Lat/Lon: %.4f, %.4f\n", detectedLat, detectedLon);
     Serial.printf("[WiFiSync]   Timezone: %s\n", timezone);
     Serial.printf("[WiFiSync]   UTC Offset: GMT%+d:%02d (%d seconds)\n", 
         timezone_offset_hours, timezone_offset_minutes, offsetSeconds);
@@ -932,17 +948,113 @@ bool syncNTPTime() {
 }
 
 // =============================================================================
-// FETCH WEATHER (PLACEHOLDER)
+// FETCH WEATHER VIA OPEN-METEO (Free, no API key needed)
 // =============================================================================
+
+// Convert WMO weather code to description and icon
+static void wmoCodeToDescription(int code, char* desc, size_t descSize, char* icon, size_t iconSize) {
+    switch (code) {
+        case 0:  strncpy(desc, "Clear sky", descSize); strncpy(icon, "01d", iconSize); break;
+        case 1:  strncpy(desc, "Mainly clear", descSize); strncpy(icon, "02d", iconSize); break;
+        case 2:  strncpy(desc, "Partly cloudy", descSize); strncpy(icon, "03d", iconSize); break;
+        case 3:  strncpy(desc, "Overcast", descSize); strncpy(icon, "04d", iconSize); break;
+        case 45: case 48: strncpy(desc, "Foggy", descSize); strncpy(icon, "50d", iconSize); break;
+        case 51: case 53: case 55: strncpy(desc, "Drizzle", descSize); strncpy(icon, "09d", iconSize); break;
+        case 61: strncpy(desc, "Light rain", descSize); strncpy(icon, "10d", iconSize); break;
+        case 63: strncpy(desc, "Moderate rain", descSize); strncpy(icon, "10d", iconSize); break;
+        case 65: strncpy(desc, "Heavy rain", descSize); strncpy(icon, "09d", iconSize); break;
+        case 66: case 67: strncpy(desc, "Freezing rain", descSize); strncpy(icon, "13d", iconSize); break;
+        case 71: strncpy(desc, "Light snow", descSize); strncpy(icon, "13d", iconSize); break;
+        case 73: strncpy(desc, "Moderate snow", descSize); strncpy(icon, "13d", iconSize); break;
+        case 75: strncpy(desc, "Heavy snow", descSize); strncpy(icon, "13d", iconSize); break;
+        case 77: strncpy(desc, "Snow grains", descSize); strncpy(icon, "13d", iconSize); break;
+        case 80: case 81: case 82: strncpy(desc, "Rain showers", descSize); strncpy(icon, "09d", iconSize); break;
+        case 85: case 86: strncpy(desc, "Snow showers", descSize); strncpy(icon, "13d", iconSize); break;
+        case 95: strncpy(desc, "Thunderstorm", descSize); strncpy(icon, "11d", iconSize); break;
+        case 96: case 99: strncpy(desc, "Thunderstorm+hail", descSize); strncpy(icon, "11d", iconSize); break;
+        default: strncpy(desc, "Unknown", descSize); strncpy(icon, "01d", iconSize); break;
+    }
+}
 
 bool fetchWeather() {
     if (WiFi.status() != WL_CONNECTED) return false;
     
-    Serial.println("[WiFiSync] Weather fetch: Using detected location");
-    Serial.printf("[WiFiSync] Location: %s, %s\n", detectedCity, detectedCountry);
-    // TODO: Implement OpenWeatherMap API call using detectedCity
-    Serial.println("[WiFiSync] Weather fetch not implemented (placeholder)");
-    return false;
+    if (!locationDetected || (detectedLat == 0.0f && detectedLon == 0.0f)) {
+        Serial.println("[WiFiSync] Weather: No location data, skipping");
+        return false;
+    }
+    
+    Serial.println("[WiFiSync] === FETCHING WEATHER (Open-Meteo) ===");
+    Serial.printf("[WiFiSync] Location: %s, %s (%.4f, %.4f)\n", 
+        detectedCity, detectedCountry, detectedLat, detectedLon);
+    feedWatchdog();
+    
+    HTTPClient http;
+    
+    // Open-Meteo API - free, no key needed
+    // Request current weather: temperature, humidity, wind, pressure, weather code
+    char url[256];
+    snprintf(url, sizeof(url),
+        "https://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f"
+        "&current=temperature_2m,relative_humidity_2m,wind_speed_10m,surface_pressure,weather_code",
+        detectedLat, detectedLon);
+    
+    Serial.printf("[WiFiSync] URL: %s\n", url);
+    
+    http.begin(url);
+    http.setTimeout(HTTP_TIMEOUT);
+    
+    int httpCode = http.GET();
+    feedWatchdog();
+    
+    if (httpCode != HTTP_CODE_OK) {
+        Serial.printf("[WiFiSync] Weather fetch failed: HTTP %d\n", httpCode);
+        http.end();
+        return false;
+    }
+    
+    String payload = http.getString();
+    http.end();
+    feedWatchdog();
+    
+    // Parse JSON response
+    // Response format: { "current": { "temperature_2m": 22.5, "relative_humidity_2m": 65, ... } }
+    StaticJsonDocument<1024> doc;
+    DeserializationError error = deserializeJson(doc, payload);
+    
+    if (error) {
+        Serial.printf("[WiFiSync] Weather JSON parse error: %s\n", error.c_str());
+        return false;
+    }
+    
+    // Extract current weather data
+    JsonObject current = doc["current"];
+    if (current.isNull()) {
+        Serial.println("[WiFiSync] Weather: No 'current' data in response");
+        return false;
+    }
+    
+    weatherTemp = current["temperature_2m"] | 0.0f;
+    weatherHumidity = current["relative_humidity_2m"] | 0.0f;
+    weatherWindSpeed = current["wind_speed_10m"] | 0.0f;
+    weatherPressure = (int)(current["surface_pressure"] | 0.0f);
+    int weatherCode = current["weather_code"] | 0;
+    
+    // Convert WMO weather code to human-readable description
+    wmoCodeToDescription(weatherCode, weatherDescription, sizeof(weatherDescription),
+                         weatherIcon, sizeof(weatherIcon));
+    
+    weatherValid = true;
+    
+    Serial.println("[WiFiSync] ========== WEATHER FETCHED ==========");
+    Serial.printf("[WiFiSync]   Temperature: %.1f C\n", weatherTemp);
+    Serial.printf("[WiFiSync]   Humidity:    %.0f%%\n", weatherHumidity);
+    Serial.printf("[WiFiSync]   Wind:        %.1f km/h\n", weatherWindSpeed);
+    Serial.printf("[WiFiSync]   Pressure:    %d hPa\n", weatherPressure);
+    Serial.printf("[WiFiSync]   Condition:   %s (WMO code %d)\n", weatherDescription, weatherCode);
+    Serial.println("[WiFiSync] ========================================");
+    
+    return true;
 }
 
 // =============================================================================
@@ -1015,4 +1127,17 @@ void getTimezoneString(char* buffer, size_t bufferSize) {
         snprintf(buffer, bufferSize, "GMT%+d:%02d", timezone_offset_hours, abs(timezone_offset_minutes));
     }
 }
+
+
+// =============================================================================
+// WEATHER DATA GETTERS (for wifi_apps.cpp Weather App)
+// =============================================================================
+
+float getWeatherTemp() { return weatherTemp; }
+float getWeatherHumidity() { return weatherHumidity; }
+float getWeatherWindSpeed() { return weatherWindSpeed; }
+int getWeatherPressure() { return weatherPressure; }
+const char* getWeatherDescription() { return weatherDescription; }
+const char* getWeatherIcon() { return weatherIcon; }
+bool isWeatherValid() { return weatherValid; }
 

@@ -54,6 +54,7 @@
 #include "wifi_sync.h"
 #include "time_edit.h"
 #include "storyline.h"
+#include "companion.h"
 
 // =============================================================================
 // POWER MANAGEMENT DEFINES
@@ -799,6 +800,17 @@ void handleTouchGesture(TouchGesture& gesture) {
     case SCREEN_STORY_BOSS:
       handleStoryBossTouch(gesture);
       break;
+
+    case SCREEN_COMPANION:
+    case SCREEN_COMPANION_GAME:
+      if (gesture.event == TOUCH_TAP) {
+        handleCareModeTouch(gesture.x, gesture.y);
+        drawCompanionCareScreen();
+      } else if (gesture.event == TOUCH_SWIPE_LEFT || gesture.event == TOUCH_SWIPE_DOWN) {
+        exitCompanionCareMode();
+        system_state.current_screen = SCREEN_APP_GRID;
+      }
+      break;
     
     default:
       break;
@@ -864,57 +876,94 @@ Preferences gamePrefs;
 void saveAllGameData() {
   gamePrefs.begin("watchgame", false);
   
-  gamePrefs.putInt("gems", system_state.player_gems);
-  gamePrefs.putInt("level", system_state.player_level);
-  gamePrefs.putInt("xp", system_state.player_xp);
+  // === UNIVERSAL DATA (shared across all themes) ===
   gamePrefs.putInt("theme", (int)system_state.current_theme);
-  
-  gamePrefs.putInt("cards", system_state.gacha_cards_collected);
-  gamePrefs.putInt("bosses", system_state.bosses_defeated);
-  gamePrefs.putInt("streak", system_state.training_streak);
-  gamePrefs.putInt("logins", system_state.daily_login_count);
-  gamePrefs.putInt("pity", system_state.pity_counter);
-  gamePrefs.putInt("pityleg", system_state.pity_legendary_counter);
-  
   gamePrefs.putInt("steps", system_state.steps_today);
-  
   gamePrefs.putInt("bright", system_state.brightness);
+  gamePrefs.putInt("logins", system_state.daily_login_count);
+  
+  // === PER-THEME DATA (saved with theme index prefix) ===
+  int t = (int)system_state.current_theme;
+  char key[16];
+  
+  snprintf(key, sizeof(key), "t%d_gems", t);
+  gamePrefs.putInt(key, system_state.player_gems);
+  
+  snprintf(key, sizeof(key), "t%d_cards", t);
+  gamePrefs.putInt(key, system_state.gacha_cards_collected);
+  
+  snprintf(key, sizeof(key), "t%d_boss", t);
+  gamePrefs.putInt(key, system_state.bosses_defeated);
+  
+  snprintf(key, sizeof(key), "t%d_strk", t);
+  gamePrefs.putInt(key, system_state.training_streak);
+  
+  snprintf(key, sizeof(key), "t%d_pity", t);
+  gamePrefs.putInt(key, system_state.pity_counter);
+  
+  snprintf(key, sizeof(key), "t%d_pitl", t);
+  gamePrefs.putInt(key, system_state.pity_legendary_counter);
+  
+  // Also save level/xp per theme (mirrors xp_system)
+  snprintf(key, sizeof(key), "t%d_lvl", t);
+  gamePrefs.putInt(key, system_state.player_level);
+  
+  snprintf(key, sizeof(key), "t%d_xp", t);
+  gamePrefs.putInt(key, system_state.player_xp);
   
   gamePrefs.end();
   
-  Serial.println("[SAVE] Game data saved to NVS");
-  Serial.printf("       Gems: %d, Level: %d, XP: %d, Theme: %d\n", 
-    system_state.player_gems, system_state.player_level, 
-    system_state.player_xp, system_state.current_theme);
+  Serial.printf("[SAVE] Game data saved (theme %d)\n", t);
+  Serial.printf("       Gems: %d, Cards: %d, Bosses: %d, Steps: %d\n", 
+    system_state.player_gems, system_state.gacha_cards_collected,
+    system_state.bosses_defeated, system_state.steps_today);
 }
 
 void loadAllGameData() {
   gamePrefs.begin("watchgame", true);
   
-  system_state.player_gems = gamePrefs.getInt("gems", 500);
-  system_state.player_level = gamePrefs.getInt("level", 1);
-  system_state.player_xp = gamePrefs.getInt("xp", 0);
+  // === UNIVERSAL DATA ===
   system_state.current_theme = (ThemeType)gamePrefs.getInt("theme", THEME_LUFFY_GEAR5);
-  
-  system_state.gacha_cards_collected = gamePrefs.getInt("cards", 0);
-  system_state.bosses_defeated = gamePrefs.getInt("bosses", 0);
-  system_state.training_streak = gamePrefs.getInt("streak", 0);
-  system_state.daily_login_count = gamePrefs.getInt("logins", 0);
-  system_state.pity_counter = gamePrefs.getInt("pity", 0);
-  system_state.pity_legendary_counter = gamePrefs.getInt("pityleg", 0);
-  
   system_state.steps_today = gamePrefs.getInt("steps", 0);
-  
   system_state.brightness = gamePrefs.getInt("bright", 200);
+  system_state.daily_login_count = gamePrefs.getInt("logins", 0);
+  
+  // === PER-THEME DATA (load for current theme) ===
+  int t = (int)system_state.current_theme;
+  char key[16];
+  
+  snprintf(key, sizeof(key), "t%d_gems", t);
+  system_state.player_gems = gamePrefs.getInt(key, 500);
+  
+  snprintf(key, sizeof(key), "t%d_cards", t);
+  system_state.gacha_cards_collected = gamePrefs.getInt(key, 0);
+  
+  snprintf(key, sizeof(key), "t%d_boss", t);
+  system_state.bosses_defeated = gamePrefs.getInt(key, 0);
+  
+  snprintf(key, sizeof(key), "t%d_strk", t);
+  system_state.training_streak = gamePrefs.getInt(key, 0);
+  
+  snprintf(key, sizeof(key), "t%d_pity", t);
+  system_state.pity_counter = gamePrefs.getInt(key, 0);
+  
+  snprintf(key, sizeof(key), "t%d_pitl", t);
+  system_state.pity_legendary_counter = gamePrefs.getInt(key, 0);
+  
+  snprintf(key, sizeof(key), "t%d_lvl", t);
+  system_state.player_level = gamePrefs.getInt(key, 1);
+  
+  snprintf(key, sizeof(key), "t%d_xp", t);
+  system_state.player_xp = gamePrefs.getInt(key, 0);
   
   gamePrefs.end();
   
   setTheme(system_state.current_theme);
   
-  Serial.println("[LOAD] Game data loaded from NVS");
-  Serial.printf("       Gems: %d, Level: %d, XP: %d, Theme: %d\n", 
-    system_state.player_gems, system_state.player_level, 
-    system_state.player_xp, system_state.current_theme);
+  Serial.printf("[LOAD] Game data loaded (theme %d)\n", t);
+  Serial.printf("       Gems: %d, Cards: %d, Bosses: %d, Steps: %d\n", 
+    system_state.player_gems, system_state.gacha_cards_collected,
+    system_state.bosses_defeated, system_state.steps_today);
 }
 
 void saveAllData() {
