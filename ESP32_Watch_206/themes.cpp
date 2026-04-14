@@ -3953,6 +3953,48 @@ void drawThemeSelector() {
   drawSwipeIndicator();
 }
 
+// =============================================================================
+// DEDICATED THEME SAVE - Ensures theme persists across reboot
+// Uses fresh Preferences open/close to guarantee NVS commit
+// =============================================================================
+void saveThemeToNVS(ThemeType theme) {
+  Preferences themePrefs;
+  if (themePrefs.begin("watchgame", false)) {
+    themePrefs.putInt("theme", (int)theme);
+    themePrefs.end();  // end() flushes to NVS
+    Serial.printf("[THEME] Theme %d saved to NVS (dedicated write)\n", (int)theme);
+  } else {
+    Serial.println("[THEME] ERROR: Failed to open NVS for theme save!");
+  }
+  yield();  // Feed watchdog
+}
+
+// Helper: perform the full theme switch + save + reboot sequence
+static void applyThemeAndReboot(ThemeType newTheme) {
+  extern void saveAllGameData();
+  
+  playThemeTransition(newTheme);
+  setTheme(newTheme);
+  
+  loadXPDataForTheme(newTheme);
+  
+  CharacterXPData* char_xp = getCurrentCharacterXP();
+  if (char_xp) {
+    system_state.player_level = char_xp->level;
+    system_state.player_xp = char_xp->xp;
+  }
+  
+  // FIX: Save theme FIRST with dedicated NVS write to guarantee persistence
+  saveThemeToNVS(newTheme);
+  // Then save all other game data
+  saveAllGameData();
+  
+  Serial.println("[THEME] Theme changed - initiating reboot for full system update");
+  Serial.flush();
+  delay(1000);  // Longer delay to ensure NVS write fully completes
+  ESP.restart();
+}
+
 void handleThemeSelectorTouch(TouchGesture& gesture) {
   // Swipe LEFT/RIGHT to switch pages
   if (gesture.event == TOUCH_SWIPE_LEFT) {
@@ -3974,35 +4016,13 @@ void handleThemeSelectorTouch(TouchGesture& gesture) {
   
   int x = gesture.x, y = gesture.y;
   
-  // Forward declaration for save function
-  extern void saveAllGameData();
-  
   // Theme selection - tap on theme cards
   if (themePageState == 0) {
     for (int i = 0; i < 6; i++) {
       int tx = (i % 2) * 170 + 15;
       int ty = (i / 2) * 105 + 52;
       if (x >= tx && x < tx + 155 && y >= ty && y < ty + 90) {
-        ThemeType newTheme = (ThemeType)i;
-        playThemeTransition(newTheme);  // Play cool animation
-        setTheme(newTheme);
-        
-        // CRITICAL: Load XP data for the new character to fix title bug
-        loadXPDataForTheme(newTheme);
-        
-        // Update system_state with loaded character's level
-        CharacterXPData* char_xp = getCurrentCharacterXP();
-        if (char_xp) {
-          system_state.player_level = char_xp->level;
-          system_state.player_xp = char_xp->xp;
-        }
-        
-        saveAllGameData();  // Save theme to NVS
-        
-        // Reboot watch to ensure all systems update properly
-        Serial.println("[THEME] Theme changed - initiating reboot for full system update");
-        delay(500);
-        ESP.restart();
+        applyThemeAndReboot((ThemeType)i);
         return;
       }
     }
@@ -4021,25 +4041,7 @@ void handleThemeSelectorTouch(TouchGesture& gesture) {
       }
       
       if (x >= tx && x < tx + 155 && y >= ty && y < ty + 90) {
-        playThemeTransition(types[i]);  // Play cool animation
-        setTheme(types[i]);
-        
-        // CRITICAL: Load XP data for the new character to fix title bug
-        loadXPDataForTheme(types[i]);
-        
-        // Update system_state with loaded character's level
-        CharacterXPData* char_xp = getCurrentCharacterXP();
-        if (char_xp) {
-          system_state.player_level = char_xp->level;
-          system_state.player_xp = char_xp->xp;
-        }
-        
-        saveAllGameData();  // Save theme to NVS
-        
-        // Reboot watch to ensure all systems update properly
-        Serial.println("[THEME] Theme changed - initiating reboot for full system update");
-        delay(500);
-        ESP.restart();
+        applyThemeAndReboot(types[i]);
         return;
       }
     }

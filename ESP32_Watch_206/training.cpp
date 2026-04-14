@@ -303,9 +303,15 @@ void updateTargetShoot() {
       target_y[i] = random(100, 350);
       target_active[i] = true;
     }
+    drawTargetShoot();  // Only redraw on new spawn (fixes flicker)
   }
-  
-  drawTargetShoot();
+  // Timer update only - no full redraw every frame
+  static unsigned long lastTimerDraw = 0;
+  if (millis() - lastTimerDraw > 1000) {
+    lastTimerDraw = millis();
+    int remaining = max(0, 15 - (int)((millis() - target_timer) / 1000));
+    drawTrainingTimer(remaining);
+  }
 }
 
 void drawTargetShoot() {
@@ -366,7 +372,13 @@ void updateSpeedTap() {
     endTrainingGame();
     return;
   }
-  drawSpeedTap();
+  // Only update timer display, not full redraw (fixes flicker)
+  static unsigned long lastTimerDraw = 0;
+  if (millis() - lastTimerDraw > 500) {
+    lastTimerDraw = millis();
+    int remaining = max(0, (int)(speed_tap_end_time - millis()) / 1000);
+    drawTrainingTimer(remaining);
+  }
 }
 
 void drawSpeedTap() {
@@ -547,7 +559,6 @@ void drawTrainingMenu() {
   
   gfx->fillScreen(RGB565(2, 2, 5));
   
-  // CRT scanlines
   for (int y = 0; y < LCD_HEIGHT; y += 4) {
     gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
   }
@@ -565,40 +576,70 @@ void drawTrainingMenu() {
   gfx->setCursor(60, 14);
   gfx->print("TRAINING DOJO");
   
-  // Streak display
+  // Streak bar with multiplier
+  int streakY = 55;
+  gfx->fillRect(20, streakY, LCD_WIDTH - 40, 28, RGB565(20, 18, 10));
+  gfx->drawRect(20, streakY, LCD_WIDTH - 40, 28, RGB565(255, 180, 50));
+  gfx->fillRect(20, streakY, 5, 5, COLOR_GOLD);
   gfx->setTextColor(COLOR_GOLD);
+  gfx->setTextSize(2);
+  gfx->setCursor(30, streakY + 5);
+  gfx->printf("STREAK: %d", system_state.training_streak);
+  // Multiplier
+  const char* mult = "1x";
+  if (system_state.training_streak >= 30) mult = "2x XP!";
+  else if (system_state.training_streak >= 14) mult = "1.75x";
+  else if (system_state.training_streak >= 7) mult = "1.5x";
+  else if (system_state.training_streak >= 3) mult = "1.25x";
   gfx->setTextSize(1);
-  gfx->setCursor(LCD_WIDTH/2 - 40, 60);
-  gfx->printf("Streak: %d days", system_state.training_streak);
+  gfx->setTextColor(RGB565(255, 220, 100));
+  gfx->setCursor(LCD_WIDTH - 80, streakY + 10);
+  gfx->print(mult);
   
-  // Training game buttons - BIGGER and more visible
+  // Training game buttons - improved cards
   const char* games[] = {"REFLEX TEST", "TARGET SHOOT", "SPEED TAP", "MEMORY MATCH"};
-  const char* descs[] = {"Test your reactions", "Hit all targets", "Tap fast!", "Remember pattern"};
-  uint16_t colors[] = {RGB565(255, 100, 100), RGB565(100, 255, 100), RGB565(100, 100, 255), RGB565(255, 200, 100)};
+  const char* descs[] = {"Test your reaction speed!", "Hit all the targets!", "Tap as fast as you can!", "Remember the pattern!"};
+  const char* icons[] = {"ZAP", "AIM", "TAP", "MEM"};
+  uint16_t colors[] = {RGB565(255, 80, 80), RGB565(80, 255, 120), RGB565(80, 130, 255), RGB565(255, 200, 80)};
   
   for (int i = 0; i < 4; i++) {
-    int y = 85 + i * 80;
+    int y = 92 + i * 88;
     
-    // Card background
-    gfx->fillRect(25, y, 310, 70, RGB565(12, 14, 20));
-    gfx->drawRect(25, y, 310, 70, colors[i]);
-    gfx->fillRect(25, y, 5, 5, colors[i]);
-    gfx->fillRect(330, y, 5, 5, colors[i]);
+    gfx->fillRect(20, y, LCD_WIDTH - 40, 78, RGB565(12, 14, 20));
+    gfx->drawRect(20, y, LCD_WIDTH - 40, 78, colors[i]);
+    gfx->fillRect(20, y, 5, 5, colors[i]);
+    gfx->fillRect(LCD_WIDTH - 25, y, 5, 5, colors[i]);
+    gfx->fillRect(20, y + 2, 5, 74, colors[i]);
     
-    // Colored icon
-    gfx->fillRect(35, y + 15, 40, 40, colors[i]);
+    // Icon box
+    gfx->fillRect(32, y + 15, 48, 48, RGB565(20, 24, 35));
+    gfx->drawRect(32, y + 15, 48, 48, colors[i]);
+    gfx->setTextColor(colors[i]);
+    gfx->setTextSize(2);
+    gfx->setCursor(38, y + 32);
+    gfx->print(icons[i]);
     
     // Game name
-    gfx->setTextColor(RGB565(220, 225, 240));
+    gfx->setTextColor(COLOR_WHITE);
     gfx->setTextSize(2);
     gfx->setCursor(90, y + 15);
     gfx->print(games[i]);
     
     // Description
-    gfx->setTextColor(RGB565(100, 105, 120));
+    gfx->setTextColor(RGB565(120, 125, 140));
     gfx->setTextSize(1);
-    gfx->setCursor(90, y + 45);
+    gfx->setCursor(90, y + 40);
     gfx->print(descs[i]);
+    
+    // Play arrow + XP hint
+    gfx->setTextColor(colors[i]);
+    gfx->setTextSize(2);
+    gfx->setCursor(LCD_WIDTH - 50, y + 28);
+    gfx->print(">");
+    gfx->setTextColor(RGB565(80, 200, 100));
+    gfx->setTextSize(1);
+    gfx->setCursor(90, y + 56);
+    gfx->printf("+%d-%d XP", TRAINING_XP_PER_GAME_MIN, TRAINING_XP_PER_GAME_MAX);
   }
   
   drawSwipeIndicator();
@@ -606,51 +647,89 @@ void drawTrainingMenu() {
 
 void drawTrainingResults(TrainingScore& score) {
   gfx->fillScreen(RGB565(2, 2, 5));
+  for (int y = 0; y < LCD_HEIGHT; y += 4) {
+    gfx->drawFastHLine(0, y, LCD_WIDTH, RGB565(4, 4, 7));
+  }
   
-  gfx->setTextColor(getCurrentTheme()->primary);
+  ThemeColors* theme = getCurrentTheme();
+  int centerX = LCD_WIDTH / 2;
+  
+  // Header
+  gfx->fillRect(0, 0, LCD_WIDTH, 48, RGB565(10, 12, 18));
+  for (int x = 0; x < LCD_WIDTH; x += 8) {
+    gfx->fillRect(x, 46, 6, 3, theme->accent);
+  }
+  gfx->setTextColor(theme->accent);
   gfx->setTextSize(3);
-  gfx->setCursor(80, 50);
-  gfx->print("RESULTS!");
+  gfx->setCursor(centerX - 65, 10);
+  gfx->print("COMPLETE!");
   
-  // Score card
-  gfx->fillRect(40, 120, 280, 180, RGB565(12, 14, 20));
-  gfx->drawRect(40, 120, 280, 180, getCurrentTheme()->accent);
+  // Score rating
+  const char* rating;
+  uint16_t ratingColor;
+  if (score.score >= 90) { rating = "S RANK"; ratingColor = RGB565(255, 200, 50); }
+  else if (score.score >= 70) { rating = "A RANK"; ratingColor = RGB565(100, 255, 100); }
+  else if (score.score >= 50) { rating = "B RANK"; ratingColor = RGB565(100, 180, 255); }
+  else if (score.score >= 30) { rating = "C RANK"; ratingColor = RGB565(255, 200, 100); }
+  else { rating = "D RANK"; ratingColor = RGB565(200, 100, 100); }
   
-  gfx->setTextColor(RGB565(200, 205, 220));
+  gfx->setTextColor(ratingColor);
+  gfx->setTextSize(4);
+  int rLen = strlen(rating) * 24;
+  gfx->setCursor(centerX - rLen / 2, 70);
+  gfx->print(rating);
+  
+  // Score panel
+  gfx->fillRect(30, 130, LCD_WIDTH - 60, 170, RGB565(12, 14, 20));
+  gfx->drawRect(30, 130, LCD_WIDTH - 60, 170, theme->accent);
+  gfx->fillRect(30, 130, 5, 5, theme->accent);
+  gfx->fillRect(LCD_WIDTH - 35, 130, 5, 5, theme->accent);
+  
+  // Score number
+  gfx->setTextColor(RGB565(120, 125, 140));
   gfx->setTextSize(1);
-  gfx->setCursor(60, 140);
-  gfx->print("Score:");
-  gfx->setTextSize(5);
-  gfx->setTextColor(getCurrentTheme()->accent);
-  gfx->setCursor(60, 160);
+  gfx->setCursor(50, 145);
+  gfx->print("SCORE");
+  gfx->setTextSize(6);
+  gfx->setTextColor(COLOR_WHITE);
+  gfx->setCursor(50, 160);
   gfx->printf("%d", score.score);
   
-  gfx->setTextColor(COLOR_GREEN);
+  // XP earned
+  gfx->setTextColor(RGB565(80, 255, 120));
   gfx->setTextSize(3);
-  gfx->setCursor(60, 230);
+  gfx->setCursor(50, 230);
   gfx->printf("+%d XP", score.xp_earned);
   
+  // Extra stats
   if (score.type == TRAINING_REFLEX && score.best_time_ms < 9999) {
     gfx->setTextColor(RGB565(200, 205, 220));
     gfx->setTextSize(1);
-    gfx->setCursor(200, 140);
+    gfx->setCursor(220, 145);
     gfx->printf("Best: %dms", score.best_time_ms);
   }
-  
   if (score.combo_count > 0) {
     gfx->setTextColor(COLOR_GOLD);
-    gfx->setCursor(200, 160);
-    gfx->printf("Combo: %d", score.combo_count);
+    gfx->setTextSize(1);
+    gfx->setCursor(220, 165);
+    gfx->printf("Max Combo: %d", score.combo_count);
   }
-  
+  // Streak bonus info
+  gfx->setTextColor(RGB565(255, 200, 50));
+  gfx->setTextSize(1);
+  gfx->setCursor(50, 268);
+  gfx->printf("Streak: %d days", system_state.training_streak);
+
   // Continue button
-  gfx->fillRect(100, 340, 160, 50, getCurrentTheme()->primary);
-  gfx->drawRect(100, 340, 160, 50, COLOR_WHITE);
+  int btnY = 330;
+  gfx->fillRect(centerX - 80, btnY, 160, 50, theme->primary);
+  gfx->drawRect(centerX - 80, btnY, 160, 50, COLOR_WHITE);
+  gfx->fillRect(centerX - 80, btnY, 5, 5, COLOR_WHITE);
   gfx->setTextColor(COLOR_WHITE);
   gfx->setTextSize(2);
-  gfx->setCursor(130, 355);
-  gfx->print("Continue");
-  
+  gfx->setCursor(centerX - 40, btnY + 15);
+  gfx->print("CONTINUE");
+
   drawSwipeIndicator();
 }
 
@@ -665,10 +744,10 @@ void handleTrainingMenuTouch(TouchGesture& gesture) {
   
   int x = gesture.x, y = gesture.y;
   
-  // Check game buttons (4 games, each 80px height, starting at y=85)
+  // Check game buttons (4 games, each 88px spacing, starting at y=92)
   for (int i = 0; i < 4; i++) {
-    int by = 85 + i * 80;
-    if (y >= by && y < by + 70 && x >= 25 && x < 335) {
+    int by = 92 + i * 88;
+    if (y >= by && y < by + 78 && x >= 20 && x < LCD_WIDTH - 20) {
       Serial.printf("[Training] Selected game: %d\n", i);
       startTrainingGame((TrainingType)i);
       return;

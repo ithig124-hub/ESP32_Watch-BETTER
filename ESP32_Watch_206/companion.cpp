@@ -1019,111 +1019,195 @@ void exitCompanionCareMode() {
 
 void drawCompanionCareScreen() {
     if (!companion_system.current_companion) return;
-    if (!gfx) return;  // Safety: ensure display is ready
+    if (!gfx) return;
     
     CompanionData* c = companion_system.current_companion;
+    ThemeColors* theme = getCurrentTheme();
+    int centerX = LCD_WIDTH / 2;
     
-    gfx->fillScreen(TFT_BLACK);
+    gfx->fillScreen(RGB565(2, 2, 5));
+    for (int sy = 0; sy < LCD_HEIGHT; sy += 4) {
+        gfx->drawFastHLine(0, sy, LCD_WIDTH, RGB565(4, 4, 7));
+    }
     
-    yield();  // Feed watchdog after screen clear
+    yield();
     
-    // Draw ONLY the current companion's sprite
-    drawCompanionSprite(LCD_WIDTH / 2, 120, c->type, c->stats.evolution);
-    
-    yield();  // Feed watchdog after sprite draw
-    
-    // Name and series
+    // === HEADER BAR ===
+    int headerH = 48;
+    gfx->fillRect(0, 0, LCD_WIDTH, headerH, RGB565(10, 12, 18));
+    for (int hx = 0; hx < LCD_WIDTH; hx += 8) {
+        gfx->fillRect(hx, headerH - 3, 6, 3, c->profile->primary_color);
+    }
     gfx->setTextColor(c->profile->primary_color);
     gfx->setTextSize(2);
-    gfx->setCursor(10, 10);
+    gfx->setCursor(15, 8);
     gfx->print(c->profile->name);
     gfx->setTextSize(1);
-    gfx->setCursor(10, 35);
-    gfx->setTextColor(RGB565(150, 150, 150));
+    gfx->setTextColor(RGB565(120, 125, 140));
+    gfx->setCursor(15, 30);
     gfx->print(c->profile->series);
     
-    // Stats bars
-    int barY = 200;
-    int barW = LCD_WIDTH - 40;
-    int barH = 12;
+    // Mood + Evolution badges (top-right)
+    const char* moodStr[] = {"ECSTATIC", "HAPPY", "CONTENT", "SAD", "MISERABLE"};
+    uint16_t moodColors[] = {RGB565(255, 220, 50), RGB565(100, 255, 100), RGB565(150, 180, 200), RGB565(100, 120, 180), RGB565(200, 80, 80)};
+    gfx->setTextSize(1);
+    gfx->setTextColor(moodColors[c->stats.mood]);
+    gfx->setCursor(LCD_WIDTH - 80, 8);
+    gfx->print(moodStr[c->stats.mood]);
     
-    gfx->setTextColor(TFT_WHITE);
-    gfx->setCursor(20, barY);
-    gfx->print("Hunger");
-    gfx->drawRect(20, barY + 15, barW, barH, TFT_WHITE);
-    int hungerFill = max(0, (barW - 2) * c->stats.hunger / 100);
-    gfx->fillRect(21, barY + 16, hungerFill, barH - 2, RGB565(255, 150, 50));
+    const char* evoStr[] = {"BABY", "CHILD", "ADULT", "AWAKENED"};
+    uint16_t evoColors[] = {RGB565(180, 180, 190), RGB565(100, 200, 255), RGB565(200, 150, 255), RGB565(255, 200, 50)};
+    gfx->setTextColor(evoColors[c->stats.evolution]);
+    gfx->setCursor(LCD_WIDTH - 80, 22);
+    gfx->print(evoStr[c->stats.evolution]);
     
-    barY += 35;
-    gfx->setCursor(20, barY);
-    gfx->print("Happy");
-    gfx->drawRect(20, barY + 15, barW, barH, TFT_WHITE);
-    int happyFill = max(0, (barW - 2) * c->stats.happiness / 100);
-    gfx->fillRect(21, barY + 16, happyFill, barH - 2, RGB565(255, 200, 50));
+    // === SPRITE with themed glow ===
+    int spriteY = 110;
+    for (int r = 50; r > 30; r -= 3) {
+        gfx->drawCircle(centerX, spriteY, r, RGB565(8, 5, 12));
+    }
+    drawCompanionSprite(centerX, spriteY, c->type, c->stats.evolution);
     
-    barY += 35;
-    gfx->setCursor(20, barY);
-    gfx->print("Energy");
-    gfx->drawRect(20, barY + 15, barW, barH, TFT_WHITE);
-    int energyFill = max(0, (barW - 2) * c->stats.energy / 100);
-    gfx->fillRect(21, barY + 16, energyFill, barH - 2, RGB565(50, 200, 100));
+    yield();
     
-    barY += 35;
-    gfx->setCursor(20, barY);
-    gfx->print("Bond Lv.");
-    gfx->print(c->stats.bond_rank);
-    gfx->drawRect(20, barY + 15, barW, barH, TFT_WHITE);
-    int bondFill = max(0, (barW - 2) * c->stats.bond_level / 100);
-    gfx->fillRect(21, barY + 16, bondFill, barH - 2, RGB565(200, 100, 255));
+    // === CATCHPHRASE ===
+    gfx->setTextColor(c->profile->secondary_color);
+    gfx->setTextSize(1);
+    int cpLen = strlen(c->profile->catchphrase);
+    gfx->setCursor(centerX - (cpLen * 3), 160);
+    gfx->print(c->profile->catchphrase);
     
-    yield();  // Feed watchdog after stat bars
+    // === STATS PANEL ===
+    int panelY = 178;
+    int panelH = 135;
+    gfx->fillRect(15, panelY, LCD_WIDTH - 30, panelH, RGB565(10, 12, 18));
+    gfx->drawRect(15, panelY, LCD_WIDTH - 30, panelH, RGB565(30, 35, 50));
+    gfx->fillRect(15, panelY, 5, 5, c->profile->primary_color);
+    gfx->fillRect(LCD_WIDTH - 20, panelY, 5, 5, c->profile->primary_color);
     
-    // Care menu buttons
-    int btnY = 380;
-    int btnW = 90;
-    int btnH = 40;
-    int btnSpacing = 10;
-    int startX = (LCD_WIDTH - (4 * btnW + 3 * btnSpacing)) / 2;
+    // Stat bars
+    const char* statLabels[] = {"HUNGER", "HAPPY", "ENERGY", "BOND"};
+    int statValues[] = {c->stats.hunger, c->stats.happiness, c->stats.energy, c->stats.bond_level};
+    uint16_t statColors[] = {RGB565(255, 150, 50), RGB565(255, 220, 50), RGB565(80, 220, 130), RGB565(200, 120, 255)};
     
-    const char* btnLabels[] = {"Feed", "Play", "Train", "Rest"};
-    uint16_t btnColors[] = {RGB565(255, 150, 50), RGB565(255, 200, 50), RGB565(50, 200, 100), RGB565(100, 150, 255)};
+    int barX = 80;
+    int barW = LCD_WIDTH - 135;
+    int barH = 14;
     
     for (int i = 0; i < 4; i++) {
-        int bx = startX + i * (btnW + btnSpacing);
-        uint16_t col = (companion_system.care_menu_selection == i) ? TFT_WHITE : btnColors[i];
-        gfx->drawRoundRect(bx, btnY, btnW, btnH, 5, col);
-        gfx->setTextColor(col);
-        gfx->setCursor(bx + 15, btnY + 15);
+        int sy = panelY + 10 + i * 28;
+        
+        gfx->setTextColor(statColors[i]);
+        gfx->setTextSize(1);
+        gfx->setCursor(25, sy + 3);
+        gfx->print(statLabels[i]);
+        
+        gfx->fillRect(barX, sy, barW, barH, RGB565(8, 10, 14));
+        gfx->drawRect(barX, sy, barW, barH, RGB565(25, 30, 40));
+        
+        int fillW = max(0, (barW - 2) * statValues[i] / 100);
+        if (fillW > 0) {
+            gfx->fillRect(barX + 1, sy + 1, fillW, barH - 2, statColors[i]);
+            gfx->drawFastHLine(barX + 1, sy + 1, fillW, COLOR_WHITE);
+        }
+        
+        gfx->setTextColor(COLOR_WHITE);
+        gfx->setCursor(barX + barW + 6, sy + 3);
+        gfx->printf("%d%%", statValues[i]);
+    }
+    
+    // Bond rank stars
+    int starsY = panelY + panelH - 20;
+    gfx->setTextColor(RGB565(80, 85, 100));
+    gfx->setTextSize(1);
+    gfx->setCursor(25, starsY);
+    gfx->print("RANK:");
+    for (int s = 0; s < 5; s++) {
+        int sx = 70 + s * 18;
+        uint16_t starColor = (s < c->stats.bond_rank) ? RGB565(255, 200, 50) : RGB565(40, 45, 55);
+        gfx->fillRect(sx, starsY - 2, 12, 12, starColor);
+    }
+    gfx->setTextColor(RGB565(100, 105, 120));
+    gfx->setCursor(175, starsY);
+    gfx->printf("Days:%d Plays:%d", c->stats.days_together, c->stats.total_interactions);
+    
+    yield();
+    
+    // === INFO ROW ===
+    int infoY = panelY + panelH + 6;
+    int halfW = (LCD_WIDTH - 40) / 2;
+    gfx->fillRect(15, infoY, halfW, 26, RGB565(12, 14, 20));
+    gfx->drawRect(15, infoY, halfW, 26, RGB565(30, 35, 50));
+    gfx->setTextColor(RGB565(255, 180, 80));
+    gfx->setTextSize(1);
+    gfx->setCursor(22, infoY + 4);
+    gfx->printf("Fav: %s", c->profile->favorite_food);
+    gfx->setTextColor(RGB565(100, 200, 255));
+    gfx->setCursor(22, infoY + 15);
+    gfx->printf("Likes: %s", c->profile->favorite_game);
+    
+    int sleepX = 15 + halfW + 10;
+    gfx->fillRect(sleepX, infoY, halfW, 26, RGB565(12, 14, 20));
+    gfx->drawRect(sleepX, infoY, halfW, 26, RGB565(30, 35, 50));
+    gfx->setTextColor(c->care.is_sleeping ? RGB565(100, 150, 255) : RGB565(80, 200, 80));
+    gfx->setTextSize(1);
+    gfx->setCursor(sleepX + 8, infoY + 9);
+    gfx->print(c->care.is_sleeping ? "STATUS: SLEEPING" : "STATUS: AWAKE");
+    
+    // === ACTION BUTTONS ===
+    int btnY = infoY + 36;
+    int btnW = 85;
+    int btnH = 48;
+    int btnGap = 8;
+    int btnStartX = (LCD_WIDTH - (4 * btnW + 3 * btnGap)) / 2;
+    
+    const char* btnLabels[] = {"FEED", "PLAY", "TRAIN", "REST"};
+    uint16_t btnColors[] = {RGB565(255, 150, 50), RGB565(255, 220, 50), RGB565(80, 220, 130), RGB565(100, 150, 255)};
+    
+    for (int i = 0; i < 4; i++) {
+        int bx = btnStartX + i * (btnW + btnGap);
+        bool selected = (companion_system.care_menu_selection == i);
+        uint16_t bg = selected ? btnColors[i] : RGB565(15, 18, 25);
+        uint16_t border = selected ? COLOR_WHITE : btnColors[i];
+        uint16_t textColor = selected ? RGB565(2, 2, 5) : btnColors[i];
+        
+        gfx->fillRect(bx, btnY, btnW, btnH, bg);
+        gfx->drawRect(bx, btnY, btnW, btnH, border);
+        gfx->fillRect(bx, btnY, 4, 4, btnColors[i]);
+        gfx->fillRect(bx + btnW - 4, btnY, 4, 4, btnColors[i]);
+        
+        gfx->setTextColor(textColor);
+        gfx->setTextSize(2);
+        int labelW = strlen(btnLabels[i]) * 12;
+        gfx->setCursor(bx + (btnW - labelW) / 2, btnY + 16);
         gfx->print(btnLabels[i]);
     }
     
-    // Mood indicator
-    const char* moodStr[] = {"Ecstatic!", "Happy", "Content", "Sad...", "Miserable"};
-    gfx->setTextColor(c->profile->secondary_color);
-    gfx->setCursor(LCD_WIDTH - 100, 10);
-    gfx->print(moodStr[c->stats.mood]);
+    // === FOOTER ===
+    gfx->setTextColor(RGB565(50, 55, 70));
+    gfx->setTextSize(1);
+    gfx->setCursor(centerX - 55, LCD_HEIGHT - 25);
+    gfx->print("SWIPE LEFT TO EXIT");
     
-    // Evolution stage
-    const char* evoStr[] = {"Baby", "Child", "Adult", "Awakened"};
-    gfx->setCursor(LCD_WIDTH - 100, 30);
-    gfx->print(evoStr[c->stats.evolution]);
-    
-    // Back button hint
-    gfx->setTextColor(RGB565(100, 100, 100));
-    gfx->setCursor(10, LCD_HEIGHT - 25);
-    gfx->print("< Swipe left to exit");
-    
-    yield();  // Final watchdog feed
+    drawSwipeIndicator();
+    yield();
 }
 
 void handleCareModeTouch(int tx, int ty) {
-    if (ty >= 380 && ty <= 420) {
-        int btnW = 90;
-        int btnSpacing = 10;
-        int startX = (LCD_WIDTH - (4 * btnW + 3 * btnSpacing)) / 2;
-        
+    // Updated button positions to match new care screen layout
+    // Buttons start after info row: panelY(178) + panelH(135) + infoRow(6+26) + gap(36) = ~381
+    int panelY = 178;
+    int panelH = 135;
+    int infoY = panelY + panelH + 6;
+    int btnY = infoY + 36;
+    int btnH = 48;
+    int btnW = 85;
+    int btnGap = 8;
+    int btnStartX = (LCD_WIDTH - (4 * btnW + 3 * btnGap)) / 2;
+    
+    if (ty >= btnY && ty <= btnY + btnH) {
         for (int i = 0; i < 4; i++) {
-            int bx = startX + i * (btnW + btnSpacing);
+            int bx = btnStartX + i * (btnW + btnGap);
             if (tx >= bx && tx <= bx + btnW) {
                 companion_system.care_menu_selection = i;
                 

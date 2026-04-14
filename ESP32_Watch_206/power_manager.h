@@ -131,4 +131,8 @@ bool shouldScreenTurnOff();
 // Get power state name (for debugging)
 const char* getPowerStateName(PowerState state);
 
+// Power Saver mode toggle and query
+void togglePowerSaver();
+bool isPowerSaverEnabled();
+
 #endif // POWER_MANAGER_H

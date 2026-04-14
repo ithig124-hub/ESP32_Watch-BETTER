@@ -95,16 +95,37 @@ void updatePowerState() {
     return;
   }
   
-  // SIMPLIFIED: Just stay ACTIVE all the time
-  // No aggressive state transitions - screen timeout handles sleep
+  // === POWER SAVER MODE ===
+  // Auto-enable power saver at 20% battery
+  if (system_state.battery_percentage <= 20 && !system_state.power_saver_enabled) {
+    system_state.power_saver_enabled = true;
+    Serial.println("[POWER] Auto power saver: battery <= 20%");
+  }
+  
+  if (system_state.power_saver_enabled) {
+    // POWER SAVER: reduce brightness, CPU, animation rate
+    power_manager.current_state = POWER_IDLE;
+    power_manager.current_delay = FPS_IDLE;  // 30 FPS instead of 60
+    power_manager.sensor_poll_interval = SENSOR_POLL_IDLE;
+    power_manager.animations_active = false;  // Disable watchface animations
+    
+    // Dim brightness to 50% of user setting
+    if (screenOn) {
+      int dimBrightness = power_manager.original_brightness / 2;
+      if (dimBrightness < 30) dimBrightness = 30;  // Minimum visible
+      gfx->setBrightness(dimBrightness);
+    }
+    
+    // Lower CPU frequency
+    setCpuFrequencyMhz(CPU_FREQ_IDLE);  // 160 MHz instead of 240
+    return;
+  }
+  
+  // NORMAL: Stay ACTIVE all the time
   power_manager.current_state = POWER_ACTIVE;
   power_manager.current_delay = FPS_ACTIVE;
   power_manager.sensor_poll_interval = SENSOR_POLL_ACTIVE;
-  power_manager.animations_active = true;  // Always keep animations on
-  
-  // Keep full brightness and CPU speed
-  // Only transition to screen off based on timeout
-  // (handled by main loop checking shouldScreenTurnOff())
+  power_manager.animations_active = true;
 }
 
 // =============================================================================
@@ -252,4 +273,29 @@ const char* getPowerStateName(PowerState state) {
     case POWER_SCREEN_OFF: return "SCREEN_OFF";
     default:               return "UNKNOWN";
   }
+}
+
+// =============================================================================
+// POWER SAVER MODE TOGGLE
+// =============================================================================
+void togglePowerSaver() {
+  system_state.power_saver_enabled = !system_state.power_saver_enabled;
+  
+  if (system_state.power_saver_enabled) {
+    Serial.println("[POWER] Power Saver: ON");
+  } else {
+    // Restore full power
+    Serial.println("[POWER] Power Saver: OFF");
+    power_manager.current_state = POWER_ACTIVE;
+    power_manager.current_delay = FPS_ACTIVE;
+    power_manager.animations_active = true;
+    setCpuFrequencyMhz(CPU_FREQ_ACTIVE);
+    if (screenOn) {
+      gfx->setBrightness(power_manager.original_brightness);
+    }
+  }
+}
+
+bool isPowerSaverEnabled() {
+  return system_state.power_saver_enabled;
 }

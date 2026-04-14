@@ -599,6 +599,7 @@ struct SystemState {
 
     // Power mode
     bool low_power_mode;
+    bool power_saver_enabled;  // User-toggled power saver mode
 };
 
 // =============================================================================

@@ -121,7 +121,9 @@ SystemState system_state = {
   .total_pdf_files = 0,
   .filesystem_available = false,
   .current_wallpaper_path = "",
-  .wallpaper_enabled = false
+  .wallpaper_enabled = false,
+  .low_power_mode = false,
+  .power_saver_enabled = false
 };
 
 // Touch interrupt flag
@@ -911,6 +913,7 @@ void saveAllGameData() {
   gamePrefs.putInt("steps", system_state.steps_today);
   gamePrefs.putInt("bright", system_state.brightness);
   gamePrefs.putInt("logins", system_state.daily_login_count);
+  gamePrefs.putBool("pwrsaver", system_state.power_saver_enabled);
   
   // === PER-THEME DATA (saved with theme index prefix) ===
   int t = (int)system_state.current_theme;
@@ -957,6 +960,7 @@ void loadAllGameData() {
   system_state.steps_today = gamePrefs.getInt("steps", 0);
   system_state.brightness = gamePrefs.getInt("bright", 200);
   system_state.daily_login_count = gamePrefs.getInt("logins", 0);
+  system_state.power_saver_enabled = gamePrefs.getBool("pwrsaver", false);
   
   // === PER-THEME DATA (load for current theme) ===
   int t = (int)system_state.current_theme;

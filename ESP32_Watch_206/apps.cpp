@@ -562,48 +562,65 @@ void drawSettingsApp() {
   gfx->setCursor(LCD_WIDTH/2 - 72, 12);
   gfx->print("SETTINGS");
   
-  // Settings items - larger retro cards for 410x502
-  const char* options[] = {"Brightness", "Theme", "Edit Time", "WiFi", "About"};
-  const char* subtexts[] = {"Adjust display", "Change character", "Set time manually", "Network setup", "Version info"};
-  uint16_t icons[] = {RGB565(255, 200, 60), theme->primary, RGB565(100, 255, 150), RGB565(80, 180, 255), RGB565(130, 135, 150)};
+  // Settings items - 6 items with Power Saver added
+  const char* options[] = {"Brightness", "Theme", "Edit Time", "WiFi", "Power Saver", "About"};
+  const char* subtexts[] = {"Adjust display", "Change character", "Set time manually", "Network setup", 
+                            system_state.power_saver_enabled ? "ON - saving battery" : "OFF - full power",
+                            "Version info"};
+  uint16_t icons[] = {RGB565(255, 200, 60), theme->primary, RGB565(100, 255, 150), 
+                      RGB565(80, 180, 255), RGB565(80, 255, 80), RGB565(130, 135, 150)};
   
-  int cardH = 75;  // Slightly smaller to fit 5 items
-  int cardGap = 8;
-  int startY = headerH + 12;
+  int cardH = 65;
+  int cardGap = 6;
+  int startY = headerH + 10;
   
-  for (int i = 0; i < 5; i++) {  // Changed from 4 to 5
+  for (int i = 0; i < 6; i++) {
     int y = startY + i * (cardH + cardGap);
     
-    // Retro card - larger
-    gfx->fillRect(20, y, LCD_WIDTH - 40, cardH, RGB565(12, 14, 20));
-    gfx->drawRect(20, y, LCD_WIDTH - 40, cardH, RGB565(40, 45, 60));
-    // Pixel corner with icon color
+    // Special highlight for power saver when enabled
+    bool isPowerSaver = (i == 4);
+    bool psEnabled = system_state.power_saver_enabled;
+    
+    gfx->fillRect(20, y, LCD_WIDTH - 40, cardH, 
+      (isPowerSaver && psEnabled) ? RGB565(10, 25, 12) : RGB565(12, 14, 20));
+    gfx->drawRect(20, y, LCD_WIDTH - 40, cardH, 
+      (isPowerSaver && psEnabled) ? RGB565(80, 255, 80) : RGB565(40, 45, 60));
     gfx->fillRect(20, y, 6, 6, icons[i]);
     gfx->fillRect(LCD_WIDTH - 26, y, 6, 6, icons[i]);
-    // Color stripe at left
     gfx->fillRect(20, y + 2, 5, cardH - 4, icons[i]);
     
-    // Icon pixel square - larger
-    gfx->fillRect(38, y + 20, 40, 40, RGB565(15, 18, 25));
-    gfx->drawRect(38, y + 20, 40, 40, icons[i]);
-    gfx->fillRect(48, y + 30, 20, 20, icons[i]);
+    // Icon pixel square
+    gfx->fillRect(38, y + 14, 36, 36, RGB565(15, 18, 25));
+    gfx->drawRect(38, y + 14, 36, 36, icons[i]);
+    gfx->fillRect(47, y + 23, 18, 18, icons[i]);
     
-    // Text - larger
+    // Text
     gfx->setTextColor(RGB565(200, 205, 220));
-    gfx->setTextSize(3);
-    gfx->setCursor(95, y + 18);
+    gfx->setTextSize(2);
+    gfx->setCursor(88, y + 12);
     gfx->print(options[i]);
     
-    gfx->setTextSize(2);
-    gfx->setTextColor(RGB565(80, 85, 100));
-    gfx->setCursor(95, y + 52);
+    gfx->setTextSize(1);
+    gfx->setTextColor((isPowerSaver && psEnabled) ? RGB565(80, 255, 80) : RGB565(80, 85, 100));
+    gfx->setCursor(88, y + 38);
     gfx->print(subtexts[i]);
     
-    // Arrow - retro
-    gfx->setTextColor(RGB565(50, 55, 70));
-    gfx->setTextSize(3);
-    gfx->setCursor(LCD_WIDTH - 55, y + 28);
-    gfx->print(">");
+    // Toggle indicator for power saver
+    if (isPowerSaver) {
+      int toggleX = LCD_WIDTH - 70;
+      int toggleY = y + 22;
+      gfx->fillRect(toggleX, toggleY, 40, 20, psEnabled ? RGB565(50, 180, 50) : RGB565(40, 42, 50));
+      gfx->drawRect(toggleX, toggleY, 40, 20, psEnabled ? RGB565(80, 255, 80) : RGB565(60, 65, 80));
+      // Toggle knob
+      int knobX = psEnabled ? toggleX + 22 : toggleX + 2;
+      gfx->fillRect(knobX, toggleY + 2, 16, 16, COLOR_WHITE);
+    } else {
+      // Arrow for other items
+      gfx->setTextColor(RGB565(50, 55, 70));
+      gfx->setTextSize(2);
+      gfx->setCursor(LCD_WIDTH - 50, y + 22);
+      gfx->print(">");
+    }
   }
   
   drawSwipeIndicator();
@@ -614,12 +631,12 @@ void handleSettingsTouch(TouchGesture& gesture) {
   
   int y = gesture.y;
   
-  int cardH = 85;
-  int cardGap = 12;
-  int startY = 67;  // headerH + 12
+  int cardH = 65;
+  int cardGap = 6;
+  int headerH = 55;
+  int startY = headerH + 10;
   
-  // Cards at: y=67, y=164, y=261, y=358
-  for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < 6; i++) {
     int cardY = startY + i * (cardH + cardGap);
     if (y >= cardY && y < cardY + cardH) {
       switch(i) {
@@ -632,7 +649,7 @@ void handleSettingsTouch(TouchGesture& gesture) {
           system_state.current_screen = SCREEN_THEME_SELECTOR;
           drawThemeSelector();
           break;
-        case 2:  // Edit Time (NEW!)
+        case 2:  // Edit Time
           {
             extern void showTimeEditPopup();
             showTimeEditPopup();
@@ -642,7 +659,14 @@ void handleSettingsTouch(TouchGesture& gesture) {
           system_state.current_screen = SCREEN_WIFI_MANAGER;
           drawNetworkListScreen();
           break;
-        case 4:  // About
+        case 4:  // Power Saver toggle
+          {
+            extern void togglePowerSaver();
+            togglePowerSaver();
+            drawSettingsApp();
+          }
+          break;
+        case 5:  // About
           system_state.current_screen = SCREEN_SETTINGS;
           drawAboutScreen();
           break;
