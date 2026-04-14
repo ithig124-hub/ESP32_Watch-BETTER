@@ -39,6 +39,10 @@ CharacterProfile* getCharacterProfile(ThemeType theme);
 CharacterProfile* getCurrentCharacterProfile();
 const char* getThemeName(ThemeType theme);
 
+// NVS theme persistence (dedicated "theme_cfg" namespace)
+void saveThemeToNVS(ThemeType theme);
+ThemeType loadThemeFromNVS();
+
 
 // Daily rotation
 void updateDailyCharacter();

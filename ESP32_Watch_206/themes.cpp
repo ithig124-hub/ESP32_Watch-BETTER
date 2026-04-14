@@ -375,8 +375,11 @@ void setTheme(ThemeType theme) {
 // =============================================================================
 
 void playThemeTransition(ThemeType theme) {
+  extern void feedWatchdog();
   int centerX = LCD_WIDTH / 2;
   int centerY = LCD_HEIGHT / 2;
+  
+  feedWatchdog();  // Feed before starting any animation
   
   switch(theme) {
     case THEME_SUNG_JINWOO: {
@@ -408,6 +411,7 @@ void playThemeTransition(ThemeType theme) {
       delay(300);
       gfx->fillScreen(JINWOO_ARISE_GLOW);
       delay(100);
+      feedWatchdog();
       break;
     }
     
@@ -439,6 +443,7 @@ void playThemeTransition(ThemeType theme) {
       
       gfx->fillScreen(COLOR_WHITE);
       delay(100);
+      feedWatchdog();
       break;
     }
     
@@ -499,6 +504,7 @@ void playThemeTransition(ThemeType theme) {
       delay(500);
       gfx->fillScreen(NARUTO_CHAKRA_ORANGE);
       delay(100);
+      feedWatchdog();
       break;
     }
     
@@ -521,6 +527,7 @@ void playThemeTransition(ThemeType theme) {
       delay(500);
       gfx->fillScreen(GOKU_UI_SILVER);
       delay(100);
+      feedWatchdog();
       break;
     }
     
@@ -542,6 +549,7 @@ void playThemeTransition(ThemeType theme) {
       delay(500);
       gfx->fillScreen(TANJIRO_FIRE_ORANGE);
       delay(100);
+      feedWatchdog();
       break;
     }
     
@@ -560,6 +568,7 @@ void playThemeTransition(ThemeType theme) {
       // Screen goes to void blue-black
       gfx->fillScreen(RGB565(5, 10, 20));
       delay(200);
+      feedWatchdog();  // Feed mid-animation — Gojo's is the longest
       
       // Domain EXPANDING outward from center - the void opening up
       for (int r = 10; r < 350; r += 15) {
@@ -600,6 +609,7 @@ void playThemeTransition(ThemeType theme) {
       }
       gfx->fillScreen(GOJO_INFINITY_BLUE);
       delay(100);
+      feedWatchdog();
       break;
     }
     
@@ -623,6 +633,7 @@ void playThemeTransition(ThemeType theme) {
       delay(500);
       gfx->fillScreen(LEVI_SILVER_BLADE);
       delay(100);
+      feedWatchdog();
       break;
     }
     
@@ -643,6 +654,7 @@ void playThemeTransition(ThemeType theme) {
       }
       gfx->fillScreen(COLOR_WHITE);
       delay(100);
+      feedWatchdog();
       break;
     }
     
@@ -669,6 +681,7 @@ void playThemeTransition(ThemeType theme) {
       delay(500);
       gfx->fillScreen(DEKU_FULL_COWL);
       delay(100);
+      feedWatchdog();
       break;
     }
     
@@ -3954,28 +3967,164 @@ void drawThemeSelector() {
 }
 
 // =============================================================================
-// DEDICATED THEME SAVE - Ensures theme persists across reboot
-// Uses fresh Preferences open/close to guarantee NVS commit
+// DEDICATED THEME SAVE - Uses its own NVS namespace ("theme_cfg")
+// Completely isolated from saveAllGameData() / "watchgame" namespace.
+// Nothing else in the firmware reads or writes "theme_cfg".
 // =============================================================================
 void saveThemeToNVS(ThemeType theme) {
-  Preferences themePrefs;
-  if (themePrefs.begin("watchgame", false)) {
-    themePrefs.putInt("theme", (int)theme);
-    themePrefs.end();  // end() flushes to NVS
-    Serial.printf("[THEME] Theme %d saved to NVS (dedicated write)\n", (int)theme);
+  extern void feedWatchdog();
+  
+  Preferences tp;
+  
+  // --- Write to dedicated namespace ---
+  bool ok = tp.begin("theme_cfg", false);
+  if (ok) {
+    size_t written = tp.putInt("t", (int)theme);
+    tp.end();
+    Serial.printf("[THEME-NVS] WRITE theme=%d to 'theme_cfg' (bytes=%u)\n", (int)theme, written);
   } else {
-    Serial.println("[THEME] ERROR: Failed to open NVS for theme save!");
+    Serial.println("[THEME-NVS] ERROR: could not open 'theme_cfg' for write!");
   }
-  yield();  // Feed watchdog
+  
+  feedWatchdog();
+  
+  // --- Read-back verification ---
+  bool ok2 = tp.begin("theme_cfg", true);
+  if (ok2) {
+    int readback = tp.getInt("t", -999);
+    tp.end();
+    if (readback == (int)theme) {
+      Serial.printf("[THEME-NVS] VERIFY OK: read back %d == %d\n", readback, (int)theme);
+    } else {
+      Serial.printf("[THEME-NVS] VERIFY FAIL: read back %d, expected %d\n", readback, (int)theme);
+    }
+  } else {
+    Serial.println("[THEME-NVS] ERROR: could not open 'theme_cfg' for verify read!");
+  }
 }
 
-// Helper: perform the full theme switch + save + reboot sequence
+// =============================================================================
+// LOAD THEME FROM NVS - Called from setup() before anything else.
+// Returns the saved ThemeType, or THEME_LUFFY_GEAR5 if nothing saved yet.
+// =============================================================================
+ThemeType loadThemeFromNVS() {
+  Preferences tp;
+  ThemeType result = THEME_LUFFY_GEAR5;  // default
+  
+  bool ok = tp.begin("theme_cfg", true);  // read-only
+  if (ok) {
+    int val = tp.getInt("t", (int)THEME_LUFFY_GEAR5);
+    tp.end();
+    
+    // Validate range
+    if (val >= 0 && val < THEME_COUNT) {
+      result = (ThemeType)val;
+    }
+    Serial.printf("[THEME-NVS] LOAD theme=%d from 'theme_cfg'\n", (int)result);
+  } else {
+    // Namespace doesn't exist yet (first boot) — fall back to "watchgame"
+    bool ok2 = tp.begin("watchgame", true);
+    if (ok2) {
+      int val = tp.getInt("theme", (int)THEME_LUFFY_GEAR5);
+      tp.end();
+      if (val >= 0 && val < THEME_COUNT) {
+        result = (ThemeType)val;
+      }
+      Serial.printf("[THEME-NVS] LOAD theme=%d from 'watchgame' (fallback)\n", (int)result);
+    } else {
+      Serial.println("[THEME-NVS] No saved theme found — using default Luffy");
+    }
+  }
+  
+  return result;
+}
+
+// =============================================================================
+// Save ONLY per-character data (gems, level, etc.) WITHOUT touching "theme" key.
+// =============================================================================
+static void savePerThemeDataOnly() {
+  Preferences prefs;
+  if (!prefs.begin("watchgame", false)) {
+    Serial.println("[THEME] ERROR: Failed to open NVS for per-theme save");
+    return;
+  }
+  
+  int t = (int)system_state.current_theme;
+  char key[16];
+  
+  snprintf(key, sizeof(key), "t%d_gems", t);
+  prefs.putInt(key, system_state.player_gems);
+  
+  snprintf(key, sizeof(key), "t%d_cards", t);
+  prefs.putInt(key, system_state.gacha_cards_collected);
+  
+  snprintf(key, sizeof(key), "t%d_boss", t);
+  prefs.putInt(key, system_state.bosses_defeated);
+  
+  snprintf(key, sizeof(key), "t%d_strk", t);
+  prefs.putInt(key, system_state.training_streak);
+  
+  snprintf(key, sizeof(key), "t%d_pity", t);
+  prefs.putInt(key, system_state.pity_counter);
+  
+  snprintf(key, sizeof(key), "t%d_pitl", t);
+  prefs.putInt(key, system_state.pity_legendary_counter);
+  
+  snprintf(key, sizeof(key), "t%d_lvl", t);
+  prefs.putInt(key, system_state.player_level);
+  
+  snprintf(key, sizeof(key), "t%d_xp", t);
+  prefs.putInt(key, system_state.player_xp);
+  
+  prefs.end();
+  
+  Serial.printf("[THEME] Per-theme data saved for theme %d (theme key untouched)\n", t);
+}
+
+// =============================================================================
+// Full theme switch + save + reboot (BULLETPROOF version)
+//
+// Strategy:
+//   - Theme is saved to its OWN NVS namespace ("theme_cfg") that nothing
+//     else in the firmware reads or writes.
+//   - saveAllGameData() also writes the theme to "watchgame", but the boot
+//     code reads "theme_cfg" FIRST, so even if "watchgame" has stale data,
+//     the correct theme is loaded.
+//   - feedWatchdog() called throughout to prevent WDT resets.
+// =============================================================================
 static void applyThemeAndReboot(ThemeType newTheme) {
   extern void saveAllGameData();
+  extern void feedWatchdog();
   
-  playThemeTransition(newTheme);
+  // ---------------------------------------------------------------
+  // STEP 1 — Save old character's per-theme data (no "theme" key).
+  // ---------------------------------------------------------------
+  savePerThemeDataOnly();
+  feedWatchdog();
+  
+  // ---------------------------------------------------------------
+  // STEP 2 — Switch theme in RAM.
+  // ---------------------------------------------------------------
   setTheme(newTheme);
+  feedWatchdog();
   
+  // ---------------------------------------------------------------
+  // STEP 3 — Persist new theme to dedicated NVS namespace.
+  //          Includes write + read-back verification.
+  //          After this line, the theme is crash-safe.
+  // ---------------------------------------------------------------
+  saveThemeToNVS(newTheme);
+  feedWatchdog();
+  
+  // ---------------------------------------------------------------
+  // STEP 4 — Play the transition animation (purely visual).
+  // ---------------------------------------------------------------
+  playThemeTransition(newTheme);
+  feedWatchdog();
+  
+  // ---------------------------------------------------------------
+  // STEP 5 — Load new character XP data.
+  // ---------------------------------------------------------------
   loadXPDataForTheme(newTheme);
   
   CharacterXPData* char_xp = getCurrentCharacterXP();
@@ -3983,15 +4132,18 @@ static void applyThemeAndReboot(ThemeType newTheme) {
     system_state.player_level = char_xp->level;
     system_state.player_xp = char_xp->xp;
   }
+  feedWatchdog();
   
-  // FIX: Save theme FIRST with dedicated NVS write to guarantee persistence
-  saveThemeToNVS(newTheme);
-  // Then save all other game data
+  // ---------------------------------------------------------------
+  // STEP 6 — Full save (system_state has new theme now).
+  // ---------------------------------------------------------------
   saveAllGameData();
+  feedWatchdog();
   
-  Serial.println("[THEME] Theme changed - initiating reboot for full system update");
+  Serial.println("[THEME] Rebooting...");
   Serial.flush();
-  delay(1000);  // Longer delay to ensure NVS write fully completes
+  delay(200);
+  feedWatchdog();
   ESP.restart();
 }
 

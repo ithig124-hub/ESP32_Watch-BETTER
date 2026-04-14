@@ -394,6 +394,18 @@ void setup() {
   initDisplay();
   feedWatchdog();
   
+  // ==========================================================================
+  // LOAD SAVED THEME from dedicated NVS namespace — BEFORE initializeThemes().
+  // This reads from "theme_cfg" (isolated, nothing else writes to it).
+  // Must happen before initializeThemes() so the correct theme is applied.
+  // ==========================================================================
+  {
+    ThemeType saved = loadThemeFromNVS();
+    system_state.current_theme = saved;
+    Serial.printf("[BOOT] Theme loaded from NVS: %d\n", (int)saved);
+  }
+  feedWatchdog();
+  
   drawSplashScreen();
   delay(2000);
   feedWatchdog();
@@ -953,17 +965,22 @@ void saveAllGameData() {
 }
 
 void loadAllGameData() {
+  // Theme was already loaded from dedicated "theme_cfg" namespace in setup().
+  // We keep that value and DON'T overwrite it from "watchgame".
+  ThemeType already_loaded_theme = system_state.current_theme;
+  
   gamePrefs.begin("watchgame", true);
   
-  // === UNIVERSAL DATA ===
-  system_state.current_theme = (ThemeType)gamePrefs.getInt("theme", THEME_LUFFY_GEAR5);
+  // === UNIVERSAL DATA (skip theme — already loaded from "theme_cfg") ===
+  // We still read the "watchgame" theme for per-theme data key prefix,
+  // but we DON'T assign it to system_state.current_theme.
   system_state.steps_today = gamePrefs.getInt("steps", 0);
   system_state.brightness = gamePrefs.getInt("bright", 200);
   system_state.daily_login_count = gamePrefs.getInt("logins", 0);
   system_state.power_saver_enabled = gamePrefs.getBool("pwrsaver", false);
   
-  // === PER-THEME DATA (load for current theme) ===
-  int t = (int)system_state.current_theme;
+  // === PER-THEME DATA — use the theme loaded from "theme_cfg" ===
+  int t = (int)already_loaded_theme;
   char key[16];
   
   snprintf(key, sizeof(key), "t%d_gems", t);
