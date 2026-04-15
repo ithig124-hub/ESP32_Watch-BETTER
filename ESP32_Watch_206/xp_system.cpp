@@ -13,7 +13,7 @@
 #include "themes.h"
 #include <Preferences.h>
 #include <nvs_flash.h>
-#include <SD.h>
+#include <SD_MMC.h>
 #include <FS.h>
 
 extern Arduino_CO5300 *gfx;
@@ -961,7 +961,8 @@ static uint32_t calculateChecksum(const SDBackupData* data) {
 // SD CARD BACKUP - Save to slot
 // =============================================================================
 bool saveStatsToSD(int slot) {
-  if (!system_state.filesystem_available) {
+  extern bool sdCardInitialized;
+  if (!sdCardInitialized) {
     Serial.println("[BACKUP] SD card not available!");
     return false;
   }
@@ -972,8 +973,8 @@ bool saveStatsToSD(int slot) {
   }
 
   // Ensure backup folder exists
-  if (!SD.exists(BACKUP_FOLDER)) {
-    SD.mkdir(BACKUP_FOLDER);
+  if (!SD_MMC.exists(BACKUP_FOLDER)) {
+    SD_MMC.mkdir(BACKUP_FOLDER);
   }
 
   // Build file path
@@ -1017,7 +1018,7 @@ bool saveStatsToSD(int slot) {
   backup.checksum = calculateChecksum(&backup);
 
   // Write to SD
-  File file = SD.open(filepath, FILE_WRITE);
+  File file = SD_MMC.open(filepath, FILE_WRITE);
   if (!file) {
     Serial.printf("[BACKUP] Failed to open %s for writing!\n", filepath);
     return false;
@@ -1039,7 +1040,8 @@ bool saveStatsToSD(int slot) {
 // SD CARD BACKUP - Load from slot
 // =============================================================================
 bool loadStatsFromSD(int slot) {
-  if (!system_state.filesystem_available) {
+  extern bool sdCardInitialized;
+  if (!sdCardInitialized) {
     Serial.println("[BACKUP] SD card not available!");
     return false;
   }
@@ -1047,7 +1049,7 @@ bool loadStatsFromSD(int slot) {
   char filepath[48];
   sprintf(filepath, "%s/%s%d%s", BACKUP_FOLDER, BACKUP_PREFIX, slot, BACKUP_EXT);
 
-  File file = SD.open(filepath, FILE_READ);
+  File file = SD_MMC.open(filepath, FILE_READ);
   if (!file) {
     Serial.printf("[BACKUP] Failed to open %s!\n", filepath);
     return false;
@@ -1109,12 +1111,13 @@ bool loadStatsFromSD(int slot) {
 // SD CARD BACKUP - Get next available slot
 // =============================================================================
 int getNextBackupSlot() {
-  if (!system_state.filesystem_available) return 1;
+  extern bool sdCardInitialized;
+  if (!sdCardInitialized) return 1;
 
   for (int slot = 1; slot <= MAX_BACKUPS; slot++) {
     char filepath[48];
     sprintf(filepath, "%s/%s%d%s", BACKUP_FOLDER, BACKUP_PREFIX, slot, BACKUP_EXT);
-    if (!SD.exists(filepath)) {
+    if (!SD_MMC.exists(filepath)) {
       return slot;
     }
   }
@@ -1132,12 +1135,13 @@ void getBackupInfo(int slot, BackupInfo* info) {
   info->rebirth_count = 0;
   info->timestamp = 0;
 
-  if (!system_state.filesystem_available) return;
+  extern bool sdCardInitialized;
+  if (!sdCardInitialized) return;
 
   char filepath[48];
   sprintf(filepath, "%s/%s%d%s", BACKUP_FOLDER, BACKUP_PREFIX, slot, BACKUP_EXT);
 
-  File file = SD.open(filepath, FILE_READ);
+  File file = SD_MMC.open(filepath, FILE_READ);
   if (!file) return;
 
   SDBackupData backup;
@@ -1184,12 +1188,13 @@ void showSDBackupMenu() {
 
   // SD Card status
   int statusY = headerH + 10;
+  extern bool sdCardInitialized;
   gfx->fillRect(20, statusY, LCD_WIDTH - 40, 40, RGB565(12, 14, 20));
   gfx->drawRect(20, statusY, LCD_WIDTH - 40, 40, RGB565(40, 45, 60));
   gfx->setTextSize(2);
-  gfx->setTextColor(system_state.filesystem_available ? RGB565(0, 200, 80) : RGB565(200, 60, 60));
+  gfx->setTextColor(sdCardInitialized ? RGB565(0, 200, 80) : RGB565(200, 60, 60));
   gfx->setCursor(40, statusY + 10);
-  gfx->printf("SD Card: %s", system_state.filesystem_available ? "READY" : "NOT FOUND");
+  gfx->printf("SD Card: %s", sdCardInitialized ? "READY" : "NOT FOUND");
 
   // Current stats
   int statsY = statusY + 50;
