@@ -408,7 +408,8 @@ enum ScreenType {
     SCREEN_SLEEP,
     SCREEN_POMODORO,
     SCREEN_HABITS,
-    SCREEN_DUNGEON
+    SCREEN_DUNGEON,
+    SCREEN_SD_BACKUP
 };
 
 // App Types

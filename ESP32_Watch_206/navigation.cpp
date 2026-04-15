@@ -45,6 +45,7 @@
 #include "daily_quests.h"
 #include "storyline.h"
 #include "companion.h"
+#include "xp_system.h"
 #include <Arduino.h>
 
 extern Arduino_CO5300 *gfx;
@@ -982,52 +983,8 @@ void openApp(const char* appName) {
         drawSwipeIndicator();
     }
     else if (strcmp(appName, "BACKUP") == 0) {
-        system_state.current_screen = SCREEN_SETTINGS;
-        gfx->fillScreen(RGB565(2, 2, 5));
-        for (int sy = 0; sy < LCD_HEIGHT; sy += 4) {
-            gfx->drawFastHLine(0, sy, LCD_WIDTH, RGB565(4, 4, 7));
-        }
-
-        ThemeColors* theme = getCurrentTheme();
-        gfx->fillRect(0, 0, LCD_WIDTH, 48, RGB565(10, 12, 18));
-        for (int x = 0; x < LCD_WIDTH; x += 8) {
-            gfx->fillRect(x, 46, 6, 3, theme->accent);
-        }
-        gfx->setTextColor(theme->accent);
-        gfx->setTextSize(2);
-        gfx->setCursor(LCD_WIDTH/2 - 36, 14);
-        gfx->print("BACKUP");
-
-        gfx->fillRect(24, 65, LCD_WIDTH - 48, 65, RGB565(12, 14, 20));
-        gfx->drawRect(24, 65, LCD_WIDTH - 48, 65, RGB565(40, 45, 60));
-        gfx->fillRect(24, 65, 5, 5, theme->accent);
-        gfx->setTextColor(RGB565(200, 205, 220));
-        gfx->setTextSize(2);
-        gfx->setCursor(40, 78);
-        gfx->print("Save to SD");
-        gfx->setTextSize(1);
-        gfx->setTextColor(RGB565(80, 85, 100));
-        gfx->setCursor(40, 108);
-        gfx->print("Game progress, settings, themes");
-
-        gfx->fillRect(24, 145, LCD_WIDTH - 48, 65, RGB565(12, 14, 20));
-        gfx->drawRect(24, 145, LCD_WIDTH - 48, 65, RGB565(40, 45, 60));
-        gfx->fillRect(24, 145, 5, 5, theme->accent);
-        gfx->setTextColor(RGB565(200, 205, 220));
-        gfx->setTextSize(2);
-        gfx->setCursor(40, 158);
-        gfx->print("Restore");
-        gfx->setTextSize(1);
-        gfx->setTextColor(RGB565(80, 85, 100));
-        gfx->setCursor(40, 188);
-        gfx->print("Load backup from SD card");
-
-        gfx->setTextSize(1);
-        gfx->setTextColor(RGB565(50, 55, 70));
-        gfx->setCursor(40, 230);
-        gfx->printf("SD Card: %s", system_state.filesystem_available ? "Ready" : "Not found");
-
-        drawSwipeIndicator();
+        system_state.current_screen = SCREEN_SD_BACKUP;
+        showSDBackupMenu();
     }
     else if (strcmp(appName, "ABOUT") == 0) {
         system_state.current_screen = SCREEN_SETTINGS;

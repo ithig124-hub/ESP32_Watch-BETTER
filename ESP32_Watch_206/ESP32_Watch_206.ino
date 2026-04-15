@@ -856,6 +856,19 @@ void handleTouchGesture(TouchGesture& gesture) {
       }
       break;
     
+    case SCREEN_SD_BACKUP:
+      if (gesture.event == TOUCH_TAP) {
+        if (in_backup_list_view) {
+          handleBackupListTouch(gesture.x, gesture.y);
+        } else {
+          handleSDBackupTouch(gesture.x, gesture.y);
+        }
+      } else if (gesture.event == TOUCH_SWIPE_LEFT || gesture.event == TOUCH_SWIPE_DOWN) {
+        system_state.current_screen = SCREEN_SETTINGS;
+        drawSettingsApp();
+      }
+      break;
+    
     default:
       break;
   }

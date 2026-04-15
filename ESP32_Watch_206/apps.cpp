@@ -535,11 +535,13 @@ void handlePDFReaderTouch(TouchGesture& gesture) {
 
 void initSettingsApp() {
   system_state.current_screen = SCREEN_SETTINGS;
+  rebirth_state = REBIRTH_IDLE;
 }
 
 void drawSettingsApp() {
   // ========================================
   // RETRO ANIME SETTINGS - CRT Style (Optimized for 410x502)
+  // Updated: 6 items + Rebirth button + Backup option
   // ========================================
   gfx->fillScreen(RGB565(2, 2, 5));
   for (int y = 0; y < LCD_HEIGHT; y += 4) {
@@ -562,66 +564,52 @@ void drawSettingsApp() {
   gfx->setCursor(LCD_WIDTH/2 - 72, 12);
   gfx->print("SETTINGS");
   
-  // Settings items - 6 items with Power Saver added
-  const char* options[] = {"Brightness", "Theme", "Edit Time", "WiFi", "Power Saver", "About"};
-  const char* subtexts[] = {"Adjust display", "Change character", "Set time manually", "Network setup", 
-                            system_state.power_saver_enabled ? "ON - saving battery" : "OFF - full power",
-                            "Version info"};
+  // Settings items - 6 items with Backup added
+  const char* options[] = {"Brightness", "Theme", "Edit Time", "WiFi", "About", "Backup"};
+  const char* subtexts[] = {"Adjust display", "Change character", "Set time manually",
+                            "Network setup", "Version info", "Save/Load SD"};
   uint16_t icons[] = {RGB565(255, 200, 60), theme->primary, RGB565(100, 255, 150), 
-                      RGB565(80, 180, 255), RGB565(80, 255, 80), RGB565(130, 135, 150)};
+                      RGB565(80, 180, 255), RGB565(130, 135, 150), RGB565(80, 200, 255)};
   
-  int cardH = 65;
-  int cardGap = 6;
-  int startY = headerH + 10;
+  // Smaller cards to fit 6 items + rebirth button
+  int cardH = 58;
+  int cardGap = 5;
+  int startY = headerH + 8;
   
   for (int i = 0; i < 6; i++) {
     int y = startY + i * (cardH + cardGap);
     
-    // Special highlight for power saver when enabled
-    bool isPowerSaver = (i == 4);
-    bool psEnabled = system_state.power_saver_enabled;
-    
-    gfx->fillRect(20, y, LCD_WIDTH - 40, cardH, 
-      (isPowerSaver && psEnabled) ? RGB565(10, 25, 12) : RGB565(12, 14, 20));
-    gfx->drawRect(20, y, LCD_WIDTH - 40, cardH, 
-      (isPowerSaver && psEnabled) ? RGB565(80, 255, 80) : RGB565(40, 45, 60));
+    gfx->fillRect(20, y, LCD_WIDTH - 40, cardH, RGB565(12, 14, 20));
+    gfx->drawRect(20, y, LCD_WIDTH - 40, cardH, RGB565(40, 45, 60));
     gfx->fillRect(20, y, 6, 6, icons[i]);
     gfx->fillRect(LCD_WIDTH - 26, y, 6, 6, icons[i]);
     gfx->fillRect(20, y + 2, 5, cardH - 4, icons[i]);
     
     // Icon pixel square
-    gfx->fillRect(38, y + 14, 36, 36, RGB565(15, 18, 25));
-    gfx->drawRect(38, y + 14, 36, 36, icons[i]);
-    gfx->fillRect(47, y + 23, 18, 18, icons[i]);
+    gfx->fillRect(38, y + 11, 36, 36, RGB565(15, 18, 25));
+    gfx->drawRect(38, y + 11, 36, 36, icons[i]);
+    gfx->fillRect(47, y + 20, 18, 18, icons[i]);
     
     // Text
     gfx->setTextColor(RGB565(200, 205, 220));
     gfx->setTextSize(2);
-    gfx->setCursor(88, y + 12);
+    gfx->setCursor(88, y + 10);
     gfx->print(options[i]);
     
     gfx->setTextSize(1);
-    gfx->setTextColor((isPowerSaver && psEnabled) ? RGB565(80, 255, 80) : RGB565(80, 85, 100));
-    gfx->setCursor(88, y + 38);
+    gfx->setTextColor(RGB565(80, 85, 100));
+    gfx->setCursor(88, y + 34);
     gfx->print(subtexts[i]);
     
-    // Toggle indicator for power saver
-    if (isPowerSaver) {
-      int toggleX = LCD_WIDTH - 70;
-      int toggleY = y + 22;
-      gfx->fillRect(toggleX, toggleY, 40, 20, psEnabled ? RGB565(50, 180, 50) : RGB565(40, 42, 50));
-      gfx->drawRect(toggleX, toggleY, 40, 20, psEnabled ? RGB565(80, 255, 80) : RGB565(60, 65, 80));
-      // Toggle knob
-      int knobX = psEnabled ? toggleX + 22 : toggleX + 2;
-      gfx->fillRect(knobX, toggleY + 2, 16, 16, COLOR_WHITE);
-    } else {
-      // Arrow for other items
-      gfx->setTextColor(RGB565(50, 55, 70));
-      gfx->setTextSize(2);
-      gfx->setCursor(LCD_WIDTH - 50, y + 22);
-      gfx->print(">");
-    }
+    // Arrow
+    gfx->setTextColor(RGB565(50, 55, 70));
+    gfx->setTextSize(2);
+    gfx->setCursor(LCD_WIDTH - 50, y + 20);
+    gfx->print(">");
   }
+  
+  // ADD: Rebirth button at bottom
+  showRebirthButton();
   
   drawSwipeIndicator();
 }
@@ -629,12 +617,27 @@ void drawSettingsApp() {
 void handleSettingsTouch(TouchGesture& gesture) {
   if (gesture.event != TOUCH_TAP) return;
   
+  int x = gesture.x;
   int y = gesture.y;
   
-  int cardH = 65;
-  int cardGap = 6;
+  // Rebirth flow override (must be first!)
+  if (rebirth_state != REBIRTH_IDLE) {
+    handleRebirthTouch(x, y);
+    return;
+  }
+  
+  // Check rebirth button at bottom of screen
+  if (y >= LCD_HEIGHT - 70 && y <= LCD_HEIGHT - 28 &&
+      x >= 30 && x <= LCD_WIDTH - 30) {
+    handleRebirthTouch(x, y);
+    return;
+  }
+  
+  // Settings items (6 items now)
+  int cardH = 58;
+  int cardGap = 5;
   int headerH = 55;
-  int startY = headerH + 10;
+  int startY = headerH + 8;
   
   for (int i = 0; i < 6; i++) {
     int cardY = startY + i * (cardH + cardGap);
@@ -659,16 +662,13 @@ void handleSettingsTouch(TouchGesture& gesture) {
           system_state.current_screen = SCREEN_WIFI_MANAGER;
           drawNetworkListScreen();
           break;
-        case 4:  // Power Saver toggle
-          {
-            extern void togglePowerSaver();
-            togglePowerSaver();
-            drawSettingsApp();
-          }
-          break;
-        case 5:  // About
+        case 4:  // About
           system_state.current_screen = SCREEN_SETTINGS;
           drawAboutScreen();
+          break;
+        case 5:  // Backup (NEW!)
+          system_state.current_screen = SCREEN_SD_BACKUP;
+          showSDBackupMenu();
           break;
       }
       return;
