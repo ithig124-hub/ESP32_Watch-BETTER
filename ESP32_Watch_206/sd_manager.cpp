@@ -46,6 +46,10 @@ bool initSDCard() {
   Serial.println("[SD] Initializing SD Card (SD_MMC)...");
   sdCardStatus = SD_STATUS_INIT_IN_PROGRESS;
   
+  // CRITICAL FIX: Set correct SD_MMC pins before begin() (from Waveshare official)
+  SD_MMC.setPins(SD_MMC_CLK, SD_MMC_CMD, SD_MMC_D0);
+  Serial.printf("[SD] setPins(CLK=%d, CMD=%d, D0=%d)\n", SD_MMC_CLK, SD_MMC_CMD, SD_MMC_D0);
+  
   // Initialize SD_MMC with 1-bit mode for compatibility
   if (!SD_MMC.begin("/sdcard", true)) {  // true = 1-bit mode
     Serial.println("[SD] SD_MMC mount failed!");
@@ -559,6 +563,131 @@ bool loadPlayerDataFromSD() {
 }
 
 // =============================================================================
+// GACHA DATA PERSISTENCE (SD Card)
+// =============================================================================
+
+bool saveGachaDataToSD() {
+  if (!sdCardInitialized) return false;
+  
+  File dataFile = SD_MMC.open(SD_GACHA_DATA, FILE_WRITE);
+  if (!dataFile) {
+    Serial.println("[SD] Failed to write gacha data!");
+    sdHealth.writeErrors++;
+    return false;
+  }
+  
+  dataFile.printf("VERSION=1\n");
+  dataFile.printf("TOTAL_CARDS=%d\n", system_state.gacha_cards_collected);
+  dataFile.printf("PITY=%d\n", system_state.pity_counter);
+  dataFile.printf("PITY_LEGENDARY=%d\n", system_state.pity_legendary_counter);
+  
+  // Save deck
+  dataFile.printf("DECK_SIZE=%d\n", system_state.deck_size);
+  for (int i = 0; i < 5; i++) {
+    dataFile.printf("DECK_%d=%d\n", i, system_state.battle_deck[i]);
+  }
+  
+  dataFile.close();
+  Serial.println("[SD] Gacha data saved");
+  return true;
+}
+
+bool loadGachaDataFromSD() {
+  if (!sdCardInitialized) return false;
+  
+  File dataFile = SD_MMC.open(SD_GACHA_DATA, FILE_READ);
+  if (!dataFile) {
+    Serial.println("[SD] No gacha data found, using defaults");
+    return false;
+  }
+  
+  while (dataFile.available()) {
+    String line = dataFile.readStringUntil('\n');
+    line.trim();
+    
+    int eqPos = line.indexOf('=');
+    if (eqPos < 0) continue;
+    
+    String key = line.substring(0, eqPos);
+    int value = line.substring(eqPos + 1).toInt();
+    
+    if (key == "TOTAL_CARDS") system_state.gacha_cards_collected = value;
+    else if (key == "PITY") system_state.pity_counter = value;
+    else if (key == "PITY_LEGENDARY") system_state.pity_legendary_counter = value;
+    else if (key == "DECK_SIZE") system_state.deck_size = constrain(value, 0, 5);
+    else if (key.startsWith("DECK_")) {
+      int idx = key.substring(5).toInt();
+      if (idx >= 0 && idx < 5) system_state.battle_deck[idx] = value;
+    }
+  }
+  
+  dataFile.close();
+  Serial.println("[SD] Gacha data loaded");
+  return true;
+}
+
+// =============================================================================
+// BOSS DATA PERSISTENCE (SD Card)
+// =============================================================================
+
+bool saveBossDataToSD() {
+  if (!sdCardInitialized) return false;
+  
+  File dataFile = SD_MMC.open(SD_BOSS_DATA, FILE_WRITE);
+  if (!dataFile) {
+    Serial.println("[SD] Failed to write boss data!");
+    sdHealth.writeErrors++;
+    return false;
+  }
+  
+  dataFile.printf("VERSION=1\n");
+  dataFile.printf("BOSSES_DEFEATED=%d\n", system_state.bosses_defeated);
+  
+  // Save individual boss defeat status
+  extern bool bosses_defeated[];
+  for (int i = 0; i < TOTAL_BOSSES; i++) {
+    dataFile.printf("BOSS_%d=%d\n", i, bosses_defeated[i] ? 1 : 0);
+  }
+  
+  dataFile.close();
+  Serial.println("[SD] Boss data saved");
+  return true;
+}
+
+bool loadBossDataFromSD() {
+  if (!sdCardInitialized) return false;
+  
+  File dataFile = SD_MMC.open(SD_BOSS_DATA, FILE_READ);
+  if (!dataFile) {
+    Serial.println("[SD] No boss data found, using defaults");
+    return false;
+  }
+  
+  extern bool bosses_defeated[];
+  
+  while (dataFile.available()) {
+    String line = dataFile.readStringUntil('\n');
+    line.trim();
+    
+    int eqPos = line.indexOf('=');
+    if (eqPos < 0) continue;
+    
+    String key = line.substring(0, eqPos);
+    int value = line.substring(eqPos + 1).toInt();
+    
+    if (key == "BOSSES_DEFEATED") system_state.bosses_defeated = value;
+    else if (key.startsWith("BOSS_")) {
+      int idx = key.substring(5).toInt();
+      if (idx >= 0 && idx < TOTAL_BOSSES) bosses_defeated[idx] = (value != 0);
+    }
+  }
+  
+  dataFile.close();
+  Serial.println("[SD] Boss data loaded");
+  return true;
+}
+
+// =============================================================================
 // BACKUP SYSTEM
 // =============================================================================
 
@@ -597,55 +726,86 @@ bool createBackup(const char* backupName) {
     return false;
   }
   
-  // Copy player data
-  char destPath[128];
-  sprintf(destPath, "%s/player.dat", backupDir);
+  int filesCopied = 0;
   
-  // Read source and write to dest
-  File src = SD_MMC.open(SD_PLAYER_DATA, FILE_READ);
-  File dst = SD_MMC.open(destPath, FILE_WRITE);
-  
-  if (src && dst) {
+  // Helper lambda to copy a file
+  auto copyFile = [&](const char* srcPath, const char* fileName) {
+    char destPath[128];
+    sprintf(destPath, "%s/%s", backupDir, fileName);
+    
+    File src = SD_MMC.open(srcPath, FILE_READ);
+    if (!src) return;
+    
+    File dst = SD_MMC.open(destPath, FILE_WRITE);
+    if (!dst) { src.close(); return; }
+    
     while (src.available()) {
       dst.write(src.read());
     }
-  }
+    
+    src.close();
+    dst.close();
+    filesCopied++;
+    Serial.printf("[SD] Backed up: %s\n", fileName);
+  };
   
-  if (src) src.close();
-  if (dst) dst.close();
+  // Backup all game data files
+  copyFile(SD_PLAYER_DATA, "player.dat");
+  copyFile(SD_GACHA_DATA, "cards.dat");
+  copyFile(SD_BOSS_DATA, "progress.dat");
+  copyFile(SD_WIFI_CONFIG, "config.txt");
   
-  Serial.printf("[SD] Backup created: %s\n", backupName);
+  Serial.printf("[SD] Backup created: %s (%d files)\n", backupName, filesCopied);
   logToBootLog("Backup created");
   
-  return true;
+  return filesCopied > 0;
 }
 
 bool restoreFromBackup(const char* backupName) {
-  char backupPath[128];
-  sprintf(backupPath, "%s/%s/player.dat", SD_BACKUP_PATH, backupName);
+  char backupBase[128];
+  sprintf(backupBase, "%s/%s", SD_BACKUP_PATH, backupName);
   
-  if (!SD_MMC.exists(backupPath)) {
-    Serial.printf("[SD] Backup not found: %s\n", backupName);
-    return false;
-  }
+  int filesRestored = 0;
   
-  // Copy backup to main data file
-  File src = SD_MMC.open(backupPath, FILE_READ);
-  File dst = SD_MMC.open(SD_PLAYER_DATA, FILE_WRITE);
-  
-  if (src && dst) {
+  // Helper lambda to restore a file
+  auto restoreFile = [&](const char* fileName, const char* destPath) {
+    char srcPath[128];
+    sprintf(srcPath, "%s/%s", backupBase, fileName);
+    
+    if (!SD_MMC.exists(srcPath)) return;
+    
+    File src = SD_MMC.open(srcPath, FILE_READ);
+    if (!src) return;
+    
+    File dst = SD_MMC.open(destPath, FILE_WRITE);
+    if (!dst) { src.close(); return; }
+    
     while (src.available()) {
       dst.write(src.read());
     }
+    
+    src.close();
+    dst.close();
+    filesRestored++;
+    Serial.printf("[SD] Restored: %s\n", fileName);
+  };
+  
+  // Restore all game data files
+  restoreFile("player.dat", SD_PLAYER_DATA);
+  restoreFile("cards.dat", SD_GACHA_DATA);
+  restoreFile("progress.dat", SD_BOSS_DATA);
+  
+  if (filesRestored == 0) {
+    Serial.printf("[SD] Backup not found or empty: %s\n", backupName);
+    return false;
   }
   
-  if (src) src.close();
-  if (dst) dst.close();
-  
-  // Reload data
+  // Reload all data into memory
   loadPlayerDataFromSD();
+  loadGachaDataFromSD();
+  loadBossDataFromSD();
   
-  Serial.printf("[SD] Restored from backup: %s\n", backupName);
+  Serial.printf("[SD] Restored from backup: %s (%d files)\n", backupName, filesRestored);
   return true;
 }
 

@@ -107,6 +107,12 @@ bool canNavigate() {
         navState.isTransitioning = false;
     }
 
+    // FIX: Auto-unlock navigation if stuck locked for >2 seconds
+    if (navState.navigationLocked && (millis() - navState.lastNavigationMs > 2000)) {
+        Serial.println("[NAV] Force unlocking stuck navigation lock");
+        navState.navigationLocked = false;
+    }
+
     if (navState.navigationLocked) {
         return false;
     }

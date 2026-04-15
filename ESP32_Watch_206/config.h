@@ -65,10 +65,12 @@
 
 // =============================================================================
 // SD CARD CONFIGURATION (SDMMC) - FOR ESP32-S3-Touch-AMOLED-2.06
+// Pins from Waveshare official pin_config.h
 // =============================================================================
 #define SD_MMC_CLK  2   // SD Clock
-#define SD_MMC_CMD  3   // SD Command
-#define SD_MMC_D0   4   // SD Data0 (1-bit mode minimum)
+#define SD_MMC_CMD  1   // SD Command (FIXED: was 3, official is 1)
+#define SD_MMC_D0   3   // SD Data0 (FIXED: was 4 which conflicts with LCD_SDIO0!)
+#define SD_MMC_CS   17  // SD Chip Select (from Waveshare official)
 
 // =============================================================================
 // AUDIO CONFIGURATION

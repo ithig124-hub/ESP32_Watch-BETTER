@@ -5,6 +5,7 @@
 #include "filesystem.h"
 #include "config.h"
 #include "display.h"
+#include "sd_manager.h"
 #include <SD_MMC.h>
 #include <FS.h>
 
@@ -27,20 +28,37 @@ static bool sd_available = false;
 
 bool initializeFileSystem() {
   Serial.println("[FS] Initializing file system...");
-  Serial.println("[FS] ⚠ SD Card DISABLED - Hardware conflict with QSPI display");
-  Serial.println("[FS] → GPIO 4,5,6,7 are used by display, cannot be shared with SD");
-  Serial.println("[FS] → All data will use NVS (Non-Volatile Storage) instead");
   
-  // SD card cannot be used on this board due to GPIO conflict with QSPI display
-  sd_available = false;
-  system_state.filesystem_available = false;
-  total_music_files = 0;
-  total_pdf_files = 0;
-  system_state.total_mp3_files = 0;
-  system_state.total_pdf_files = 0;
-  
-  Serial.println("[FS] Filesystem init complete (SD disabled, using NVS only)");
-  return false;  // SD not available, but this is OK
+  // FIXED: SD card pins are CLK=2, CMD=1, DATA=3 - NO conflict with QSPI display (GPIO 4,5,6,7)
+  // Initialize SD card via sd_manager which sets correct pins
+  if (initSDCard()) {
+    sd_available = true;
+    system_state.filesystem_available = true;
+    
+    // Count media files
+    total_music_files = scanMusicCount();
+    total_pdf_files = scanPDFCount();
+    system_state.total_mp3_files = total_music_files;
+    system_state.total_pdf_files = total_pdf_files;
+    
+    // Load saved game data from SD
+    loadPlayerDataFromSD();
+    loadGachaDataFromSD();
+    loadBossDataFromSD();
+    
+    Serial.printf("[FS] SD card ready! MP3: %d, PDF: %d\n", total_music_files, total_pdf_files);
+    return true;
+  } else {
+    sd_available = false;
+    system_state.filesystem_available = false;
+    total_music_files = 0;
+    total_pdf_files = 0;
+    system_state.total_mp3_files = 0;
+    system_state.total_pdf_files = 0;
+    
+    Serial.println("[FS] SD card not available - using NVS only");
+    return false;
+  }
 }
 
 // Alias function for initializeFileSystem
@@ -49,7 +67,7 @@ void initFilesystem() {
 }
 
 bool checkSDCardAvailable() {
-  return sd_available;
+  return sd_available || sdCardInitialized;
 }
 
 void handleSDCardRemoval() {

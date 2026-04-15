@@ -14,8 +14,8 @@
 // CONSTANTS
 // =============================================================================
 
-// Boss Rush
-#define TOTAL_BOSSES          20
+// Boss Rush (7 tiers x 5 bosses = 35 total)
+#define TOTAL_BOSSES          35
 #define MAX_POTIONS           3
 #define CRITICAL_CHANCE       15
 #define CRITICAL_MULTIPLIER   2.0
@@ -201,8 +201,7 @@ struct BossData {
   int defense;
   int level;
   bool defeated;
-  int reward_gems;
-  int gem_reward;
+  int gem_reward;    // FIXED: removed duplicate reward_gems field
 };
 
 // Gacha card

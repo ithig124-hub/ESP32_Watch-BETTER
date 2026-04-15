@@ -20,6 +20,7 @@
 #include "navigation.h"
 #include "xp_system.h"  // FUSION OS: XP rewards
 #include <Arduino.h>
+#include <Preferences.h>
 
 extern Arduino_CO5300 *gfx;
 extern SystemState system_state;
@@ -178,11 +179,50 @@ void initBossRush() {
 }
 
 void saveBossProgress() {
-    Serial.println("[BossRush] Progress saved");
+    // Save boss defeat status to NVS
+    Preferences bossPrefs;
+    bossPrefs.begin("bossrush", false);
+    bossPrefs.putInt("defeated", getBossesDefeated());
+    
+    // Pack boss defeat flags into bytes (35 bosses = 5 bytes)
+    for (int i = 0; i < TOTAL_BOSSES; i++) {
+        char key[12];
+        snprintf(key, sizeof(key), "b%d", i);
+        bossPrefs.putBool(key, bosses_defeated[i]);
+    }
+    bossPrefs.end();
+    
+    // Also save to SD card if available
+    extern bool sdCardInitialized;
+    if (sdCardInitialized) {
+        extern bool saveBossDataToSD();
+        saveBossDataToSD();
+    }
+    
+    Serial.println("[BossRush] Progress saved (NVS + SD)");
 }
 
 bool loadBossProgress() {
-    return false;
+    Preferences bossPrefs;
+    bossPrefs.begin("bossrush", true);  // read-only
+    
+    int saved_defeated = bossPrefs.getInt("defeated", -1);
+    if (saved_defeated < 0) {
+        bossPrefs.end();
+        return false;  // No save data found
+    }
+    
+    for (int i = 0; i < TOTAL_BOSSES; i++) {
+        char key[12];
+        snprintf(key, sizeof(key), "b%d", i);
+        bosses_defeated[i] = bossPrefs.getBool(key, false);
+    }
+    
+    system_state.bosses_defeated = getBossesDefeated();
+    bossPrefs.end();
+    
+    Serial.printf("[BossRush] Progress loaded: %d bosses defeated\n", system_state.bosses_defeated);
+    return true;
 }
 
 BossData* getBoss(int index) {

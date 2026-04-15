@@ -742,7 +742,12 @@ void handleTouchGesture(TouchGesture& gesture) {
       break;
     
     case SCREEN_SETTINGS:
-      handleSettingsTouch(gesture);
+      if (gesture.event == TOUCH_SWIPE_LEFT || gesture.event == TOUCH_SWIPE_DOWN) {
+        // Allow swiping back from settings/sub-screens to app grid
+        returnToAppGrid();
+      } else {
+        handleSettingsTouch(gesture);
+      }
       break;
     
     case SCREEN_THEME_SELECTOR:
@@ -750,11 +755,19 @@ void handleTouchGesture(TouchGesture& gesture) {
       break;
     
     case SCREEN_MUSIC:
-      handleMusicTouch(gesture);
+      if (gesture.event == TOUCH_SWIPE_LEFT || gesture.event == TOUCH_SWIPE_DOWN) {
+        returnToAppGrid();
+      } else {
+        handleMusicTouch(gesture);
+      }
       break;
     
     case SCREEN_WIFI_MANAGER:
-      handleWifiManagerTouch(gesture);
+      if (gesture.event == TOUCH_SWIPE_LEFT || gesture.event == TOUCH_SWIPE_DOWN) {
+        returnToAppGrid();
+      } else {
+        handleWifiManagerTouch(gesture);
+      }
       break;
     
     case SCREEN_COLLECTION:
@@ -774,35 +787,67 @@ void handleTouchGesture(TouchGesture& gesture) {
       break;
     
     case SCREEN_FILE_BROWSER:
-      handleFileBrowserTouch(gesture);
+      if (gesture.event == TOUCH_SWIPE_LEFT || gesture.event == TOUCH_SWIPE_DOWN) {
+        returnToAppGrid();
+      } else {
+        handleFileBrowserTouch(gesture);
+      }
       break;
     
     case SCREEN_CALCULATOR:
-      handleCalculatorTouch(gesture);
+      if (gesture.event == TOUCH_SWIPE_LEFT || gesture.event == TOUCH_SWIPE_DOWN) {
+        returnToAppGrid();
+      } else {
+        handleCalculatorTouch(gesture);
+      }
       break;
     
     case SCREEN_FLASHLIGHT:
-      handleFlashlightTouch(gesture);
+      if (gesture.event == TOUCH_SWIPE_LEFT || gesture.event == TOUCH_SWIPE_DOWN) {
+        returnToAppGrid();
+      } else {
+        handleFlashlightTouch(gesture);
+      }
       break;
     
     case SCREEN_TIMER:
-      handleTimerTouch(gesture);
+      if (gesture.event == TOUCH_SWIPE_LEFT || gesture.event == TOUCH_SWIPE_DOWN) {
+        returnToAppGrid();
+      } else {
+        handleTimerTouch(gesture);
+      }
       break;
     
     case SCREEN_CONVERTER:
-      handleConverterTouch(gesture);
+      if (gesture.event == TOUCH_SWIPE_LEFT || gesture.event == TOUCH_SWIPE_DOWN) {
+        returnToAppGrid();
+      } else {
+        handleConverterTouch(gesture);
+      }
       break;
     
     case SCREEN_ACHIEVEMENTS:
-      handleAchievementsTouch(gesture);
+      if (gesture.event == TOUCH_SWIPE_LEFT || gesture.event == TOUCH_SWIPE_DOWN) {
+        returnToAppGrid();
+      } else {
+        handleAchievementsTouch(gesture);
+      }
       break;
     
     case SCREEN_SHOP:
-      handleShopTouch(gesture);
+      if (gesture.event == TOUCH_SWIPE_LEFT || gesture.event == TOUCH_SWIPE_DOWN) {
+        returnToAppGrid();
+      } else {
+        handleShopTouch(gesture);
+      }
       break;
     
     case SCREEN_GALLERY:
-      handleGalleryTouch(gesture);
+      if (gesture.event == TOUCH_SWIPE_LEFT || gesture.event == TOUCH_SWIPE_DOWN) {
+        returnToAppGrid();
+      } else {
+        handleGalleryTouch(gesture);
+      }
       break;
 
     case SCREEN_STORY_MENU:
@@ -1039,5 +1084,13 @@ void saveAllData() {
   saveXPData();
   saveStepsData();
   saveStoryProgress();
-  Serial.println("[SAVE] All data saved (including story progress)");
+  
+  // Also save to SD card if available
+  if (sdCardInitialized) {
+    savePlayerDataToSD();
+    saveGachaDataToSD();
+    saveBossDataToSD();
+  }
+  
+  Serial.println("[SAVE] All data saved (NVS + SD card)");
 }
